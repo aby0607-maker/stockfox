@@ -40,7 +40,7 @@ interface AppState {
   // Analysis mode (DFY = Done For You, DIY = Do It Yourself)
   analysisMode: AnalysisMode
 
-  // Demo mode for investor presentations (Ankit profile only)
+  // Demo mode for investor presentations (available for all profiles)
   demoMode: boolean
 
   // Alerts
