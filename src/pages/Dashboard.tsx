@@ -60,8 +60,7 @@ export function Dashboard() {
 
   // Demo mode spotlight state
   const spotlights = getSpotlightsForLocation('dashboard')
-  const isAnkitProfile = currentProfile?.id === 'ankit'
-  const showDemoSpotlights = demoMode && isAnkitProfile
+  const showDemoSpotlights = demoMode
 
   useEffect(() => {
     if (!currentProfile) return
@@ -139,11 +138,10 @@ export function Dashboard() {
           )}
         </div>
 
-        {/* Demo Mode Toggle - Only for Ankit */}
+        {/* Demo Mode Toggle */}
         <DemoModeToggle
           isEnabled={demoMode}
           onToggle={toggleDemoMode}
-          isAnkitProfile={isAnkitProfile}
         />
       </motion.div>
 

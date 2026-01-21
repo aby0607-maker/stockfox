@@ -561,8 +561,7 @@ export function StockAnalysis() {
 
   // Demo mode spotlight state
   const spotlights = getSpotlightsForLocation('stock-analysis')
-  const isAnkitProfile = currentProfile?.id === 'ankit'
-  const showDemoSpotlights = demoMode && isAnkitProfile
+  const showDemoSpotlights = demoMode
 
   useEffect(() => {
     if (!ticker || !currentProfile) return
@@ -655,11 +654,10 @@ export function StockAnalysis() {
           Back
         </Link>
         <div className="flex items-center gap-3">
-          {/* Demo Mode Toggle - Only for Ankit */}
+          {/* Demo Mode Toggle */}
           <DemoModeToggle
             isEnabled={demoMode}
             onToggle={toggleDemoMode}
-            isAnkitProfile={isAnkitProfile}
           />
           <div data-spotlight="mode-toggle">
             <AnalysisModeToggle />

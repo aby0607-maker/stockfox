@@ -206,12 +206,9 @@ export function FeatureSpotlight({
 interface DemoModeToggleProps {
   isEnabled: boolean
   onToggle: () => void
-  isAnkitProfile: boolean
 }
 
-export function DemoModeToggle({ isEnabled, onToggle, isAnkitProfile }: DemoModeToggleProps) {
-  if (!isAnkitProfile) return null
-
+export function DemoModeToggle({ isEnabled, onToggle }: DemoModeToggleProps) {
   return (
     <motion.button
       initial={{ opacity: 0, scale: 0.9 }}

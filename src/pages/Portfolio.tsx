@@ -62,7 +62,6 @@ interface HealthMetric {
 export function Portfolio() {
   const navigate = useNavigate()
   const { currentProfile, demoMode, toggleDemoMode } = useAppStore()
-  const isAnkitProfile = currentProfile?.id === 'ankit'
   const spotlights = useMemo(() => getSpotlightsForLocation('portfolio'), [])
 
   if (!currentProfile) return null
@@ -190,7 +189,7 @@ export function Portfolio() {
             Track your holdings with StockFox insights
           </p>
         </div>
-        <DemoModeToggle isEnabled={demoMode} onToggle={toggleDemoMode} isAnkitProfile={isAnkitProfile} />
+        <DemoModeToggle isEnabled={demoMode} onToggle={toggleDemoMode} />
       </motion.div>
 
       {/* Portfolio Summary Card */}
