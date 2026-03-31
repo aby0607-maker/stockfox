@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite build:*)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
