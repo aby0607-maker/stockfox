@@ -5,12 +5,13 @@ import { motion } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
 import { getStockBySymbol, getVerdictForStock } from '@/data'
+import { getVerdictV2 } from '@/data/verdictsV2'
 import { ScoreRing } from '@/components/charts'
 import { EnhancedMetricCard } from '@/components/analysis'
 import { Skeleton } from '@/components/ui'
 import { DemoModeToggle, SpotlightTour } from '@/components/demo'
 import { getSpotlightsForLocation } from '@/data/featureSpotlights'
-import type { SegmentScore, Metric } from '@/types'
+import type { SegmentScore, Metric, SegmentVerdictV2 } from '@/types'
 
 // Get score color for dark mode
 function getScoreColorClass(score: number): string {
@@ -177,6 +178,7 @@ export function SegmentDeepDive() {
   const { currentProfile, analysisMode, demoMode, toggleDemoMode } = useAppStore()
   const [isLoading, setIsLoading] = useState(true)
   const [segment, setSegment] = useState<SegmentScore | null>(null)
+  const [segmentV2, setSegmentV2] = useState<SegmentVerdictV2 | null>(null)
   const [stockName, setStockName] = useState('')
 
   const isDIY = analysisMode === 'diy'
@@ -197,6 +199,22 @@ export function SegmentDeepDive() {
         setStockName(stock.name)
         const foundSegment = verdict.segments.find(s => s.id === segmentId)
         setSegment(foundSegment || null)
+      }
+
+      // Also try to find V2 segment data
+      const verdictV2 = getVerdictV2(ticker)
+      if (verdictV2) {
+        for (const pillar of verdictV2.pillars) {
+          const found = pillar.segments.find(s => s.id === segmentId)
+          if (found) {
+            setSegmentV2(found)
+            // If V1 segment not found, create a compatible object from V2
+            if (!segment && stock) {
+              setStockName(stock.name)
+            }
+            break
+          }
+        }
       }
 
       setIsLoading(false)
@@ -231,8 +249,8 @@ export function SegmentDeepDive() {
     )
   }
 
-  // Segment not found
-  if (!segment) {
+  // Segment not found (check both V1 and V2)
+  if (!segment && !segmentV2) {
     return (
       <div className="space-y-4 animate-fade-in">
         <button
@@ -251,6 +269,125 @@ export function SegmentDeepDive() {
       </div>
     )
   }
+
+  // V2-only segment (no V1 equivalent) — render simplified view
+  if (!segment && segmentV2) {
+    const v2Band = segmentV2.score != null
+      ? (segmentV2.score >= 80 ? 'text-success-400' : segmentV2.score >= 60 ? 'text-teal-400' : segmentV2.score >= 40 ? 'text-warning-400' : 'text-destructive-400')
+      : 'text-neutral-400'
+
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <motion.div
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center justify-between"
+        >
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Analysis
+          </button>
+          <DemoModeToggle isEnabled={demoMode} onToggle={toggleDemoMode} />
+        </motion.div>
+
+        {/* V2 Segment Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-dark-800/60 backdrop-blur-sm rounded-2xl border border-white/5 p-5"
+        >
+          <div className="flex items-start gap-4">
+            {segmentV2.score != null && (
+              <div className="flex-shrink-0 text-center">
+                <span className={cn('text-3xl font-bold', v2Band)}>
+                  {Math.round(segmentV2.score)}
+                </span>
+                <span className="text-sm text-neutral-500 block">/100</span>
+              </div>
+            )}
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-white">{segmentV2.name}</h1>
+              {segmentV2.scoringType === 'context' && (
+                <span className="inline-block px-2 py-0.5 rounded text-[10px] text-neutral-500 bg-dark-700 mt-1">
+                  CONTEXT — Not Scored
+                </span>
+              )}
+              <p className="text-sm text-neutral-300 leading-relaxed mt-2">
+                {segmentV2.interpretation}
+              </p>
+              {segmentV2.quickInsight && (
+                <p className="text-xs text-neutral-500 mt-1">{segmentV2.quickInsight}</p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* V2 Metrics */}
+        {segmentV2.metrics && segmentV2.metrics.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-white px-1">Metrics</h3>
+            {segmentV2.metrics.map((metric) => (
+              <div
+                key={metric.id}
+                className="bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/5 p-4"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-white">{metric.name}</span>
+                  <span className={cn('text-sm font-bold', v2Band)}>
+                    {metric.displayValue}
+                  </span>
+                </div>
+                {metric.tooltipSimple && (
+                  <p className="text-xs text-neutral-400">{metric.tooltipSimple}</p>
+                )}
+              </div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Sub-classifications */}
+        {segmentV2.subClassifications && segmentV2.subClassifications.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-white px-1">Breakdown</h3>
+            {segmentV2.subClassifications.map((sub) => (
+              <div
+                key={sub.id}
+                className="bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/5 p-4"
+              >
+                <span className="text-sm font-medium text-white">{sub.name}</span>
+                {sub.metrics && sub.metrics.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {sub.metrics.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between text-xs">
+                        <span className="text-neutral-400">{m.name}</span>
+                        <span className="text-white font-medium">{m.displayValue}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </div>
+    )
+  }
+
+  // V1 rendering path (original) — segment is guaranteed non-null below
+  if (!segment) return null
 
   const scoreDiff = segment.sectorAvg ? segment.score - segment.sectorAvg : 0
   const percentile = segment.sectorRank && segment.sectorTotal

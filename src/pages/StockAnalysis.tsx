@@ -6,13 +6,15 @@ import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
 import { getStockBySymbol, getVerdictForStock } from '@/data'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
-import { ScoreGauge, VerdictBadge } from '@/components/ui'
+// V1 UI imports kept for evidence modals (ScoreGauge, VerdictBadge removed — replaced by V2 components)
 import { SegmentBar, DIYSegmentList } from '@/components/charts'
 import { EvidenceChainPanel, KeyMetricsCard } from '@/components/analysis'
 import { GuidedAnalysisModal, ReflectionPromptModal } from '@/components/learning'
 import { DemoModeToggle, SpotlightTour } from '@/components/demo'
 import { getSpotlightsForLocation } from '@/data/featureSpotlights'
-import type { Stock, StockVerdict, SegmentScore, RedFlagSeverity } from '@/types'
+import { OverallVerdictCard, PillarCard, PillarDrillDown, QualFactorTab, NewsEventSection } from '@/components/scoring'
+import { getVerdictV2 } from '@/data/verdictsV2'
+import type { Stock, StockVerdict, SegmentScore, RedFlagSeverity, StockVerdictV2, VerdictPillar } from '@/types'
 
 // Skeleton components for loading state
 function SkeletonBlock({ className }: { className?: string }) {
@@ -542,8 +544,13 @@ export function StockAnalysis() {
   const [isLoading, setIsLoading] = useState(true)
   const [stock, setStock] = useState<Stock | null>(null)
   const [verdict, setVerdict] = useState<StockVerdict | null>(null)
+  const [verdictV2, setVerdictV2] = useState<StockVerdictV2 | null>(null)
   const [news, setNews] = useState<NewsItem[]>([])
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([])
+
+  // V2 pillar navigation state
+  const [selectedPillar, setSelectedPillar] = useState<VerdictPillar | null>(null)
+  const [selectedFactorId, setSelectedFactorId] = useState<string | null>(null)
 
   // Progressive disclosure state - check URL for initial state
   const [isFullView, setIsFullView] = useState(() => searchParams.get('view') === 'full')
@@ -571,11 +578,15 @@ export function StockAnalysis() {
       const stockData = getStockBySymbol(ticker)
       const verdictData = getVerdictForStock(ticker, currentProfile.id)
       const newsData = getNewsForStock(ticker)
+      const verdictV2Data = getVerdictV2(ticker)
 
       setStock(stockData || null)
       setVerdict(verdictData || null)
+      setVerdictV2(verdictV2Data || null)
       setNews(newsData.slice(0, 5))
       setUpcomingEvents(getUpcomingEvents(ticker))
+      setSelectedPillar(null)
+      setSelectedFactorId(null)
       setIsLoading(false)
     }, 400)
 
@@ -733,74 +744,13 @@ export function StockAnalysis() {
           </div>
         </div>
 
-        {/* HERO: Score + Verdict - DFY ONLY */}
-        {analysisMode === 'dfy' && (
-          <div className="p-5 pt-0">
-            <div className="rounded-2xl bg-dark-700/50 p-5" data-spotlight="hero-card">
-              <div className="flex items-center gap-5">
-                {/* Score Gauge */}
-                <div data-spotlight="overall-score">
-                  <ScoreGauge score={verdict.overallScore} size="lg" />
-                </div>
-
-                {/* Verdict Info */}
-                <div className="flex-1">
-                  <div data-spotlight="verdict-badge">
-                    <VerdictBadge verdict={verdict.verdict} size="lg" />
-                  </div>
-                  <p className="text-sm text-neutral-400 mt-3 leading-relaxed">
-                    {verdict.verdictRationale}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-neutral-500">
-                    <span className="px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-400 font-medium">
-                      {currentProfile.investmentThesis.toUpperCase()} Profile
-                    </span>
-                    <span>•</span>
-                    <span>#{verdict.peerRank} of {verdict.peerTotal} in {verdict.peerGroup || 'Peers'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Evidence Summary - How We Arrived at This Score */}
-              <motion.div
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10"
-                data-spotlight="evidence-chain"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4 text-primary-400" />
-                  <span className="text-xs font-medium text-white">How We Arrived at This Score</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-[10px]">
-                  <div className="p-2 rounded-lg bg-dark-700/50">
-                    <span className="text-neutral-500 block mb-0.5">Data Sources</span>
-                    <span className="text-white font-medium">
-                      {verdict.segments.reduce((count, s) => count + (s.metrics?.length || 0), 0)} metrics
-                    </span>
-                    <span className="text-neutral-400 block">from Q3 FY25 filings</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-dark-700/50">
-                    <span className="text-neutral-500 block mb-0.5">Methodology</span>
-                    <span className="text-white font-medium">11 Segments</span>
-                    <span className="text-neutral-400 block">{currentProfile.investmentThesis} weights</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-dark-700/50">
-                    <span className="text-neutral-500 block mb-0.5">Peer Ranking</span>
-                    <span className="text-white font-medium">#{verdict.peerRank} of {verdict.peerTotal}</span>
-                    <span className="text-neutral-400 block">{verdict.peerGroup}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setOverallEvidenceModalOpen(true)}
-                  className="mt-2 w-full py-1.5 text-[10px] text-primary-400 hover:text-primary-300 transition-colors flex items-center justify-center gap-1"
-                >
-                  View Full Evidence Chain
-                  <ChevronRight className="w-3 h-3" />
-                </button>
-              </motion.div>
-            </div>
+        {/* HERO: V2 Overall Verdict - DFY ONLY */}
+        {analysisMode === 'dfy' && verdictV2 && (
+          <div className="p-5 pt-0" data-spotlight="hero-card">
+            <OverallVerdictCard
+              verdict={verdictV2}
+              profileName={currentProfile.investmentThesis}
+            />
           </div>
         )}
 
@@ -864,24 +814,106 @@ export function StockAnalysis() {
         </Link>
       </motion.div>
 
-      {/* ============== PROS/CONS (Quick View) - DFY ONLY ============== */}
-      {analysisMode === 'dfy' && (
+      {/* ============== V2: 3-PILLAR CARDS + DRILL-DOWN ============== */}
+      {analysisMode === 'dfy' && verdictV2 && (
+        <AnimatePresence mode="wait">
+          {!selectedPillar ? (
+            /* Pillar overview: 3 cards */
+            <motion.div
+              key="pillar-overview"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="space-y-3"
+            >
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  Analysis Pillars
+                </span>
+                <span className="text-[10px] text-neutral-600">
+                  {verdictV2.pillars.reduce((n, p) => n + p.segments.length, 0)} total segments
+                </span>
+              </div>
+              {verdictV2.pillars.map((pillar, i) => (
+                <PillarCard
+                  key={pillar.pillar}
+                  pillar={pillar}
+                  delay={i * 0.08}
+                  onClick={() => setSelectedPillar(pillar.pillar)}
+                />
+              ))}
+            </motion.div>
+          ) : selectedFactorId ? (
+            /* Qual Factor deep-dive (Layer 3) */
+            <motion.div
+              key={`factor-${selectedFactorId}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {(() => {
+                const pillar = verdictV2.pillars.find(p => p.pillar === selectedPillar)
+                const factor = pillar?.segments.find(s => s.id === selectedFactorId)
+                if (!factor) return null
+                return (
+                  <QualFactorTab
+                    factor={factor}
+                    onBack={() => setSelectedFactorId(null)}
+                  />
+                )
+              })()}
+            </motion.div>
+          ) : (
+            /* Pillar drill-down (Layer 2) */
+            <motion.div
+              key={`pillar-${selectedPillar}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {(() => {
+                const pillar = verdictV2.pillars.find(p => p.pillar === selectedPillar)
+                if (!pillar) return null
+                return (
+                  <PillarDrillDown
+                    pillar={pillar}
+                    onBack={() => setSelectedPillar(null)}
+                    onSegmentClick={(segmentId) => {
+                      // If it's a qual factor with signal groups, show factor tab
+                      const seg = pillar.segments.find(s => s.id === segmentId)
+                      if (seg?.signalGroups && seg.signalGroups.length > 0) {
+                        setSelectedFactorId(segmentId)
+                      } else {
+                        // Navigate to segment deep-dive page
+                        window.location.href = `/segment/${ticker}/${segmentId}`
+                      }
+                    }}
+                  />
+                )
+              })()}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+
+      {/* ============== PROS/CONS (Quick View) - DFY ONLY, hidden during pillar drill-down ============== */}
+      {analysisMode === 'dfy' && !selectedPillar && (
         <div data-spotlight="pros-cons">
           <ProsCons verdict={verdict} />
         </div>
       )}
 
       {/* ============== RED FLAG SCANNER (DFY) / KEY METRICS (DIY) - After Strengths & Weaknesses ============== */}
-      {analysisMode === 'dfy' ? (
+      {analysisMode === 'dfy' && !selectedPillar ? (
         <div data-spotlight="red-flag-scanner">
           <RedFlagScanner
             verdict={verdict}
             news={news}
           />
         </div>
-      ) : (
+      ) : analysisMode === 'diy' ? (
         <KeyMetricsCard verdict={verdict} />
-      )}
+      ) : null}
 
       {/* ============== FULL ANALYSIS TOGGLE (below Pros/Cons) ============== */}
       <motion.button
@@ -1041,8 +1073,15 @@ export function StockAnalysis() {
         </Link>
       </motion.div>
 
-      {/* ============== NEWS SECTION - 2 Column Grid with Dropdown ============== */}
-      {news.length > 0 && (
+      {/* ============== NEWS & EVENTS SECTION (V2) ============== */}
+      {verdictV2 && verdictV2.newsEvents.length > 0 && !selectedPillar && (
+        <div data-spotlight="news-section">
+          <NewsEventSection events={verdictV2.newsEvents} />
+        </div>
+      )}
+
+      {/* Fallback: V1 news if no V2 data */}
+      {!verdictV2 && news.length > 0 && (
         <div data-spotlight="news-section">
           <NewsSection news={news} />
         </div>
