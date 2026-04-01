@@ -257,3 +257,189 @@ export function getTrendColor(trend: 'up' | 'down' | 'flat' | 'improving' | 'dec
       return 'text-neutral-400'
   }
 }
+
+// ============================================================
+// V2 SCORING — 0-100 Scale
+// ============================================================
+
+import type { ScoreBandV2, OverallVerdictLabel } from '@/types'
+
+// V2 Pillar/Segment/Factor score band thresholds (0-100)
+export const SCORE_THRESHOLDS_V2 = {
+  STRONG: 80,
+  GOOD: 60,
+  MIXED: 40,
+} as const
+
+// V2 Overall verdict thresholds (same scale, different labels)
+export const OVERALL_VERDICT_THRESHOLDS = {
+  STRONG_BUY: 80,
+  BUY: 60,
+  HOLD: 40,
+} as const
+
+export type ScoreBandTypeV2 = 'strong' | 'good' | 'mixed' | 'weak' | 'suppressed'
+
+export interface ScoreBandInfoV2 {
+  band: ScoreBandTypeV2
+  label: string
+  shortLabel: string
+  colorClass: string
+  bgClass: string
+  borderClass: string
+  hexColor: string
+  gradientColors: [string, string]
+}
+
+/**
+ * Get V2 score band info for pillar/segment/factor scores (0-100)
+ */
+export function getScoreBandV2(score: number, isSuppressed?: boolean): ScoreBandInfoV2 {
+  if (isSuppressed) {
+    return {
+      band: 'suppressed',
+      label: 'Suppressed',
+      shortLabel: 'RED FLAG',
+      colorClass: 'text-destructive-400',
+      bgClass: 'bg-destructive-500/20',
+      borderClass: 'border-destructive-500/40',
+      hexColor: '#ef4444',
+      gradientColors: ['#ef4444', '#dc2626'],
+    }
+  }
+  if (score >= SCORE_THRESHOLDS_V2.STRONG) {
+    return {
+      band: 'strong',
+      label: 'Strong',
+      shortLabel: 'STRONG',
+      colorClass: 'text-success-400',
+      bgClass: 'bg-success-500/10',
+      borderClass: 'border-success-500/30',
+      hexColor: '#00C489',
+      gradientColors: ['#00C489', '#22c55e'],
+    }
+  }
+  if (score >= SCORE_THRESHOLDS_V2.GOOD) {
+    return {
+      band: 'good',
+      label: 'Good',
+      shortLabel: 'GOOD',
+      colorClass: 'text-teal-400',
+      bgClass: 'bg-teal-500/10',
+      borderClass: 'border-teal-500/30',
+      hexColor: '#69E2B0',
+      gradientColors: ['#69E2B0', '#2dd4bf'],
+    }
+  }
+  if (score >= SCORE_THRESHOLDS_V2.MIXED) {
+    return {
+      band: 'mixed',
+      label: 'Mixed',
+      shortLabel: 'MIXED',
+      colorClass: 'text-warning-400',
+      bgClass: 'bg-warning-500/10',
+      borderClass: 'border-warning-500/30',
+      hexColor: '#FC6200',
+      gradientColors: ['#FC6200', '#fbbf24'],
+    }
+  }
+  return {
+    band: 'weak',
+    label: 'Weak',
+    shortLabel: 'WEAK',
+    colorClass: 'text-destructive-400',
+    bgClass: 'bg-destructive-500/10',
+    borderClass: 'border-destructive-500/30',
+    hexColor: '#f87171',
+    gradientColors: ['#f87171', '#ef4444'],
+  }
+}
+
+/**
+ * Get the ScoreBandV2 enum value for a score
+ */
+export function getScoreBandEnum(score: number, isSuppressed?: boolean): ScoreBandV2 {
+  return getScoreBandV2(score, isSuppressed).band
+}
+
+/**
+ * Get overall verdict label and styling (independent of pillar scores)
+ */
+export function getOverallVerdict(score: number): {
+  verdict: OverallVerdictLabel
+  label: string
+  colorClass: string
+  bgClass: string
+  borderClass: string
+} {
+  if (score >= OVERALL_VERDICT_THRESHOLDS.STRONG_BUY) {
+    return {
+      verdict: 'strong_buy',
+      label: 'Strong Buy',
+      colorClass: 'text-success-400',
+      bgClass: 'bg-success-500/15',
+      borderClass: 'border-success-500/30',
+    }
+  }
+  if (score >= OVERALL_VERDICT_THRESHOLDS.BUY) {
+    return {
+      verdict: 'buy',
+      label: 'Buy',
+      colorClass: 'text-teal-400',
+      bgClass: 'bg-teal-500/15',
+      borderClass: 'border-teal-500/30',
+    }
+  }
+  if (score >= OVERALL_VERDICT_THRESHOLDS.HOLD) {
+    return {
+      verdict: 'hold',
+      label: 'Hold',
+      colorClass: 'text-warning-400',
+      bgClass: 'bg-warning-500/15',
+      borderClass: 'border-warning-500/30',
+    }
+  }
+  return {
+    verdict: 'sell',
+    label: 'Sell',
+    colorClass: 'text-destructive-400',
+    bgClass: 'bg-destructive-500/15',
+    borderClass: 'border-destructive-500/30',
+  }
+}
+
+/**
+ * Get V2 score glow effect (0-100 scale)
+ */
+export function getScoreGlowV2(score: number): string {
+  if (score >= SCORE_THRESHOLDS_V2.STRONG) {
+    return 'drop-shadow-[0_0_12px_rgba(0,196,137,0.6)]'
+  }
+  if (score >= SCORE_THRESHOLDS_V2.GOOD) {
+    return 'drop-shadow-[0_0_12px_rgba(105,226,176,0.5)]'
+  }
+  if (score >= SCORE_THRESHOLDS_V2.MIXED) {
+    return 'drop-shadow-[0_0_10px_rgba(252,98,0,0.5)]'
+  }
+  return 'drop-shadow-[0_0_10px_rgba(248,113,113,0.5)]'
+}
+
+/**
+ * Map factor-specific labels (allows per-factor overrides if needed)
+ */
+export function getFactorLabel(
+  band: ScoreBandV2,
+  customLabels?: Record<string, string>
+): string {
+  if (customLabels && customLabels[band]) {
+    return customLabels[band]
+  }
+  const defaults: Record<ScoreBandV2, string> = {
+    strong: 'STRONG',
+    good: 'GOOD',
+    mixed: 'MIXED',
+    weak: 'WEAK',
+    suppressed: 'RED FLAG',
+  }
+  return defaults[band]
+}

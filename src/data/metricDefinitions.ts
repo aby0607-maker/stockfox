@@ -1285,8 +1285,22 @@ export function getMetricDefinition(metricId: string): MetricDefinition | undefi
   return allMetricDefinitions.find(m => m.id === metricId)
 }
 
-// Helper function to get all metrics for a segment
+// Helper function to get all metrics for a segment (supports V2 merged segments)
 export function getMetricsForSegment(segmentId: string): MetricDefinition[] {
+  // V2 financial_health merges 3 old segments
+  if (segmentId === 'financial_health') {
+    return allMetricDefinitions.filter(m =>
+      m.segment === 'financial_ratios' || m.segment === 'income_statement' || m.segment === 'balance_sheet'
+    )
+  }
+  // V2 performance = old price_volume
+  if (segmentId === 'performance') {
+    return allMetricDefinitions.filter(m => m.segment === 'price_volume')
+  }
+  // V2 institutional_signals = old broker_ratings + ownership
+  if (segmentId === 'institutional_signals') {
+    return allMetricDefinitions.filter(m => m.segment === 'broker_ratings' || m.segment === 'ownership')
+  }
   return allMetricDefinitions.filter(m => m.segment === segmentId)
 }
 
@@ -1314,3 +1328,143 @@ export function getMetricStatus(
 }
 
 console.log(`StockFox Metrics: ${allMetricDefinitions.length} metrics across ${segmentDefinitions.length} segments`)
+
+// ============================================================
+// V2 SEGMENT DEFINITIONS — Quant + Qual + Risk Hierarchy
+// ============================================================
+
+import type { VerdictPillar, SegmentScoringType } from '@/types'
+
+export interface SegmentDefinitionV2 {
+  id: string
+  name: string
+  pillar: VerdictPillar
+  scoringType: SegmentScoringType
+  description: string
+  v1Sources: string[]  // Which V1 segments feed into this
+}
+
+export const QUANT_SEGMENTS: SegmentDefinitionV2[] = [
+  {
+    id: 'profitability', name: 'Profitability', pillar: 'quant', scoringType: 'scored',
+    description: 'How efficiently the company generates profits — ROCE, ROE, margins',
+    v1Sources: ['profitability'],
+  },
+  {
+    id: 'growth', name: 'Growth', pillar: 'quant', scoringType: 'scored',
+    description: 'Revenue, earnings, and cash flow trajectory with TAM runway',
+    v1Sources: ['growth'],
+  },
+  {
+    id: 'valuation', name: 'Valuation', pillar: 'quant', scoringType: 'scored',
+    description: 'Is the stock fairly priced? P/E, P/B, EV/EBITDA, DCF intrinsic value',
+    v1Sources: ['valuation'],
+  },
+  {
+    id: 'financial_health', name: 'Financial Health', pillar: 'quant', scoringType: 'scored',
+    description: 'Consolidated financial strength — liquidity, leverage, efficiency, cash flows',
+    v1Sources: ['financial_ratios', 'income_statement', 'balance_sheet'],
+  },
+  {
+    id: 'technical', name: 'Technical Indicators', pillar: 'quant', scoringType: 'scored',
+    description: 'Long-term technical signals — RSI, MACD, moving averages, momentum',
+    v1Sources: ['technical'],
+  },
+  {
+    id: 'performance', name: 'Performance', pillar: 'quant', scoringType: 'context',
+    description: 'Price action, volume trends, relative performance (context only — not scored)',
+    v1Sources: ['price_volume'],
+  },
+  {
+    id: 'institutional_signals', name: 'Institutional / Market Signals', pillar: 'quant', scoringType: 'context',
+    description: 'Analyst ratings, FII/DII activity, mutual fund holdings (context only — not scored)',
+    v1Sources: ['broker_ratings', 'ownership'],
+  },
+]
+
+export interface QualFactorDefinition {
+  id: string
+  name: string
+  pillar: VerdictPillar
+  description: string
+  signalCount: number
+  groupNames: Record<string, string>
+  anchorGroup: string
+}
+
+export const QUAL_FACTORS: QualFactorDefinition[] = [
+  {
+    id: 'management_governance', name: 'Management & Governance', pillar: 'qual',
+    description: 'Promoter alignment, governance quality, management capability',
+    signalCount: 15,
+    groupNames: { A: 'Promoter Alignment', B: 'Governance Structure', C: 'Management Capability', D: 'Trajectory' },
+    anchorGroup: 'A',
+  },
+  {
+    id: 'business_quality', name: 'Business Quality', pillar: 'qual',
+    description: 'Margin durability, revenue quality, pricing power, competitive moat',
+    signalCount: 11,
+    groupNames: { A: 'Margin & Return Durability', B: 'Revenue Fragility', C: 'Pricing Power', D: 'Earnings Backing' },
+    anchorGroup: 'A',
+  },
+  {
+    id: 'capital_discipline', name: 'Capital Discipline', pillar: 'qual',
+    description: 'Dilution history, capital deployment quality, shareholder returns',
+    signalCount: 16,
+    groupNames: { A: 'Dilution & Funding', B: 'Capital Deployment', C: 'Capital Returns', D: 'Acquisition Track Record' },
+    anchorGroup: 'C',
+  },
+  {
+    id: 'earnings_quality', name: 'Earnings Quality', pillar: 'qual',
+    description: 'Cash conversion, balance sheet quality, reporting integrity',
+    signalCount: 14,
+    groupNames: { A: 'Cash Conversion', B: 'Balance Sheet Quality', C: 'Reporting Integrity', D: 'Pattern Anomalies' },
+    anchorGroup: 'A',
+  },
+  {
+    id: 'execution_quality', name: 'Execution Quality', pillar: 'qual',
+    description: 'Financial delivery vs guidance, operational KPIs, communication quality',
+    signalCount: 10,
+    groupNames: { A: 'Financial Delivery', B: 'Operational Delivery', C: 'Communication Quality' },
+    anchorGroup: 'A',
+  },
+]
+
+// News & Events taxonomy (not scored — separate section)
+export const NEWS_BUCKETS = [
+  { id: 'financial_performance', name: 'Financial Performance', eventCount: 8 },
+  { id: 'corporate_actions', name: 'Corporate Actions', eventCount: 6 },
+  { id: 'governance_ownership', name: 'Governance & Ownership', eventCount: 6 },
+  { id: 'strategic_business', name: 'Strategic & Business', eventCount: 6 },
+  { id: 'external_macro', name: 'External & Macro', eventCount: 6 },
+  { id: 'market_signals', name: 'Market Signals', eventCount: 4 },
+  { id: 'sentiment_third_party', name: 'Sentiment & Third Party', eventCount: 4 },
+  { id: 'documents_reference', name: 'Documents & Reference', eventCount: 4 },
+] as const
+
+// Combined V2 segment list for reference
+export const segmentDefinitionsV2 = {
+  quant: QUANT_SEGMENTS,
+  qual: QUAL_FACTORS,
+  newsBuckets: NEWS_BUCKETS,
+}
+
+/**
+ * Map V1 segment ID to V2 segment ID
+ */
+export function mapV1ToV2Segment(v1SegmentId: string): string | null {
+  const mapping: Record<string, string> = {
+    profitability: 'profitability',
+    financial_ratios: 'financial_health',
+    growth: 'growth',
+    valuation: 'valuation',
+    price_volume: 'performance',
+    technical: 'technical',
+    broker_ratings: 'institutional_signals',
+    ownership: 'institutional_signals',  // FII/DII part; promoter goes to MG
+    stock_deals: '',  // DROPPED
+    income_statement: 'financial_health',
+    balance_sheet: 'financial_health',
+  }
+  return mapping[v1SegmentId] || null
+}

@@ -441,3 +441,189 @@ export interface DashboardDiscoveryStock {
 
 // User Rating Types (for guided analysis)
 export type UserRating = 'weak' | 'fair' | 'good' | 'great' | null
+
+// ============================================================
+// V2 ARCHITECTURE — Quant + Qual + Risk Hierarchy (0-100 scale)
+// ============================================================
+
+// Layer structure: Overall → Pillars → Segments/Factors → Signals/Metrics
+
+export type VerdictPillar = 'quant' | 'qual' | 'risk'
+export type SegmentScoringType = 'scored' | 'context'
+export type ScoreBandV2 = 'strong' | 'good' | 'mixed' | 'weak' | 'suppressed'
+export type EscalationTier = 'hard' | 'soft' | 'score_only'
+export type OverallVerdictLabel = 'strong_buy' | 'buy' | 'hold' | 'sell'
+
+// Layer 2: Three independent pillar verdicts
+export interface PillarVerdict {
+  pillar: VerdictPillar
+  name: string
+  score: number                    // 0-100
+  scoreBand: ScoreBandV2
+  label: string                    // "STRONG" / "GOOD" / "MIXED" / "WEAK"
+  summary: string
+  summaryByProfile?: Record<string, string>
+  segments: SegmentVerdictV2[]     // Layer 3 children
+}
+
+// Layer 3: Individual segment/factor verdicts
+export interface SegmentVerdictV2 {
+  id: string
+  name: string
+  pillar: VerdictPillar
+  scoringType: SegmentScoringType
+  score?: number                   // 0-100, undefined for context segments
+  scoreBand?: ScoreBandV2
+  label?: string                   // Per-factor label override (defaults to band label)
+  weight?: number                  // only for scored segments
+  status: 'positive' | 'neutral' | 'negative'
+  interpretation: string
+  quickInsight?: string
+  summaryByProfile?: Record<string, string>
+  scoreJustification?: string
+  confidenceIndicator?: ConfidenceIndicator
+  // Layer 4 drill-down
+  signalGroups?: SignalGroup[]     // Qual: Group A, B, C, D
+  subClassifications?: SubClassification[]  // Quant: Income Statement, Balance Sheet, etc.
+  metrics?: Metric[]
+  // Escalation
+  redFlags?: RedFlagV2[]
+  convictionSignals?: string[]
+  isSuppressed?: boolean           // Hard override fired
+  suppressionReason?: string
+}
+
+// Quant sub-classification (e.g., Financial Health → Income Statement, Balance Sheet)
+export interface SubClassification {
+  id: string
+  name: string
+  metrics: Metric[]
+}
+
+// Signal Architecture — shared by Qual factors and Quant segments
+export interface SignalGroup {
+  id: string                       // 'group_a', 'group_b', 'gates', 'modifiers', etc.
+  name: string                     // "Promoter Alignment", "Cash Flow Quality", "Hard Gates"
+  role: 'anchor' | 'scored' | 'red_flag_only' | 'narrative_only' | 'contextualiser'
+    | 'gate'                       // Quant: binary pass/fail gates (e.g., FH G1-G5)
+    | 'modifier'                   // Quant: India-specific point modifiers (±5 pts)
+    | 'context'                    // Quant: context signals (not in composite)
+  weight?: number                  // Within non-anchor composite
+  score?: number                   // 0-100
+  signals: QualSignal[]
+}
+
+export interface QualSignal {
+  id: string                       // 'A1', 'A2', 'G1', 'B1', 'M1', etc.
+  name: string                     // "Promoter Skin in the Game", "Altman Z″ Solvency Gate"
+  group: string
+  escalationTier: EscalationTier
+  score?: number                   // 0-100, undefined for hard triggers/contextualisers
+  state: 'strong' | 'monitor' | 'flag' | 'suppressed' | 'not_applicable'
+  userText: string                 // Plain English 3-state text for current state
+  isTriggered?: boolean            // For soft/hard escalations
+  version: 'v1' | 'v2'            // Signal availability
+  // Quant gate-specific fields (optional)
+  gatePassed?: boolean             // true = pass, false = fail (hard gates only)
+  gateFormula?: string             // e.g., "Z″ = 6.56×(WC/TA) + ..."
+  gateThreshold?: string           // e.g., "> 1.10 for pass"
+  gateValue?: string               // Current computed value, e.g., "2.85"
+  // Quant modifier-specific fields (optional)
+  modifierPoints?: number          // e.g., -5, +5 (India modifiers)
+  modifierActive?: boolean         // Whether modifier is currently applied
+  // BFSI template marker
+  isBfsiSubstitute?: boolean       // true if this signal replaces a standard metric for BFSI
+  bfsiOriginal?: string            // Name of the standard metric this replaces
+}
+
+export interface RedFlagV2 {
+  signalId: string
+  severity: 'hard' | 'soft'
+  title: string
+  description: string              // Plain English
+  source: string                   // "MG-A1", "EQ-C3", etc.
+}
+
+export interface ConfidenceIndicator {
+  signalsComputed: number
+  signalsTotal: number
+  dataRange?: string               // "FY20–FY24"
+  state: 'full' | 'partial' | 'limited_history' | 'suppressed' | 'cmots_gap'
+  tooltip: string
+}
+
+// News & Events (separate unscored section, replaces old "Recent News")
+export type NewsBucket =
+  | 'financial_performance'
+  | 'corporate_actions'
+  | 'governance_ownership'
+  | 'strategic_business'
+  | 'external_macro'
+  | 'market_signals'
+  | 'sentiment_third_party'
+  | 'documents_reference'
+
+export interface NewsEvent {
+  id: string
+  type: string                     // 48-type taxonomy
+  bucket: NewsBucket
+  title: string
+  source: string
+  date: string
+  severity: 'positive' | 'neutral' | 'watch' | 'flag' | 'hard_stop'
+  investorMeaning: string
+  impactSegments: string[]         // Layer 3 segment/factor IDs this event affects (e.g., 'profitability', 'management_governance')
+}
+
+// V2 Overall Verdict — independent of pillar scores
+export interface StockVerdictV2 {
+  // Layer 1: Overall (independent computation)
+  overallVerdict: OverallVerdictLabel
+  overallScore: number             // 0-100, independent weighted computation
+  overallLabel: string             // "Strong Buy" / "Buy" / "Hold" / "Sell"
+  overallSummary: string           // 1-line verdict summary
+  // Layer 2: Pillar breakdowns (informational, not inputs to overall)
+  pillars: PillarVerdict[]         // [quant, qual, risk]
+  newsEvents: NewsEvent[]          // Separate section, replaces old "Recent News"
+  ticker: string
+  stockName: string
+  sector: string
+  lastUpdated: string
+  // Preserved from V1 for compatibility
+  stockId: string
+  profileId: string
+  peerRank?: number
+  peerTotal?: number
+  peerCategory?: string
+  topSignals: Signal[]
+  topConcerns: Signal[]
+  verdictRationale: string
+  positionSizing: string | PositionSizingDetails
+  entryGuidance: string
+  entryTiming?: EntryTimingDetails
+  exitTriggers?: ExitTrigger[]
+  portfolioFit?: PortfolioFit
+  redFlagFramework?: RedFlagFramework
+  riskWarning?: string
+  learningPrompt?: string
+  learningHighlights?: LearningHighlight[]
+}
+
+// V2 Profile weight structure
+export interface ProfileWeightsV2 {
+  pillarWeights: { quant: number; qual: number; risk: number }
+  quantWeights: {
+    profitability: number
+    growth: number
+    valuation: number
+    financial_health: number
+    technical: number
+  }
+  qualWeights: {
+    management_governance: number
+    business_quality: number
+    capital_discipline: number
+    earnings_quality: number
+    execution_quality: number
+  }
+}

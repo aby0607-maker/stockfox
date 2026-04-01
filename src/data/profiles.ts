@@ -712,3 +712,126 @@ export function getFocusTypeInfo(focusType: string | undefined) {
       return null
   }
 }
+
+// ============================================================
+// V2 Profile Weights — Quant + Qual + Risk Hierarchy
+// ============================================================
+
+import type { ProfileWeightsV2 } from '@/types'
+
+/**
+ * V2 weight structures for each profile.
+ *
+ * pillarWeights: How much each pillar contributes (sum = 100)
+ * quantWeights: Within Quant, how much each scored segment contributes (sum = 100)
+ * qualWeights: Within Qual, how much each factor contributes (sum = 100)
+ *
+ * Note: Context-only segments (Performance, Institutional Signals) are unweighted.
+ * Note: News & Events is unscored (separate section).
+ */
+export const PROFILE_WEIGHTS_V2: Record<string, ProfileWeightsV2> = {
+  // Practical Priya — balanced, simplified, just wants a clear verdict
+  priya: {
+    pillarWeights: { quant: 50, qual: 30, risk: 20 },
+    quantWeights: {
+      profitability: 20, growth: 20, valuation: 25,
+      financial_health: 25, technical: 10,
+    },
+    qualWeights: {
+      management_governance: 25, business_quality: 25,
+      capital_discipline: 20, earnings_quality: 20,
+      execution_quality: 10,
+    },
+  },
+
+  // Analytical Ankit — comprehensive, wants full breakdown
+  ankit: {
+    pillarWeights: { quant: 45, qual: 35, risk: 20 },
+    quantWeights: {
+      profitability: 20, growth: 25, valuation: 20,
+      financial_health: 20, technical: 15,
+    },
+    qualWeights: {
+      management_governance: 20, business_quality: 25,
+      capital_discipline: 20, earnings_quality: 20,
+      execution_quality: 15,
+    },
+  },
+
+  // Curious Kavya — beginner, learning-focused
+  kavya: {
+    pillarWeights: { quant: 50, qual: 30, risk: 20 },
+    quantWeights: {
+      profitability: 25, growth: 20, valuation: 20,
+      financial_health: 30, technical: 5,
+    },
+    qualWeights: {
+      management_governance: 30, business_quality: 20,
+      capital_discipline: 20, earnings_quality: 20,
+      execution_quality: 10,
+    },
+  },
+
+  // FIRE Fatima — long-term compounder
+  fatima: {
+    pillarWeights: { quant: 45, qual: 40, risk: 15 },
+    quantWeights: {
+      profitability: 25, growth: 25, valuation: 20,
+      financial_health: 25, technical: 5,
+    },
+    qualWeights: {
+      management_governance: 20, business_quality: 30,
+      capital_discipline: 25, earnings_quality: 15,
+      execution_quality: 10,
+    },
+  },
+
+  // NRI Nikhil — remote investor, governance-heavy
+  nikhil: {
+    pillarWeights: { quant: 40, qual: 40, risk: 20 },
+    quantWeights: {
+      profitability: 20, growth: 20, valuation: 25,
+      financial_health: 25, technical: 10,
+    },
+    qualWeights: {
+      management_governance: 30, business_quality: 20,
+      capital_discipline: 20, earnings_quality: 20,
+      execution_quality: 10,
+    },
+  },
+
+  // Momentum Meera — technical-heavy, quant-focused
+  meera: {
+    pillarWeights: { quant: 65, qual: 15, risk: 20 },
+    quantWeights: {
+      profitability: 10, growth: 20, valuation: 15,
+      financial_health: 15, technical: 40,
+    },
+    qualWeights: {
+      management_governance: 20, business_quality: 20,
+      capital_discipline: 20, earnings_quality: 20,
+      execution_quality: 20,
+    },
+  },
+
+  // Sneha — skeptical, value-focused, governance-heavy
+  sneha: {
+    pillarWeights: { quant: 40, qual: 45, risk: 15 },
+    quantWeights: {
+      profitability: 25, growth: 15, valuation: 30,
+      financial_health: 25, technical: 5,
+    },
+    qualWeights: {
+      management_governance: 25, business_quality: 20,
+      capital_discipline: 20, earnings_quality: 25,
+      execution_quality: 10,
+    },
+  },
+}
+
+/**
+ * Get V2 weights for a profile, with sensible defaults
+ */
+export function getProfileWeightsV2(profileId: string): ProfileWeightsV2 {
+  return PROFILE_WEIGHTS_V2[profileId] ?? PROFILE_WEIGHTS_V2['priya']
+}

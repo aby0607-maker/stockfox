@@ -8,19 +8,22 @@ interface BlindSpotData {
   checkRate: number  // 0-100
 }
 
-// Default segment coverage for demo
+// Default coverage for demo — V2 Quant segments + Qual factors
 const defaultSegmentCoverage: BlindSpotData[] = [
+  // Quant segments
   { segmentId: 'profitability', name: 'Profitability', checkRate: 100 },
-  { segmentId: 'financial-health', name: 'Financial Health', checkRate: 85 },
   { segmentId: 'growth', name: 'Growth', checkRate: 95 },
   { segmentId: 'valuation', name: 'Valuation', checkRate: 70 },
-  { segmentId: 'price-volume', name: 'Price & Volume', checkRate: 45 },
+  { segmentId: 'financial_health', name: 'Financial Health', checkRate: 85 },
   { segmentId: 'technical', name: 'Technical', checkRate: 30 },
-  { segmentId: 'broker-ratings', name: 'Broker Ratings', checkRate: 60 },
-  { segmentId: 'ownership', name: 'Ownership', checkRate: 25 },
-  { segmentId: 'fno', name: 'F&O Activity', checkRate: 15 },
-  { segmentId: 'income-statement', name: 'Income Statement', checkRate: 80 },
-  { segmentId: 'balance-sheet', name: 'Balance Sheet', checkRate: 55 },
+  { segmentId: 'performance', name: 'Performance', checkRate: 45 },
+  { segmentId: 'institutional_signals', name: 'Institutional Signals', checkRate: 40 },
+  // Qual factors
+  { segmentId: 'management_governance', name: 'Governance', checkRate: 25 },
+  { segmentId: 'business_quality', name: 'Business Quality', checkRate: 60 },
+  { segmentId: 'capital_discipline', name: 'Capital Discipline', checkRate: 20 },
+  { segmentId: 'earnings_quality', name: 'Earnings Quality', checkRate: 55 },
+  { segmentId: 'execution_quality', name: 'Execution Quality', checkRate: 15 },
 ]
 
 interface BlindSpotChartProps {
