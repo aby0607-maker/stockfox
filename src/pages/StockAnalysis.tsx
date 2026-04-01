@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
 import { getStockBySymbol, getVerdictForStock } from '@/data'
+import { resolveStock, isDemoStock } from '@/services/stockService'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
 // V1 UI imports kept for evidence modals (ScoreGauge, VerdictBadge removed — replaced by V2 components)
 import { SegmentBar, DIYSegmentList } from '@/components/charts'
@@ -526,25 +527,44 @@ export function StockAnalysis() {
 
   useEffect(() => {
     if (!ticker || !currentProfile) return
+    let cancelled = false
 
     setIsLoading(true)
-    const timer = setTimeout(() => {
-      const stockData = getStockBySymbol(ticker)
-      const verdictData = getVerdictForStock(ticker, currentProfile.id)
-      const newsData = getNewsForStock(ticker)
-      const verdictV2Data = getVerdictV2(ticker, currentProfile.id)
 
-      setStock(stockData || null)
-      setVerdict(verdictData || null)
-      setVerdictV2(verdictV2Data || null)
-      setNews(newsData.slice(0, 5))
-      setUpcomingEvents(getUpcomingEvents(ticker))
+    const symbol = ticker
+    const profileId = currentProfile.id
+
+    async function loadStock() {
+      // Demo stocks: use sync path for instant load
+      if (isDemoStock(symbol)) {
+        const stockData = getStockBySymbol(symbol)
+        const verdictData = getVerdictForStock(symbol, profileId)
+        const newsData = getNewsForStock(symbol)
+        const verdictV2Data = getVerdictV2(symbol, profileId)
+
+        if (cancelled) return
+        setStock(stockData || null)
+        setVerdict(verdictData || null)
+        setVerdictV2(verdictV2Data || null)
+        setNews(newsData.slice(0, 5))
+        setUpcomingEvents(getUpcomingEvents(symbol))
+      } else {
+        // Non-demo: resolve via CMOTS API
+        const resolved = await resolveStock(symbol)
+        if (cancelled) return
+        setStock(resolved)
+        setVerdict(null)
+        setVerdictV2(null)
+        setNews([])
+        setUpcomingEvents([])
+      }
       setSelectedPillar(null)
       setSelectedFactorId(null)
       setIsLoading(false)
-    }, 400)
+    }
 
-    return () => clearTimeout(timer)
+    loadStock()
+    return () => { cancelled = true }
   }, [ticker, currentProfile])
 
   // Handle URL params for navigation from segment deep-dive
@@ -582,8 +602,8 @@ export function StockAnalysis() {
     )
   }
 
-  // Stock not found
-  if (!stock || !verdict) {
+  // Stock not found at all
+  if (!stock) {
     return (
       <div className="space-y-4 max-w-2xl mx-auto">
         <Link
@@ -598,6 +618,48 @@ export function StockAnalysis() {
           <p className="text-neutral-400">
             We couldn't find analysis for "{ticker.toUpperCase()}"
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Stock found via CMOTS but no scoring data yet
+  if (!verdict) {
+    return (
+      <div className="space-y-4 max-w-2xl mx-auto">
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
+        <div className="rounded-2xl bg-dark-800 border border-white/5 p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white">{stock.name}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-sm text-neutral-400">{stock.symbol}</span>
+                {stock.sector && (
+                  <span className="text-xs text-neutral-500 bg-dark-700 px-2 py-0.5 rounded">{stock.sector}</span>
+                )}
+              </div>
+            </div>
+            {stock.currentPrice > 0 && (
+              <div className="text-right">
+                <div className="text-xl font-semibold text-white">{formatCurrency(stock.currentPrice)}</div>
+              </div>
+            )}
+          </div>
+          <div className="border-t border-white/5 pt-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-primary-500/10 flex items-center justify-center mx-auto mb-3">
+              <Sparkles className="w-6 h-6 text-primary-400" />
+            </div>
+            <h2 className="text-lg font-semibold text-white mb-2">Analysis Coming Soon</h2>
+            <p className="text-sm text-neutral-400 max-w-md mx-auto">
+              We found {stock.name} in our database. Full scoring analysis across Quant, Qual, and Risk pillars will be available shortly.
+            </p>
+          </div>
         </div>
       </div>
     )
