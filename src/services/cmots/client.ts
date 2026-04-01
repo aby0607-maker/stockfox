@@ -18,6 +18,8 @@ interface CMOTSRequestOptions {
   endpoint: string
   /** Cache TTL in ms (default 1 hour) */
   cacheTTL?: number
+  /** Persist to localStorage (survives page reload) */
+  persist?: boolean
 }
 
 /**
@@ -26,7 +28,7 @@ interface CMOTSRequestOptions {
  * Returns empty array on error (never throws) and logs the reason.
  */
 export async function cmotsFetch<T>(options: CMOTSRequestOptions): Promise<T[]> {
-  const { endpoint, cacheTTL = 60 * 60 * 1000 } = options
+  const { endpoint, cacheTTL = 60 * 60 * 1000, persist = false } = options
 
   const cacheKey = `cmots\0${endpoint}`
   const cached = cache.get<T[]>(cacheKey)
@@ -50,7 +52,7 @@ export async function cmotsFetch<T>(options: CMOTSRequestOptions): Promise<T[]> 
       return []
     }
 
-    cache.set(cacheKey, json.data, { ttl: cacheTTL })
+    cache.set(cacheKey, json.data, { ttl: cacheTTL, persist })
     return json.data
   } catch (error) {
     console.warn(`[CMOTS] Network error fetching ${endpoint}:`, error instanceof Error ? error.message : error)

@@ -8,7 +8,7 @@ import type { CMOTSShareholding } from '@/types'
 import { cmotsFetch } from './client'
 import { getCoCode } from './companyMaster'
 
-const CACHE_TTL = 60 * 60 * 1000  // 1 hour
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000  // 7 days (quarterly data, persist for demo)
 
 /** Get shareholding pattern for a stock (latest quarter) */
 export async function getShareholdingPattern(symbol: string, resolvedCoCode?: number): Promise<CMOTSShareholding | null> {
@@ -21,6 +21,7 @@ export async function getShareholdingPattern(symbol: string, resolvedCoCode?: nu
   const data = await cmotsFetch<CMOTSShareholding>({
     endpoint: `/Aggregate-Share-Holding/${coCode}`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
 
   if (data.length === 0) return null
@@ -41,6 +42,7 @@ export async function getShareholdingHistory(symbol: string, resolvedCoCode?: nu
   const data = await cmotsFetch<CMOTSShareholding>({
     endpoint: `/Aggregate-Share-Holding/${coCode}`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
 
   data.sort((a, b) => b.YRC - a.YRC)

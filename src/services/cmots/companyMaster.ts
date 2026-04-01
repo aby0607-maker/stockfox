@@ -28,6 +28,7 @@ async function ensureCompanyMap(): Promise<Map<string, CMOTSCompany>> {
     const data = await cmotsFetch<CMOTSCompany>({
       endpoint: '/companymaster',
       cacheTTL: CACHE_TTL,
+      persist: true,
     })
     const companies = data.filter(c => c.bselistedflag === 'Y' || c.BSEStatus === 'Active')
 
@@ -55,6 +56,7 @@ export async function getCompanyMaster(): Promise<CMOTSCompany[]> {
   const data = await cmotsFetch<CMOTSCompany>({
     endpoint: '/companymaster',
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
   return data.filter(c => c.bselistedflag === 'Y' || c.BSEStatus === 'Active')
 }

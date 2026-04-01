@@ -1,6 +1,11 @@
 /**
- * Simple in-memory cache with TTL support
+ * In-memory cache with TTL support + optional localStorage persistence.
+ *
+ * persist: true → writes to localStorage so data survives page reloads.
+ * Useful for demo mode: fundamentals fetched once, only price refreshes.
  */
+
+const LS_PREFIX = 'sfx:'
 
 interface CacheEntry<T> {
   value: T
@@ -9,6 +14,7 @@ interface CacheEntry<T> {
 
 interface CacheOptions {
   ttl?: number // Time to live in milliseconds
+  persist?: boolean // Also store in localStorage (survives page reload)
 }
 
 const DEFAULT_TTL = 5 * 60 * 1000 // 5 minutes
@@ -26,19 +32,22 @@ class Cache {
   }
 
   /**
-   * Get a value from the cache
+   * Get a value from the cache.
+   * Checks in-memory first, then falls back to localStorage for persisted entries.
    */
   get<T>(key: string): T | undefined {
     const entry = this.store.get(key)
-    if (!entry) return undefined
-
-    // Check if expired
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key)
-      return undefined
+    if (entry) {
+      if (Date.now() > entry.expiresAt) {
+        this.store.delete(key)
+        // Don't delete from localStorage — persisted data has longer effective life
+      } else {
+        return entry.value as T
+      }
     }
 
-    return entry.value as T
+    // Fallback: check localStorage for persisted entries
+    return this.getFromLocalStorage<T>(key)
   }
 
   /**
@@ -51,10 +60,38 @@ class Cache {
     }
 
     const ttl = options.ttl ?? DEFAULT_TTL
-    this.store.set(key, {
-      value,
-      expiresAt: Date.now() + ttl,
-    })
+    const expiresAt = Date.now() + ttl
+    this.store.set(key, { value, expiresAt })
+
+    // Persist to localStorage if requested
+    if (options.persist) {
+      this.setToLocalStorage(key, value, expiresAt)
+    }
+  }
+
+  private getFromLocalStorage<T>(key: string): T | undefined {
+    try {
+      const raw = localStorage.getItem(LS_PREFIX + key)
+      if (!raw) return undefined
+      const entry = JSON.parse(raw) as CacheEntry<T>
+      if (Date.now() > entry.expiresAt) {
+        localStorage.removeItem(LS_PREFIX + key)
+        return undefined
+      }
+      // Hydrate into in-memory cache so future reads are fast
+      this.store.set(key, entry)
+      return entry.value
+    } catch {
+      return undefined
+    }
+  }
+
+  private setToLocalStorage<T>(key: string, value: T, expiresAt: number): void {
+    try {
+      localStorage.setItem(LS_PREFIX + key, JSON.stringify({ value, expiresAt }))
+    } catch {
+      // localStorage full or unavailable — silently skip
+    }
   }
 
   /**

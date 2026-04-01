@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
 import { getStockBySymbol, getVerdictForStock } from '@/data'
 import { resolveStock, isDemoStock } from '@/services/stockService'
+import { buildVerdictForStock } from '@/services/verdictService'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
 // V1 UI imports kept for evidence modals (ScoreGauge, VerdictBadge removed — replaced by V2 components)
 import { SegmentBar, DIYSegmentList } from '@/components/charts'
@@ -549,12 +550,32 @@ export function StockAnalysis() {
         setNews(newsData.slice(0, 5))
         setUpcomingEvents(getUpcomingEvents(symbol))
       } else {
-        // Non-demo: resolve via CMOTS API
+        // Non-demo: resolve via CMOTS API + live scoring
         const resolved = await resolveStock(symbol)
+        if (cancelled || !resolved) {
+          if (!cancelled) {
+            setStock(null)
+            setVerdict(null)
+            setVerdictV2(null)
+          }
+          setIsLoading(false)
+          return
+        }
+
+        // Build V2 verdict from live CMOTS data
+        let liveVerdict: StockVerdictV2 | null = null
+        try {
+          liveVerdict = await buildVerdictForStock(resolved, profileId)
+        } catch (err) {
+          console.warn('Failed to build verdict for', symbol, err)
+        }
+
         if (cancelled) return
+
+        // Batch all state updates together to avoid partial-render crashes
         setStock(resolved)
         setVerdict(null)
-        setVerdictV2(null)
+        setVerdictV2(liveVerdict)
         setNews([])
         setUpcomingEvents([])
       }
@@ -623,8 +644,8 @@ export function StockAnalysis() {
     )
   }
 
-  // Stock found via CMOTS but no scoring data yet
-  if (!verdict) {
+  // Stock found via CMOTS but no scoring data yet (no V1 or V2 verdict)
+  if (!verdict && !verdictV2) {
     return (
       <div className="space-y-4 max-w-2xl mx-auto">
         <Link
@@ -711,7 +732,11 @@ export function StockAnalysis() {
                   if (navigator.share) {
                     navigator.share({
                       title: `${stock.name} Analysis`,
-                      text: `StockFox: ${stock.symbol} Score ${verdict.overallScore}/10 - ${verdict.verdict}`,
+                      text: verdictV2
+                        ? `StockFox: ${stock.symbol} Score ${verdictV2.overallScore}/100 — ${verdictV2.overallLabel}`
+                        : verdict
+                        ? `StockFox: ${stock.symbol} Score ${verdict.overallScore}/10 - ${verdict.verdict}`
+                        : `StockFox: ${stock.symbol} Analysis`,
                       url: window.location.href,
                     })
                   } else {
@@ -878,7 +903,7 @@ export function StockAnalysis() {
                         pillar={pillar}
                         onBack={() => setSelectedPillar(null)}
                       />
-                      <RedFlagScanner verdict={verdict} news={news} />
+                      {verdict && <RedFlagScanner verdict={verdict} news={news} />}
                     </div>
                   )
                 }
@@ -906,7 +931,7 @@ export function StockAnalysis() {
       )}
 
       {/* ============== PROS/CONS (Quick View) - hidden during pillar drill-down ============== */}
-      {!selectedPillar && (
+      {!selectedPillar && verdict && (
         <div data-spotlight="pros-cons">
           <ProsCons verdict={verdict} />
         </div>
@@ -980,7 +1005,7 @@ export function StockAnalysis() {
               {/* DFY: SegmentBar with scores and ranks */}
               {analysisMode === 'dfy' && (
                 <SegmentBar
-                  segments={verdict.segments}
+                  segments={verdict!.segments}
                   onSegmentClick={(segmentId) => {
                     window.location.href = `/segment/${ticker}/${segmentId}`
                   }}
@@ -994,7 +1019,7 @@ export function StockAnalysis() {
               {/* DIY: Simple segment list - no scores */}
               {analysisMode === 'diy' && (
                 <DIYSegmentList
-                  segments={verdict.segments}
+                  segments={verdict!.segments}
                   onSegmentClick={(segmentId) => {
                     window.location.href = `/segment/${ticker}/${segmentId}`
                   }}
@@ -1170,12 +1195,13 @@ export function StockAnalysis() {
           </Link>
           <button
             onClick={() => {
+              const shareText = verdictV2
+                ? `StockFox: ${stock.symbol} Score ${verdictV2.overallScore}/100 — ${verdictV2.overallLabel}`
+                : verdict
+                ? `StockFox: ${stock.symbol} Score ${verdict.overallScore}/10 - ${verdict.verdict}`
+                : `StockFox: ${stock.symbol} Analysis`
               if (navigator.share) {
-                navigator.share({
-                  title: `${stock.name} Analysis`,
-                  text: `StockFox: ${stock.symbol} Score ${verdict.overallScore}/10 - ${verdict.verdict}`,
-                  url: window.location.href,
-                })
+                navigator.share({ title: `${stock.name} Analysis`, text: shareText, url: window.location.href })
               } else {
                 navigator.clipboard.writeText(window.location.href)
               }
@@ -1187,28 +1213,11 @@ export function StockAnalysis() {
           </button>
           <button
             onClick={() => {
-              const exportText = `
-STOCKFOX ANALYSIS REPORT
-========================
-Stock: ${stock.name} (${stock.symbol})
-Sector: ${stock.sector}
-Date: ${new Date().toLocaleDateString()}
-
-SCORE: ${verdict.overallScore.toFixed(1)}/10
-VERDICT: ${verdict.verdict}
-
-KEY SIGNALS:
-${verdict.topSignals.map(s => `✓ ${s.title}: ${s.description}`).join('\n')}
-
-CONCERNS:
-${verdict.topConcerns.map(c => `⚠ ${c.title}: ${c.description}`).join('\n')}
-
-SEGMENT SCORES:
-${verdict.segments.map(s => `${s.name}: ${s.score.toFixed(1)}/10`).join('\n')}
-
----
-Generated by StockFox
-              `.trim()
+              const exportText = verdictV2
+                ? `STOCKFOX ANALYSIS REPORT\n========================\nStock: ${stock.name} (${stock.symbol})\nSector: ${stock.sector}\nDate: ${new Date().toLocaleDateString()}\n\nOVERALL: ${verdictV2.overallScore}/100 — ${verdictV2.overallLabel}\n\nPILLARS:\n${verdictV2.pillars.map(p => `${p.name}: ${p.score}/100 (${p.label})`).join('\n')}\n\n---\nGenerated by StockFox`
+                : verdict
+                ? `STOCKFOX ANALYSIS REPORT\n========================\nStock: ${stock.name} (${stock.symbol})\nSector: ${stock.sector}\nDate: ${new Date().toLocaleDateString()}\n\nSCORE: ${verdict.overallScore.toFixed(1)}/10\nVERDICT: ${verdict.verdict}\n\nKEY SIGNALS:\n${verdict.topSignals.map(s => `✓ ${s.title}: ${s.description}`).join('\n')}\n\nCONCERNS:\n${verdict.topConcerns.map(c => `⚠ ${c.title}: ${c.description}`).join('\n')}\n\nSEGMENT SCORES:\n${verdict.segments.map(s => `${s.name}: ${s.score.toFixed(1)}/10`).join('\n')}\n\n---\nGenerated by StockFox`
+                : `StockFox: ${stock.symbol} — No analysis data available yet`
               navigator.clipboard.writeText(exportText).then(() => {
                 alert('Analysis report copied to clipboard!')
               })
@@ -1310,9 +1319,9 @@ Generated by StockFox
         )}
       </AnimatePresence>
 
-      {/* ============== OVERALL EVIDENCE MODAL ============== */}
+      {/* ============== OVERALL EVIDENCE MODAL (V1 only) ============== */}
       <AnimatePresence>
-        {overallEvidenceModalOpen && (
+        {overallEvidenceModalOpen && verdict && (
           <>
             {/* Backdrop */}
             <motion.div

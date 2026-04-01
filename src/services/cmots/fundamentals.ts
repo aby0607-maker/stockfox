@@ -20,7 +20,7 @@ import { cmotsFetch, cmotsFetchOne } from './client'
 import { getCoCode } from './companyMaster'
 import { getShareholdingHistory } from './shareholding'
 
-const CACHE_TTL = 60 * 60 * 1000  // 1 hour
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000  // 7 days (fundamentals change quarterly, persist for demo)
 
 // ── Individual endpoint fetchers ──
 
@@ -35,6 +35,7 @@ export async function getTTMData(symbol: string, resolvedCoCode?: number): Promi
   return await cmotsFetchOne<CMOTSTTMRecord>({
     endpoint: `/TTMData/${coCode}/s`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
 }
 
@@ -49,6 +50,7 @@ export async function getFinancialData(symbol: string, resolvedCoCode?: number):
   const data = await cmotsFetch<CMOTSFinancialRecord>({
     endpoint: `/FinData/${coCode}/s`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
   // Sort by yrc ascending (oldest first) for growth calculations
   return data.sort((a, b) => a.yrc - b.yrc)
@@ -65,6 +67,7 @@ export async function getProfitAndLoss(symbol: string, resolvedCoCode?: number):
   return await cmotsFetch<CMOTSStatementRow>({
     endpoint: `/ProftandLoss/${coCode}/s`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
 }
 
@@ -79,6 +82,7 @@ export async function getCashFlow(symbol: string, resolvedCoCode?: number): Prom
   return await cmotsFetch<CMOTSStatementRow>({
     endpoint: `/CashFlow/${coCode}/s`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
 }
 
@@ -93,6 +97,7 @@ export async function getBalanceSheet(symbol: string, resolvedCoCode?: number): 
   return await cmotsFetch<CMOTSStatementRow>({
     endpoint: `/BalanceSheet/${coCode}/s`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
 }
 
@@ -107,6 +112,7 @@ export async function getQuarterlyResults(symbol: string, resolvedCoCode?: numbe
   return await cmotsFetch<CMOTSStatementRow>({
     endpoint: `/QuarterlyResults/${coCode}/s`,
     cacheTTL: CACHE_TTL,
+    persist: true,
   })
 }
 
