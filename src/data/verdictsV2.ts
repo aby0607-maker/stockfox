@@ -18,6 +18,8 @@ import type {
 } from '@/types'
 import { getScoreBandEnum } from '@/lib/scoring'
 import { getOverallVerdict } from '@/lib/scoring'
+import { getProfileWeightsV2 } from '@/data/profiles'
+import { buildQuantSegmentsV2 } from '@/data/quantSignals'
 
 // ============================================================
 // HELPER: Build signal groups from scored signals
@@ -48,71 +50,12 @@ function buildConfidence(computed: number, total: number): ConfidenceIndicator {
 // ZOMATO (ETERNAL) — New Economy / Food Tech
 // ============================================================
 
-const zomatoQuantSegments: SegmentVerdictV2[] = [
-  {
-    id: 'profitability', name: 'Profitability', pillar: 'quant', scoringType: 'scored',
-    score: 42, scoreBand: 'mixed', weight: 20,
-    status: 'neutral',
-    interpretation: 'First profitable quarter achieved but margins still thin. ROE is low at 4% vs sector avg 12%.',
-    quickInsight: 'Just turned profitable — early innings',
-    scoreJustification: 'Scored 42/100: First-time profitability is positive, but margins are industry-low and sustainability is unproven.',
-    metrics: [],
-  },
-  {
-    id: 'growth', name: 'Growth', pillar: 'quant', scoringType: 'scored',
-    score: 92, scoreBand: 'strong', weight: 25,
-    status: 'positive',
-    interpretation: 'Revenue CAGR of 70%+ driven by Blinkit quick commerce. TAM runway remains massive.',
-    quickInsight: 'Hypergrowth — 70%+ revenue CAGR',
-    scoreJustification: 'Scored 92/100: Exceptional growth across food delivery and quick commerce. One of the fastest-growing large-caps in India.',
-    metrics: [],
-  },
-  {
-    id: 'valuation', name: 'Valuation', pillar: 'quant', scoringType: 'scored',
-    score: 35, scoreBand: 'weak', weight: 20,
-    status: 'negative',
-    interpretation: 'P/S ratio of 12x vs sector average 6x. Premium pricing assumes sustained hypergrowth.',
-    quickInsight: 'Expensive — priced for perfection',
-    scoreJustification: 'Scored 35/100: Premium valuation leaves little margin for error. Justified only if growth sustains 50%+ for 3+ years.',
-    metrics: [],
-  },
-  {
-    id: 'financial_health', name: 'Financial Health', pillar: 'quant', scoringType: 'scored',
-    score: 58, scoreBand: 'mixed', weight: 25,
-    status: 'neutral',
-    interpretation: 'Cash-rich balance sheet from IPO proceeds. But operating cash flow just turned positive.',
-    quickInsight: 'Strong cash position, weak operating cash flow',
-    scoreJustification: 'Scored 58/100: Net cash positive but OCF is nascent. Financial health depends on sustained profitability.',
-    metrics: [],
-  },
-  {
-    id: 'technical', name: 'Technical Indicators', pillar: 'quant', scoringType: 'scored',
-    score: 75, scoreBand: 'good', weight: 10,
-    status: 'positive',
-    interpretation: 'Strong uptrend with price above 50 & 200 DMA. RSI at 62 — bullish but not overbought.',
-    quickInsight: 'Bullish trend intact',
-    metrics: [],
-  },
-  {
-    id: 'performance', name: 'Performance', pillar: 'quant', scoringType: 'context',
-    status: 'positive',
-    interpretation: '1Y return of 120%+, significantly outperforming Nifty. High trading volumes confirm institutional interest.',
-    quickInsight: '120% return in 1 year',
-    metrics: [],
-  },
-  {
-    id: 'institutional_signals', name: 'Institutional / Market Signals', pillar: 'quant', scoringType: 'context',
-    status: 'positive',
-    interpretation: 'FII holding increased from 35% to 42% in last 4 quarters. 18 of 22 analysts rate BUY.',
-    quickInsight: 'Strong FII buying + analyst consensus BUY',
-    metrics: [],
-  },
-]
+const zomatoQuantSegments: SegmentVerdictV2[] = buildQuantSegmentsV2('zomato')
 
 const zomatoQualFactors: SegmentVerdictV2[] = [
   {
     id: 'management_governance', name: 'Management & Governance', pillar: 'qual',
-    scoringType: 'scored', score: 68, scoreBand: 'good', label: 'ADEQUATE', weight: 20,
+    scoringType: 'scored', score: 68, scoreBand: 'good', label: 'GOOD', weight: 20,
     status: 'positive',
     interpretation: 'Deepinder Goyal holds significant stake and has been increasing. Clean governance with independent board. New-age company governance is above average.',
     confidenceIndicator: buildConfidence(12, 15),
@@ -306,67 +249,12 @@ const zomatoQualFactors: SegmentVerdictV2[] = [
 // AXIS BANK — Banking / Financial Services
 // ============================================================
 
-const axisBankQuantSegments: SegmentVerdictV2[] = [
-  {
-    id: 'profitability', name: 'Profitability', pillar: 'quant', scoringType: 'scored',
-    score: 72, scoreBand: 'good', weight: 20,
-    status: 'positive',
-    interpretation: 'ROE of 16% is above sector average. NIM stable at 4.1%. Cost-to-income ratio improving.',
-    quickInsight: 'Solid profitability — 16% ROE',
-    metrics: [],
-  },
-  {
-    id: 'growth', name: 'Growth', pillar: 'quant', scoringType: 'scored',
-    score: 65, scoreBand: 'good', weight: 25,
-    status: 'positive',
-    interpretation: 'Loan book growing at 18% CAGR. Retail lending mix improving. Fee income growing 20%+.',
-    quickInsight: 'Steady 18% loan growth',
-    metrics: [],
-  },
-  {
-    id: 'valuation', name: 'Valuation', pillar: 'quant', scoringType: 'scored',
-    score: 68, scoreBand: 'good', weight: 20,
-    status: 'positive',
-    interpretation: 'P/B of 2.1x vs sector average 2.5x — reasonably priced for the quality. P/E of 14x is fair.',
-    quickInsight: 'Fair value — P/B 2.1x',
-    metrics: [],
-  },
-  {
-    id: 'financial_health', name: 'Financial Health', pillar: 'quant', scoringType: 'scored',
-    score: 75, scoreBand: 'good', weight: 25,
-    status: 'positive',
-    interpretation: 'CAR at 17.5% (well above regulatory 11.5%). GNPA at 1.8% — clean book. PCR at 78%.',
-    quickInsight: 'Strong capital adequacy & clean asset quality',
-    metrics: [],
-  },
-  {
-    id: 'technical', name: 'Technical Indicators', pillar: 'quant', scoringType: 'scored',
-    score: 60, scoreBand: 'good', weight: 10,
-    status: 'neutral',
-    interpretation: 'Trading near 200 DMA. RSI at 52 — neutral. Consolidation phase after recent rally.',
-    quickInsight: 'Neutral — consolidating',
-    metrics: [],
-  },
-  {
-    id: 'performance', name: 'Performance', pillar: 'quant', scoringType: 'context',
-    status: 'neutral',
-    interpretation: '1Y return of 15%, roughly in line with Nifty Bank. Underperforming ICICI Bank but outperforming SBI.',
-    quickInsight: 'In-line with banking peers',
-    metrics: [],
-  },
-  {
-    id: 'institutional_signals', name: 'Institutional / Market Signals', pillar: 'quant', scoringType: 'context',
-    status: 'positive',
-    interpretation: 'FII holding at 48% — one of the highest in banking. 15 of 20 analysts rate BUY with avg target 15% upside.',
-    quickInsight: 'High FII confidence + analyst BUY consensus',
-    metrics: [],
-  },
-]
+const axisBankQuantSegments: SegmentVerdictV2[] = buildQuantSegmentsV2('axisbank')
 
 const axisBankQualFactors: SegmentVerdictV2[] = [
   {
     id: 'management_governance', name: 'Management & Governance', pillar: 'qual',
-    scoringType: 'scored', score: 75, scoreBand: 'good', label: 'ADEQUATE', weight: 20,
+    scoringType: 'scored', score: 75, scoreBand: 'good', label: 'GOOD', weight: 20,
     status: 'positive',
     interpretation: 'Professional management (no promoter). Strong board with independent oversight. Amitabh Chaudhry has delivered well since 2019.',
     confidenceIndicator: buildConfidence(14, 15),
@@ -518,67 +406,12 @@ const axisBankQualFactors: SegmentVerdictV2[] = [
 // TCS — IT Services / Blue Chip
 // ============================================================
 
-const tcsQuantSegments: SegmentVerdictV2[] = [
-  {
-    id: 'profitability', name: 'Profitability', pillar: 'quant', scoringType: 'scored',
-    score: 88, scoreBand: 'strong', weight: 20,
-    status: 'positive',
-    interpretation: 'Industry-leading margins at 26%+ operating margin. ROE consistently above 40%. Cash-rich business.',
-    quickInsight: 'Best-in-class margins — 26%+ OPM',
-    metrics: [],
-  },
-  {
-    id: 'growth', name: 'Growth', pillar: 'quant', scoringType: 'scored',
-    score: 55, scoreBand: 'mixed', weight: 25,
-    status: 'neutral',
-    interpretation: 'Revenue growth of 8-10% in constant currency — steady but not exciting. Order book remains strong.',
-    quickInsight: 'Steady but not exciting — 8-10% CC growth',
-    metrics: [],
-  },
-  {
-    id: 'valuation', name: 'Valuation', pillar: 'quant', scoringType: 'scored',
-    score: 50, scoreBand: 'mixed', weight: 20,
-    status: 'neutral',
-    interpretation: 'P/E of 30x on FY25E — premium for quality but leaves limited upside. Trading above historical average.',
-    quickInsight: 'Fair to expensive — P/E 30x',
-    metrics: [],
-  },
-  {
-    id: 'financial_health', name: 'Financial Health', pillar: 'quant', scoringType: 'scored',
-    score: 92, scoreBand: 'strong', weight: 25,
-    status: 'positive',
-    interpretation: 'Zero debt, ₹45K Cr cash. Strong FCF generation. One of the most financially sound companies in India.',
-    quickInsight: 'Fort Knox balance sheet — zero debt, ₹45K Cr cash',
-    metrics: [],
-  },
-  {
-    id: 'technical', name: 'Technical Indicators', pillar: 'quant', scoringType: 'scored',
-    score: 52, scoreBand: 'mixed', weight: 10,
-    status: 'neutral',
-    interpretation: 'Range-bound between ₹3,800-4,200. RSI at 48 — neutral. Waiting for directional trigger.',
-    quickInsight: 'Range-bound — waiting for trigger',
-    metrics: [],
-  },
-  {
-    id: 'performance', name: 'Performance', pillar: 'quant', scoringType: 'context',
-    status: 'neutral',
-    interpretation: '1Y return of 8%, underperforming Nifty. IT sector in a cautious phase due to macro uncertainty.',
-    quickInsight: 'Underperforming market — sector headwinds',
-    metrics: [],
-  },
-  {
-    id: 'institutional_signals', name: 'Institutional / Market Signals', pillar: 'quant', scoringType: 'context',
-    status: 'positive',
-    interpretation: 'FII holding at 12% — stable. MF holding at 5%. 12 of 18 analysts rate BUY/HOLD. Seen as defensive quality play.',
-    quickInsight: 'Defensive favorite — stable institutional interest',
-    metrics: [],
-  },
-]
+const tcsQuantSegments: SegmentVerdictV2[] = buildQuantSegmentsV2('tcs')
 
 const tcsQualFactors: SegmentVerdictV2[] = [
   {
     id: 'management_governance', name: 'Management & Governance', pillar: 'qual',
-    scoringType: 'scored', score: 85, scoreBand: 'strong', label: 'TRUSTED', weight: 20,
+    scoringType: 'scored', score: 85, scoreBand: 'strong', label: 'STRONG', weight: 20,
     status: 'positive',
     interpretation: 'Tata group governance is gold standard. K Krithivasan is an internal successor with deep domain expertise. Transparent and shareholder-friendly.',
     confidenceIndicator: buildConfidence(14, 15),
@@ -736,7 +569,7 @@ function buildPillarVerdict(
   const scoreBand = getScoreBandEnum(weightedScore)
 
   const labels: Record<string, string> = {
-    strong: 'STRONG', good: 'GOOD', mixed: 'MIXED', weak: 'WEAK', suppressed: 'SUPPRESSED',
+    strong: 'STRONG', good: 'GOOD', mixed: 'MIXED', weak: 'WEAK', suppressed: 'RED FLAG',
   }
 
   return {
@@ -745,7 +578,7 @@ function buildPillarVerdict(
     score: weightedScore,
     scoreBand,
     label: labels[scoreBand],
-    summary: `${name} analysis based on ${segments.length} segments`,
+    summary: `${name} analysis based on ${segments.length} ${pillar === 'qual' ? 'factors' : 'segments'}`,
     segments,
   }
 }
@@ -760,8 +593,8 @@ function buildStockVerdictV2(
   newsEvents: NewsEvent[],
   profileId: string,
 ): StockVerdictV2 {
-  const quantPillar = buildPillarVerdict('quant', 'Quantitative Analysis', quantSegments)
-  const qualPillar = buildPillarVerdict('qual', 'Qualitative Analysis', qualFactors)
+  const quantPillar = buildPillarVerdict('quant', 'Quant Score', quantSegments)
+  const qualPillar = buildPillarVerdict('qual', 'Qual Score', qualFactors)
 
   // Risk pillar (aggregated from red flags across both pillars)
   const allRedFlags = [...quantSegments, ...qualFactors]
@@ -769,7 +602,7 @@ function buildStockVerdictV2(
   const riskScore = allRedFlags.length === 0 ? 80 : Math.max(20, 80 - allRedFlags.length * 15)
   const riskPillar: PillarVerdict = {
     pillar: 'risk',
-    name: 'Risk Assessment',
+    name: 'Risk Score',
     score: riskScore,
     scoreBand: getScoreBandEnum(riskScore),
     label: riskScore >= 80 ? 'LOW RISK' : riskScore >= 60 ? 'MODERATE' : 'ELEVATED',
@@ -779,10 +612,12 @@ function buildStockVerdictV2(
     segments: [],
   }
 
-  // Overall score — independent weighted computation
-  // Simple weighted average for mock: Quant 50% + Qual 30% + Risk 20%
+  // Overall score — uses profile-specific pillar weights
+  const profileWeights = getProfileWeightsV2(profileId)
+  const pw = profileWeights.pillarWeights
+  const totalWeight = pw.quant + pw.qual + pw.risk
   const overallScore = Math.round(
-    quantPillar.score * 0.50 + qualPillar.score * 0.30 + riskPillar.score * 0.20
+    (quantPillar.score * pw.quant + qualPillar.score * pw.qual + riskPillar.score * pw.risk) / totalWeight
   )
   const overall = getOverallVerdict(overallScore)
 
@@ -814,54 +649,87 @@ function buildStockVerdictV2(
 // ============================================================
 
 const zomatoNewsEvents: NewsEvent[] = [
-  { id: 'z-n1', type: 'quarterly_results', bucket: 'financial_performance', title: 'Q2 FY25: First profitable quarter — PAT ₹176 Cr', source: 'BSE Filing', date: '2025-01-10', severity: 'positive', investorMeaning: 'Profitability milestone achieved — validates unit economics at scale.', impactPillars: ['quant', 'qual'] },
-  { id: 'z-n2', type: 'concall_highlights', bucket: 'financial_performance', title: 'Concall: Blinkit dark stores to reach 1,000 by FY26', source: 'Investor Relations', date: '2025-01-12', severity: 'positive', investorMeaning: 'Aggressive expansion indicates management confidence in quick commerce TAM.', impactPillars: ['quant'] },
-  { id: 'z-n3', type: 'block_deal', bucket: 'corporate_actions', title: 'FII block deal: 2M shares purchased at ₹265', source: 'NSE Bulk Deals', date: '2025-01-08', severity: 'positive', investorMeaning: 'Large institutional buying signals confidence at current valuations.', impactPillars: ['quant'] },
-  { id: 'z-n4', type: 'index_inclusion', bucket: 'market_signals', title: 'Included in MSCI India Index', source: 'MSCI', date: '2024-11-25', severity: 'positive', investorMeaning: 'Index inclusion brings passive fund inflows and validates market-cap maturity.', impactPillars: ['quant'] },
-  { id: 'z-n5', type: 'broker_upgrade', bucket: 'sentiment_third_party', title: 'Goldman Sachs upgrades to BUY, target ₹320', source: 'Goldman Sachs Research', date: '2025-01-05', severity: 'positive', investorMeaning: 'Major analyst upgrade signals institutional view shift on growth sustainability.', impactPillars: ['quant'] },
+  { id: 'z-n1', type: 'quarterly_results', bucket: 'financial_performance', title: 'Q2 FY25: First profitable quarter — PAT ₹176 Cr', source: 'BSE Filing', date: '2025-01-10', severity: 'positive', investorMeaning: 'Profitability milestone achieved — validates unit economics at scale.', impactSegments: ['profitability', 'earnings_quality'] },
+  { id: 'z-n2', type: 'concall_highlights', bucket: 'financial_performance', title: 'Concall: Blinkit dark stores to reach 1,000 by FY26', source: 'Investor Relations', date: '2025-01-12', severity: 'positive', investorMeaning: 'Aggressive expansion indicates management confidence in quick commerce TAM.', impactSegments: ['growth', 'execution_quality'] },
+  { id: 'z-n3', type: 'block_deal', bucket: 'corporate_actions', title: 'FII block deal: 2M shares purchased at ₹265', source: 'NSE Bulk Deals', date: '2025-01-08', severity: 'positive', investorMeaning: 'Large institutional buying signals confidence at current valuations.', impactSegments: ['institutional_signals'] },
+  { id: 'z-n4', type: 'index_inclusion', bucket: 'market_signals', title: 'Included in MSCI India Index', source: 'MSCI', date: '2024-11-25', severity: 'positive', investorMeaning: 'Index inclusion brings passive fund inflows and validates market-cap maturity.', impactSegments: ['institutional_signals', 'performance'] },
+  { id: 'z-n5', type: 'broker_upgrade', bucket: 'sentiment_third_party', title: 'Goldman Sachs upgrades to BUY, target ₹320', source: 'Goldman Sachs Research', date: '2025-01-05', severity: 'positive', investorMeaning: 'Major analyst upgrade signals institutional view shift on growth sustainability.', impactSegments: ['valuation', 'institutional_signals'] },
+  { id: 'z-n6', type: 'regulatory_change', bucket: 'external_macro', title: 'ONDC policy update: Open network mandate for food delivery', source: 'DPIIT', date: '2024-12-18', severity: 'watch', investorMeaning: 'Open network regulation could erode platform moat if enforced aggressively.', impactSegments: ['business_quality', 'growth'] },
+  { id: 'z-n7', type: 'board_change', bucket: 'governance_ownership', title: 'New independent director with fintech background appointed', source: 'BSE Filing', date: '2024-12-05', severity: 'neutral', investorMeaning: 'Board diversity improving — fintech expertise may aid payments strategy.', impactSegments: ['management_governance'] },
+  { id: 'z-n8', type: 'investor_presentation', bucket: 'documents_reference', title: 'Investor Day 2024: 5-year profitability roadmap shared', source: 'Zomato IR', date: '2024-11-15', severity: 'positive', investorMeaning: 'Detailed long-term path to sustained profitability increases visibility.', impactSegments: ['execution_quality', 'earnings_quality'] },
+  { id: 'z-n9', type: 'product_launch', bucket: 'strategic_business', title: 'Blinkit launches 10-minute delivery for electronics', source: 'Business Today', date: '2025-01-02', severity: 'positive', investorMeaning: 'Category expansion into higher-margin verticals strengthens Blinkit thesis.', impactSegments: ['growth', 'business_quality'] },
 ]
 
 const axisBankNewsEvents: NewsEvent[] = [
-  { id: 'ab-n1', type: 'quarterly_results', bucket: 'financial_performance', title: 'Q3 FY25: PAT up 18% YoY to ₹6,071 Cr', source: 'BSE Filing', date: '2025-01-15', severity: 'positive', investorMeaning: 'Strong earnings growth driven by lower credit costs and retail loan growth.', impactPillars: ['quant'] },
-  { id: 'ab-n2', type: 'dividend', bucket: 'financial_performance', title: 'Interim dividend of ₹1/share declared', source: 'BSE Filing', date: '2025-01-15', severity: 'positive', investorMeaning: 'Growing dividend signals management confidence in sustained earnings.', impactPillars: ['qual'] },
-  { id: 'ab-n3', type: 'credit_rating', bucket: 'financial_performance', title: 'CRISIL reaffirms AAA rating with stable outlook', source: 'CRISIL', date: '2024-12-10', severity: 'positive', investorMeaning: 'Highest credit quality maintained — strong institutional confidence.', impactPillars: ['quant', 'qual'] },
-  { id: 'ab-n4', type: 'regulatory_action', bucket: 'governance_ownership', title: 'RBI: No adverse observations in annual inspection', source: 'RBI', date: '2024-11-30', severity: 'positive', investorMeaning: 'Clean regulatory track record signals sound governance.', impactPillars: ['qual'] },
-  { id: 'ab-n5', type: 'partnership', bucket: 'strategic_business', title: 'Axis-Max Life integration completed ahead of schedule', source: 'Press Release', date: '2024-12-20', severity: 'positive', investorMeaning: 'Successful integration expands bancassurance revenue and cross-sell potential.', impactPillars: ['qual'] },
+  { id: 'ab-n1', type: 'quarterly_results', bucket: 'financial_performance', title: 'Q3 FY25: PAT up 18% YoY to ₹6,071 Cr', source: 'BSE Filing', date: '2025-01-15', severity: 'positive', investorMeaning: 'Strong earnings growth driven by lower credit costs and retail loan growth.', impactSegments: ['profitability', 'growth'] },
+  { id: 'ab-n2', type: 'dividend', bucket: 'financial_performance', title: 'Interim dividend of ₹1/share declared', source: 'BSE Filing', date: '2025-01-15', severity: 'positive', investorMeaning: 'Growing dividend signals management confidence in sustained earnings.', impactSegments: ['capital_discipline'] },
+  { id: 'ab-n3', type: 'credit_rating', bucket: 'financial_performance', title: 'CRISIL reaffirms AAA rating with stable outlook', source: 'CRISIL', date: '2024-12-10', severity: 'positive', investorMeaning: 'Highest credit quality maintained — strong institutional confidence.', impactSegments: ['financial_health', 'earnings_quality'] },
+  { id: 'ab-n4', type: 'regulatory_action', bucket: 'governance_ownership', title: 'RBI: No adverse observations in annual inspection', source: 'RBI', date: '2024-11-30', severity: 'positive', investorMeaning: 'Clean regulatory track record signals sound governance.', impactSegments: ['management_governance'] },
+  { id: 'ab-n5', type: 'partnership', bucket: 'strategic_business', title: 'Axis-Max Life integration completed ahead of schedule', source: 'Press Release', date: '2024-12-20', severity: 'positive', investorMeaning: 'Successful integration expands bancassurance revenue and cross-sell potential.', impactSegments: ['business_quality', 'execution_quality'] },
+  { id: 'ab-n6', type: 'sector_event', bucket: 'external_macro', title: 'RBI cuts repo rate 25bps to 6.25% — positive for bank NIMs', source: 'RBI', date: '2025-01-06', severity: 'positive', investorMeaning: 'Rate cut cycle benefits loan growth and may widen net interest margins.', impactSegments: ['growth', 'profitability'] },
+  { id: 'ab-n7', type: 'short_interest', bucket: 'market_signals', title: 'Short interest drops to 0.8% — 6-month low', source: 'NSE', date: '2025-01-10', severity: 'positive', investorMeaning: 'Declining short positions signal reducing bearish sentiment.', impactSegments: ['performance', 'institutional_signals'] },
+  { id: 'ab-n8', type: 'broker_upgrade', bucket: 'sentiment_third_party', title: 'Morgan Stanley: Overweight, TP ₹1,350 — top banking pick', source: 'Morgan Stanley', date: '2025-01-03', severity: 'positive', investorMeaning: 'Top sector pick by a leading global broker signals strong institutional conviction.', impactSegments: ['valuation', 'institutional_signals'] },
+  { id: 'ab-n9', type: 'annual_report', bucket: 'documents_reference', title: 'Annual Report FY24: ESG disclosures & digital banking metrics', source: 'Axis Bank IR', date: '2024-08-20', severity: 'neutral', investorMeaning: 'Comprehensive disclosure of digital transformation progress and ESG commitments.', impactSegments: ['management_governance', 'execution_quality'] },
 ]
 
 const tcsNewsEvents: NewsEvent[] = [
-  { id: 'tcs-n1', type: 'quarterly_results', bucket: 'financial_performance', title: 'Q3 FY25: Revenue up 6% YoY CC, margins at 26.1%', source: 'BSE Filing', date: '2025-01-09', severity: 'neutral', investorMeaning: 'In-line results — growth is steady but not accelerating. Margins resilient.', impactPillars: ['quant'] },
-  { id: 'tcs-n2', type: 'buyback', bucket: 'corporate_actions', title: '₹18,000 Cr buyback at ₹4,150/share completed', source: 'BSE Filing', date: '2024-12-15', severity: 'positive', investorMeaning: 'Continues shareholder-friendly capital return. Reduces share count ~1%.', impactPillars: ['qual'] },
-  { id: 'tcs-n3', type: 'deal_win', bucket: 'strategic_business', title: 'Wins $2B multi-year deal with UK financial services firm', source: 'Press Release', date: '2025-01-05', severity: 'positive', investorMeaning: 'Large deal win validates competitive position and provides revenue visibility.', impactPillars: ['quant'] },
-  { id: 'tcs-n4', type: 'sector_event', bucket: 'external_macro', title: 'US Fed signals slower rate cuts — IT demand impact uncertain', source: 'Bloomberg', date: '2025-01-08', severity: 'watch', investorMeaning: 'Higher-for-longer rates may delay enterprise IT spending decisions.', impactPillars: ['quant'] },
-  { id: 'tcs-n5', type: 'annual_report', bucket: 'documents_reference', title: 'Integrated Annual Report FY24 released', source: 'TCS Investor Relations', date: '2024-07-15', severity: 'neutral', investorMeaning: 'Comprehensive disclosure of strategy, ESG commitments, and financial outlook.', impactPillars: ['qual'] },
+  { id: 'tcs-n1', type: 'quarterly_results', bucket: 'financial_performance', title: 'Q3 FY25: Revenue up 6% YoY CC, margins at 26.1%', source: 'BSE Filing', date: '2025-01-09', severity: 'neutral', investorMeaning: 'In-line results — growth is steady but not accelerating. Margins resilient.', impactSegments: ['profitability', 'growth'] },
+  { id: 'tcs-n2', type: 'buyback', bucket: 'corporate_actions', title: '₹18,000 Cr buyback at ₹4,150/share completed', source: 'BSE Filing', date: '2024-12-15', severity: 'positive', investorMeaning: 'Continues shareholder-friendly capital return. Reduces share count ~1%.', impactSegments: ['capital_discipline'] },
+  { id: 'tcs-n3', type: 'deal_win', bucket: 'strategic_business', title: 'Wins $2B multi-year deal with UK financial services firm', source: 'Press Release', date: '2025-01-05', severity: 'positive', investorMeaning: 'Large deal win validates competitive position and provides revenue visibility.', impactSegments: ['growth', 'execution_quality'] },
+  { id: 'tcs-n4', type: 'sector_event', bucket: 'external_macro', title: 'US Fed signals slower rate cuts — IT demand impact uncertain', source: 'Bloomberg', date: '2025-01-08', severity: 'watch', investorMeaning: 'Higher-for-longer rates may delay enterprise IT spending decisions.', impactSegments: ['growth', 'valuation'] },
+  { id: 'tcs-n5', type: 'annual_report', bucket: 'documents_reference', title: 'Integrated Annual Report FY24 released', source: 'TCS Investor Relations', date: '2024-07-15', severity: 'neutral', investorMeaning: 'Comprehensive disclosure of strategy, ESG commitments, and financial outlook.', impactSegments: ['management_governance', 'earnings_quality'] },
+  { id: 'tcs-n6', type: 'promoter_holding', bucket: 'governance_ownership', title: 'Tata Sons maintains 72.3% holding — no change in 4 quarters', source: 'BSE Filing', date: '2025-01-14', severity: 'positive', investorMeaning: 'Stable promoter holding at high level signals long-term commitment.', impactSegments: ['management_governance', 'capital_discipline'] },
+  { id: 'tcs-n7', type: 'broker_downgrade', bucket: 'sentiment_third_party', title: 'CLSA downgrades to HOLD — limited upside at current valuations', source: 'CLSA Research', date: '2025-01-11', severity: 'watch', investorMeaning: 'Premium valuation leaves limited margin of safety — consensus views diverging.', impactSegments: ['valuation'] },
+  { id: 'tcs-n8', type: 'index_rebalance', bucket: 'market_signals', title: 'Nifty 50 weight increases to 4.2% after rebalancing', source: 'NSE', date: '2024-12-20', severity: 'positive', investorMeaning: 'Higher index weight drives incremental passive fund buying.', impactSegments: ['institutional_signals', 'performance'] },
+  { id: 'tcs-n9', type: 'policy_change', bucket: 'external_macro', title: 'India-UK FTA talks: IT services mobility clause progressing', source: 'Economic Times', date: '2024-12-28', severity: 'positive', investorMeaning: 'FTA could reduce visa costs and improve margins on UK projects.', impactSegments: ['growth', 'profitability'] },
 ]
 
 // ============================================================
 // EXPORTED VERDICTS
 // ============================================================
 
-export const verdictsV2: StockVerdictV2[] = [
-  // Zomato
-  buildStockVerdictV2('zomato', 'Zomato (Eternal)', 'ZOMATO', 'New Economy / Food Tech', zomatoQuantSegments, zomatoQualFactors, zomatoNewsEvents, 'ankit'),
+// Stock base data for building verdicts per profile
+const STOCK_BASES = [
+  { stockId: 'zomato', name: 'Zomato (Eternal)', ticker: 'ZOMATO', sector: 'New Economy / Food Tech', quant: zomatoQuantSegments, qual: zomatoQualFactors, news: zomatoNewsEvents },
+  { stockId: 'axisbank', name: 'Axis Bank', ticker: 'AXISBANK', sector: 'Banking / Financial Services', quant: axisBankQuantSegments, qual: axisBankQualFactors, news: axisBankNewsEvents },
+  { stockId: 'tcs', name: 'Tata Consultancy Services', ticker: 'TCS', sector: 'IT Services', quant: tcsQuantSegments, qual: tcsQualFactors, news: tcsNewsEvents },
+] as const
 
-  // Axis Bank
-  buildStockVerdictV2('axisbank', 'Axis Bank', 'AXISBANK', 'Banking / Financial Services', axisBankQuantSegments, axisBankQualFactors, axisBankNewsEvents, 'ankit'),
+// Demo profiles that get pre-built verdicts
+const DEMO_PROFILES = ['ankit', 'sneha', 'kavya'] as const
 
-  // TCS
-  buildStockVerdictV2('tcs', 'Tata Consultancy Services', 'TCS', 'IT Services', tcsQuantSegments, tcsQualFactors, tcsNewsEvents, 'ankit'),
-]
+// Pre-build verdicts for all stock × profile combos
+export const verdictsV2: StockVerdictV2[] = STOCK_BASES.flatMap(stock =>
+  DEMO_PROFILES.map(profileId =>
+    buildStockVerdictV2(stock.stockId, stock.name, stock.ticker, stock.sector, stock.quant, stock.qual, stock.news, profileId)
+  )
+)
 
 /**
- * Get V2 verdict for a stock
+ * Get V2 verdict for a stock + profile combo
  */
-export function getVerdictV2(stockId: string): StockVerdictV2 | undefined {
-  return verdictsV2.find(v => v.stockId === stockId)
+export function getVerdictV2(stockId: string, profileId?: string): StockVerdictV2 | undefined {
+  const normalized = stockId.toLowerCase()
+  const pid = profileId || 'ankit'
+  // Try exact stock+profile match first
+  const match = verdictsV2.find(v =>
+    (v.stockId === normalized || v.ticker === stockId) && v.profileId === pid
+  )
+  if (match) return match
+  // Fallback: any profile for this stock
+  return verdictsV2.find(v => v.stockId === normalized || v.ticker === stockId)
 }
 
 /**
- * Get all V2 verdicts
+ * Get all V2 verdicts (optionally filtered by profile)
  */
-export function getAllVerdictsV2(): StockVerdictV2[] {
-  return verdictsV2
+export function getAllVerdictsV2(profileId?: string): StockVerdictV2[] {
+  if (profileId) return verdictsV2.filter(v => v.profileId === profileId)
+  // Return one per stock (first match)
+  const seen = new Set<string>()
+  return verdictsV2.filter(v => {
+    if (seen.has(v.stockId)) return false
+    seen.add(v.stockId)
+    return true
+  })
 }

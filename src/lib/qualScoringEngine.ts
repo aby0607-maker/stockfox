@@ -51,7 +51,7 @@ export const FACTOR_CONFIGS: Record<string, FactorConfig> = {
     nonAnchorWeights: { B: 0.50, C: 0.50 },
     minAnchorSignals: 2,
     hardOverrides: ['A1_pledge_50', 'B1_auditor', 'B3_sebi', 'fraud'],
-    labels: { strong: 'TRUSTED', good: 'ADEQUATE', mixed: 'MIXED', weak: 'WEAK' },
+    labels: { strong: 'STRONG', good: 'GOOD', mixed: 'MIXED', weak: 'WEAK' },
   },
 
   business_quality: {
@@ -223,7 +223,7 @@ export function scoreQualFactor(
     return {
       score: 0,
       scoreBand: 'suppressed',
-      label: 'SUPPRESSED',
+      label: 'RED FLAG',
       isSuppressed: true,
       suppressionReason: hardFlags[0].description,
       hardFlags,
@@ -312,7 +312,7 @@ function buildSuppressedResult(reason: string, groups: SignalGroup[]): FactorSco
   return {
     score: 0,
     scoreBand: 'suppressed',
-    label: 'SUPPRESSED',
+    label: 'RED FLAG',
     isSuppressed: true,
     suppressionReason: reason,
     hardFlags: [],

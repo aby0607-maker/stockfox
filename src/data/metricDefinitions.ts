@@ -1285,8 +1285,22 @@ export function getMetricDefinition(metricId: string): MetricDefinition | undefi
   return allMetricDefinitions.find(m => m.id === metricId)
 }
 
-// Helper function to get all metrics for a segment
+// Helper function to get all metrics for a segment (supports V2 merged segments)
 export function getMetricsForSegment(segmentId: string): MetricDefinition[] {
+  // V2 financial_health merges 3 old segments
+  if (segmentId === 'financial_health') {
+    return allMetricDefinitions.filter(m =>
+      m.segment === 'financial_ratios' || m.segment === 'income_statement' || m.segment === 'balance_sheet'
+    )
+  }
+  // V2 performance = old price_volume
+  if (segmentId === 'performance') {
+    return allMetricDefinitions.filter(m => m.segment === 'price_volume')
+  }
+  // V2 institutional_signals = old broker_ratings + ownership
+  if (segmentId === 'institutional_signals') {
+    return allMetricDefinitions.filter(m => m.segment === 'broker_ratings' || m.segment === 'ownership')
+  }
   return allMetricDefinitions.filter(m => m.segment === segmentId)
 }
 

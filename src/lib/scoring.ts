@@ -311,7 +311,7 @@ export function getScoreBandV2(score: number, isSuppressed?: boolean): ScoreBand
     return {
       band: 'strong',
       label: 'Strong',
-      shortLabel: 'GREAT',
+      shortLabel: 'STRONG',
       colorClass: 'text-success-400',
       bgClass: 'bg-success-500/10',
       borderClass: 'border-success-500/30',
@@ -335,7 +335,7 @@ export function getScoreBandV2(score: number, isSuppressed?: boolean): ScoreBand
     return {
       band: 'mixed',
       label: 'Mixed',
-      shortLabel: 'FAIR',
+      shortLabel: 'MIXED',
       colorClass: 'text-warning-400',
       bgClass: 'bg-warning-500/10',
       borderClass: 'border-warning-500/30',
@@ -425,7 +425,7 @@ export function getScoreGlowV2(score: number): string {
 }
 
 /**
- * Map factor-specific labels (e.g., MG uses TRUSTED/ADEQUATE instead of STRONG/GOOD)
+ * Map factor-specific labels (allows per-factor overrides if needed)
  */
 export function getFactorLabel(
   band: ScoreBandV2,
@@ -439,7 +439,7 @@ export function getFactorLabel(
     good: 'GOOD',
     mixed: 'MIXED',
     weak: 'WEAK',
-    suppressed: 'SUPPRESSED',
+    suppressed: 'RED FLAG',
   }
   return defaults[band]
 }

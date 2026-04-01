@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Tooltip } from '@/components/ui'
 import type { ConfidenceIndicator as ConfidenceIndicatorType } from '@/types'
 
 interface ConfidenceIndicatorProps {
@@ -39,6 +40,14 @@ const STATE_CONFIG = {
   },
 } as const
 
+const STATE_TOOLTIPS: Record<string, string> = {
+  full: 'All signals computed — maximum confidence in this score',
+  partial: 'Some signals could not be computed due to missing data — score may shift when data becomes available',
+  limited_history: 'Limited financial history (e.g., recently listed company) — interpret score with caution',
+  suppressed: 'Score suppressed due to a hard gate failure — review the flagged signal before relying on this score',
+  cmots_gap: 'Data gap from the market data provider — some signals are temporarily unavailable',
+}
+
 export function ConfidenceIndicator({ indicator }: ConfidenceIndicatorProps) {
   const config = STATE_CONFIG[indicator.state]
   const pct = indicator.signalsTotal > 0
@@ -50,13 +59,17 @@ export function ConfidenceIndicator({ indicator }: ConfidenceIndicatorProps) {
       'flex items-center gap-3 px-3 py-2 rounded-lg border',
       config.bgClass, config.borderClass
     )}>
-      <Info className={cn('w-3.5 h-3.5 flex-shrink-0', config.colorClass)} />
+      <Tooltip content={STATE_TOOLTIPS[indicator.state] || ''}>
+        <Info className={cn('w-3.5 h-3.5 flex-shrink-0 cursor-help', config.colorClass)} />
+      </Tooltip>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={cn('text-xs font-medium', config.colorClass)}>
-            {config.label}
-          </span>
+          <Tooltip content={STATE_TOOLTIPS[indicator.state] || ''} position="bottom">
+            <span className={cn('text-xs font-medium cursor-help', config.colorClass)}>
+              {config.label}
+            </span>
+          </Tooltip>
           <span className="text-[10px] text-neutral-500">
             Based on {indicator.signalsComputed} of {indicator.signalsTotal} signals
           </span>

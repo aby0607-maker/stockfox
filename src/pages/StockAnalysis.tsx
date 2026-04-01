@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Share2, AlertTriangle, TrendingUp, TrendingDown, Sparkles, Newspaper, ChevronRight, ChevronDown, ChevronUp, Check, X, AlertCircle, Calendar, LogOut, GitCompare, UserCheck, History, ShieldCheck, PenLine, BookmarkPlus, FileText, Compass, Wand2, Target } from 'lucide-react'
+import { ArrowLeft, Share2, AlertTriangle, TrendingUp, TrendingDown, Sparkles, Newspaper, ChevronRight, ChevronDown, ChevronUp, Check, X, AlertCircle, Calendar, GitCompare, UserCheck, History, ShieldCheck, PenLine, BookmarkPlus, FileText, Target } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
@@ -8,8 +8,8 @@ import { getStockBySymbol, getVerdictForStock } from '@/data'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
 // V1 UI imports kept for evidence modals (ScoreGauge, VerdictBadge removed — replaced by V2 components)
 import { SegmentBar, DIYSegmentList } from '@/components/charts'
-import { EvidenceChainPanel, KeyMetricsCard } from '@/components/analysis'
-import { GuidedAnalysisModal, ReflectionPromptModal } from '@/components/learning'
+import { EvidenceChainPanel } from '@/components/analysis'
+// GuidedAnalysisModal & ReflectionPromptModal removed in V2
 import { DemoModeToggle, SpotlightTour } from '@/components/demo'
 import { getSpotlightsForLocation } from '@/data/featureSpotlights'
 import { OverallVerdictCard, PillarCard, PillarDrillDown, QualFactorTab, NewsEventSection } from '@/components/scoring'
@@ -493,46 +493,6 @@ function NewsSection({ news }: { news: NewsItem[] }) {
   )
 }
 
-// ============== MODE TOGGLE COMPONENT ==============
-function AnalysisModeToggle() {
-  const { analysisMode, toggleAnalysisMode } = useAppStore()
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-center gap-1 p-1 rounded-xl bg-dark-700/50 border border-white/10"
-    >
-      <button
-        onClick={() => analysisMode === 'diy' && toggleAnalysisMode()}
-        className={cn(
-          'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-          analysisMode === 'dfy'
-            ? 'bg-primary-500 text-white shadow-lg'
-            : 'text-neutral-400 hover:text-white hover:bg-white/5'
-        )}
-      >
-        <Wand2 className="w-4 h-4" />
-        <span>DFY</span>
-        <span className="text-[10px] opacity-70">Interpreted</span>
-      </button>
-      <button
-        onClick={() => analysisMode === 'dfy' && toggleAnalysisMode()}
-        className={cn(
-          'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-          analysisMode === 'diy'
-            ? 'bg-teal-500 text-white shadow-lg'
-            : 'text-neutral-400 hover:text-white hover:bg-white/5'
-        )}
-      >
-        <Compass className="w-4 h-4" />
-        <span>DIY</span>
-        <span className="text-[10px] opacity-70">Raw Data</span>
-      </button>
-    </motion.div>
-  )
-}
-
 // ============== MAIN COMPONENT ==============
 export function StockAnalysis() {
   const { ticker } = useParams<{ ticker: string }>()
@@ -560,12 +520,6 @@ export function StockAnalysis() {
   const [selectedSegmentForEvidence, setSelectedSegmentForEvidence] = useState<SegmentScore | null>(null)
   const [overallEvidenceModalOpen, setOverallEvidenceModalOpen] = useState(false)
 
-  // Guided analysis modal state
-  const [guidedModalOpen, setGuidedModalOpen] = useState(false)
-
-  // Reflection modal state
-  const [reflectionModalOpen, setReflectionModalOpen] = useState(false)
-
   // Demo mode spotlight state
   const spotlights = getSpotlightsForLocation('stock-analysis')
   const showDemoSpotlights = demoMode
@@ -578,7 +532,7 @@ export function StockAnalysis() {
       const stockData = getStockBySymbol(ticker)
       const verdictData = getVerdictForStock(ticker, currentProfile.id)
       const newsData = getNewsForStock(ticker)
-      const verdictV2Data = getVerdictV2(ticker)
+      const verdictV2Data = getVerdictV2(ticker, currentProfile.id)
 
       setStock(stockData || null)
       setVerdict(verdictData || null)
@@ -670,9 +624,7 @@ export function StockAnalysis() {
             isEnabled={demoMode}
             onToggle={toggleDemoMode}
           />
-          <div data-spotlight="mode-toggle">
-            <AnalysisModeToggle />
-          </div>
+          {/* DIY/DFY toggle removed — V2 is DFY-only */}
         </div>
       </motion.div>
 
@@ -744,32 +696,13 @@ export function StockAnalysis() {
           </div>
         </div>
 
-        {/* HERO: V2 Overall Verdict - DFY ONLY */}
-        {analysisMode === 'dfy' && verdictV2 && (
+        {/* HERO: V2 Overall Verdict */}
+        {verdictV2 && (
           <div className="p-5 pt-0" data-spotlight="hero-card">
             <OverallVerdictCard
               verdict={verdictV2}
               profileName={currentProfile.investmentThesis}
             />
-          </div>
-        )}
-
-        {/* DIY Mode: No score/verdict - just a hint */}
-        {analysisMode === 'diy' && (
-          <div className="p-5 pt-0">
-            <div className="rounded-2xl bg-teal-500/5 border border-teal-500/20 p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center">
-                  <Compass className="w-5 h-5 text-teal-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">DIY Analysis Mode</p>
-                  <p className="text-xs text-neutral-400 mt-0.5">
-                    Raw data with sector benchmarks • Form your own conclusions
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </motion.div>
@@ -815,7 +748,7 @@ export function StockAnalysis() {
       </motion.div>
 
       {/* ============== V2: 3-PILLAR CARDS + DRILL-DOWN ============== */}
-      {analysisMode === 'dfy' && verdictV2 && (
+      {verdictV2 && (
         <AnimatePresence mode="wait">
           {!selectedPillar ? (
             /* Pillar overview: 3 cards */
@@ -831,7 +764,7 @@ export function StockAnalysis() {
                   Analysis Pillars
                 </span>
                 <span className="text-[10px] text-neutral-600">
-                  {verdictV2.pillars.reduce((n, p) => n + p.segments.length, 0)} total segments
+                  {verdictV2.pillars.reduce((n, p) => n + p.segments.length, 0)} dimensions analysed
                 </span>
               </div>
               {verdictV2.pillars.map((pillar, i) => (
@@ -874,6 +807,20 @@ export function StockAnalysis() {
               {(() => {
                 const pillar = verdictV2.pillars.find(p => p.pillar === selectedPillar)
                 if (!pillar) return null
+
+                // Risk pillar: embed Red Flag Scanner instead of empty segments list
+                if (selectedPillar === 'risk') {
+                  return (
+                    <div className="space-y-4">
+                      <PillarDrillDown
+                        pillar={pillar}
+                        onBack={() => setSelectedPillar(null)}
+                      />
+                      <RedFlagScanner verdict={verdict} news={news} />
+                    </div>
+                  )
+                }
+
                 return (
                   <PillarDrillDown
                     pillar={pillar}
@@ -896,27 +843,17 @@ export function StockAnalysis() {
         </AnimatePresence>
       )}
 
-      {/* ============== PROS/CONS (Quick View) - DFY ONLY, hidden during pillar drill-down ============== */}
-      {analysisMode === 'dfy' && !selectedPillar && (
+      {/* ============== PROS/CONS (Quick View) - hidden during pillar drill-down ============== */}
+      {!selectedPillar && (
         <div data-spotlight="pros-cons">
           <ProsCons verdict={verdict} />
         </div>
       )}
 
-      {/* ============== RED FLAG SCANNER (DFY) / KEY METRICS (DIY) - After Strengths & Weaknesses ============== */}
-      {analysisMode === 'dfy' && !selectedPillar ? (
-        <div data-spotlight="red-flag-scanner">
-          <RedFlagScanner
-            verdict={verdict}
-            news={news}
-          />
-        </div>
-      ) : analysisMode === 'diy' ? (
-        <KeyMetricsCard verdict={verdict} />
-      ) : null}
+      {/* Red Flag Scanner moved into Risk pillar drill-down */}
 
-      {/* ============== FULL ANALYSIS TOGGLE (below Pros/Cons) ============== */}
-      <motion.button
+      {/* ============== FULL ANALYSIS TOGGLE (below Pros/Cons) — V1 only ============== */}
+      {!verdictV2 && <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
@@ -941,10 +878,10 @@ export function StockAnalysis() {
             {analysisMode === 'dfy' ? 'View Full Analysis (11 Segments)' : 'Explore 11 Segments'}
           </>
         )}
-      </motion.button>
+      </motion.button>}
 
-      {/* ============== FULL VIEW: 11 SEGMENTS ============== */}
-      <AnimatePresence>
+      {/* ============== FULL VIEW: 11 SEGMENTS — V1 only ============== */}
+      {!verdictV2 && <AnimatePresence>
         {isFullView && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -1015,63 +952,9 @@ export function StockAnalysis() {
 
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>}
 
-      {/* ============== METRIC-BY-METRIC LEARNING ============== */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="rounded-2xl bg-dark-800 border border-white/5 p-5"
-        data-spotlight="guided-tour"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-teal-400" />
-            <h3 className="font-semibold text-white">Metric-by-Metric Analysis</h3>
-          </div>
-          <span className="px-2 py-0.5 rounded-lg bg-teal-500/10 text-teal-400 text-[10px] font-medium">
-            LEARNING
-          </span>
-        </div>
-        <p className="text-sm text-neutral-400 mb-4">
-          Go through each segment step-by-step. Rate the metrics yourself before seeing the system's assessment.
-        </p>
-        <button
-          onClick={() => setGuidedModalOpen(true)}
-          className="w-full p-3 rounded-xl bg-gradient-to-r from-teal-500/10 to-primary-500/10 border border-teal-500/20 hover:border-teal-500/40 transition-all group flex items-center justify-center gap-2"
-        >
-          <Target className="w-4 h-4 text-teal-400" />
-          <span className="text-sm font-medium text-white">Start Guided Tour</span>
-          <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-teal-400 transition-colors" />
-        </button>
-      </motion.div>
-
-      {/* ============== LEARNING ACTIONS ============== */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="flex gap-3"
-      >
-        {/* Reflection CTA */}
-        <button
-          onClick={() => setReflectionModalOpen(true)}
-          className="flex-1 p-3 rounded-xl bg-dark-800 border border-white/5 hover:border-primary-500/30 transition-all group flex items-center justify-center gap-2"
-        >
-          <PenLine className="w-4 h-4 text-primary-400" />
-          <span className="text-sm text-neutral-300 group-hover:text-white transition-colors">Log Reflection</span>
-        </button>
-        {/* Journal Link */}
-        <Link
-          to="/journal"
-          className="flex-1 p-3 rounded-xl bg-dark-800 border border-white/5 hover:border-primary-500/30 transition-all group flex items-center justify-center gap-2"
-          data-spotlight="add-to-journal"
-        >
-          <BookmarkPlus className="w-4 h-4 text-primary-400" />
-          <span className="text-sm text-neutral-300 group-hover:text-white transition-colors">Add to Journal</span>
-        </Link>
-      </motion.div>
+      {/* Metric-by-Metric and Learning Actions removed in V2 */}
 
       {/* ============== NEWS & EVENTS SECTION (V2) ============== */}
       {verdictV2 && verdictV2.newsEvents.length > 0 && !selectedPillar && (
@@ -1119,75 +1002,57 @@ export function StockAnalysis() {
         </motion.div>
       )}
 
-      {/* ============== ENTRY ASSESSMENT - DFY ONLY ============== */}
-      {analysisMode === 'dfy' && (
+      {/* ============== ENTRY ASSESSMENT — COMING SOON ============== */}
+      {!selectedPillar && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="rounded-2xl bg-dark-800 border border-white/5 p-5"
+          className="rounded-2xl bg-dark-800 border border-white/5 p-5 relative overflow-hidden"
           data-spotlight="entry-assessment"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary-400" />
-              <h3 className="font-semibold text-white">Entry Assessment</h3>
-            </div>
-            <span className={cn(
-              'px-2.5 py-1 rounded-lg text-xs font-medium',
-              verdict.verdict === 'STRONG BUY' || verdict.verdict === 'BUY'
-                ? 'bg-success-500/20 text-success-400'
-                : verdict.verdict === 'HOLD' || verdict.verdict === 'STRONG HOLD'
-                  ? 'bg-warning-500/20 text-warning-400'
-                  : 'bg-destructive-500/20 text-destructive-400'
-            )}>
-              {verdict.verdict === 'STRONG BUY' || verdict.verdict === 'BUY' ? 'FAVORABLE' :
-               verdict.verdict === 'HOLD' || verdict.verdict === 'STRONG HOLD' ? 'NEUTRAL' : 'WAIT'}
+          {/* Blurred overlay */}
+          <div className="absolute inset-0 bg-dark-800/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+            <span className="px-3 py-1 rounded-lg bg-primary-500/15 text-primary-400 text-xs font-semibold uppercase tracking-wider">
+              Coming Soon
             </span>
+            <p className="text-xs text-neutral-500 mt-2 text-center max-w-[200px]">
+              Position sizing, fair value range & exit triggers
+            </p>
           </div>
 
-          {/* Position Sizing */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="p-3 bg-dark-700/50 rounded-xl">
-              <span className="text-xs text-neutral-500 block mb-1">Suggested Allocation</span>
-              <span className="text-white font-medium text-sm">
-                {typeof verdict.positionSizing === 'string'
-                  ? verdict.positionSizing
-                  : verdict.positionSizing.recommendedAllocation}
+          {/* Placeholder content (blurred behind overlay) */}
+          <div className="opacity-40 pointer-events-none select-none">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary-400" />
+                <h3 className="font-semibold text-white">Entry Assessment</h3>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-neutral-500/20 text-neutral-400">
+                —
               </span>
             </div>
-            {verdict.entryTiming?.fairValueRange && (
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="p-3 bg-dark-700/50 rounded-xl">
+                <span className="text-xs text-neutral-500 block mb-1">Suggested Allocation</span>
+                <span className="text-white font-medium text-sm">—</span>
+              </div>
               <div className="p-3 bg-dark-700/50 rounded-xl">
                 <span className="text-xs text-neutral-500 block mb-1">Fair Value Range</span>
-                <span className="text-white font-medium text-sm">{verdict.entryTiming.fairValueRange}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Exit Triggers */}
-          {verdict.exitTriggers && verdict.exitTriggers.length > 0 && (
-            <div className="pt-3 border-t border-white/5">
-              <div className="flex items-center gap-2 mb-2">
-                <LogOut className="w-3.5 h-3.5 text-neutral-400" />
-                <span className="text-xs font-medium text-neutral-400">Exit Triggers</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {verdict.exitTriggers.slice(0, 3).map((trigger) => (
-                  <span
-                    key={trigger.id}
-                    className={cn(
-                      'px-2 py-1 rounded text-xs',
-                      trigger.status === 'safe' ? 'bg-dark-700 text-neutral-400' :
-                      trigger.status === 'warning' ? 'bg-warning-500/10 text-warning-400' :
-                      'bg-destructive-500/10 text-destructive-400'
-                    )}
-                  >
-                    {trigger.metric} {trigger.condition} {trigger.threshold}
-                  </span>
-                ))}
+                <span className="text-white font-medium text-sm">—</span>
               </div>
             </div>
-          )}
+
+            <div className="pt-3 border-t border-white/5">
+              <span className="text-xs font-medium text-neutral-400">Exit Triggers</span>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="px-2 py-1 rounded text-xs bg-dark-700 text-neutral-500">ROE &lt; 12%</span>
+                <span className="px-2 py-1 rounded text-xs bg-dark-700 text-neutral-500">D/E &gt; 1.5</span>
+                <span className="px-2 py-1 rounded text-xs bg-dark-700 text-neutral-500">Margin decline 3Q</span>
+              </div>
+            </div>
+          </div>
         </motion.div>
       )}
 
@@ -1570,22 +1435,7 @@ Generated by StockFox
         )}
       </AnimatePresence>
 
-      {/* ============== GUIDED ANALYSIS MODAL ============== */}
-      <GuidedAnalysisModal
-        isOpen={guidedModalOpen}
-        onClose={() => setGuidedModalOpen(false)}
-        verdict={verdict}
-        stockName={stock.name}
-      />
-
-      {/* ============== REFLECTION MODAL ============== */}
-      <ReflectionPromptModal
-        isOpen={reflectionModalOpen}
-        onClose={() => setReflectionModalOpen(false)}
-        stockName={stock.name}
-        verdict={verdict.verdict}
-        score={verdict.overallScore}
-      />
+      {/* Guided Analysis & Reflection modals removed in V2 */}
 
       {/* ============== DEMO MODE SPOTLIGHT TOUR ============== */}
       <SpotlightTour

@@ -1,4 +1,6 @@
 import { cn } from '@/lib/utils'
+import { Tooltip, AutoTooltipText } from '@/components/ui'
+import { getSignalTooltip } from '@/data/signalTooltips'
 import type { QualSignal } from '@/types'
 
 interface SignalCardProps {
@@ -48,32 +50,112 @@ export function SignalCard({ signal }: SignalCardProps) {
     )}>
       <div className="flex items-start gap-2">
         {/* State dot */}
-        <div className={cn('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', config.dot)} />
+        <Tooltip content={`Signal state: ${config.label}`} position="bottom">
+          <div className={cn('w-2 h-2 rounded-full mt-1.5 flex-shrink-0 cursor-help', config.dot)} />
+        </Tooltip>
 
         <div className="flex-1 min-w-0">
-          {/* Signal name + ID */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-white">{signal.name}</span>
+          {/* Signal name + ID + badges */}
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            {(() => {
+              const tip = getSignalTooltip(signal.id, signal.name)
+              return tip ? (
+                <Tooltip content={tip} position="bottom" maxWidth={300}>
+                  <span className="text-sm font-medium text-white cursor-help border-b border-dotted border-neutral-600">{signal.name}</span>
+                </Tooltip>
+              ) : (
+                <span className="text-sm font-medium text-white">{signal.name}</span>
+              )
+            })()}
             <span className="text-[10px] text-neutral-600 font-mono">{signal.id}</span>
             {signal.escalationTier !== 'score_only' && (
-              <span className={cn(
-                'text-[9px] font-semibold uppercase px-1 py-0.5 rounded',
-                signal.escalationTier === 'hard'
-                  ? 'bg-destructive-500/20 text-destructive-400'
-                  : 'bg-warning-500/20 text-warning-400'
-              )}>
-                {signal.escalationTier}
-              </span>
+              <Tooltip
+                content={signal.escalationTier === 'hard'
+                  ? 'Hard escalation — if triggered, suppresses the entire segment score'
+                  : 'Soft escalation — if triggered, caps the segment score band'}
+                position="bottom"
+              >
+                <span className={cn(
+                  'text-[9px] font-semibold uppercase px-1 py-0.5 rounded cursor-help',
+                  signal.escalationTier === 'hard'
+                    ? 'bg-destructive-500/20 text-destructive-400'
+                    : 'bg-warning-500/20 text-warning-400'
+                )}>
+                  {signal.escalationTier}
+                </span>
+              </Tooltip>
+            )}
+            {/* Gate pass/fail badge */}
+            {signal.gatePassed !== undefined && (
+              <Tooltip
+                content={signal.gatePassed
+                  ? 'Gate passed — this check is clear, no impact on score'
+                  : 'Gate failed — this triggers score suppression for the entire segment'}
+                position="bottom"
+              >
+                <span className={cn(
+                  'text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded cursor-help',
+                  signal.gatePassed
+                    ? 'bg-success-500/20 text-success-400'
+                    : 'bg-destructive-500/20 text-destructive-400'
+                )}>
+                  {signal.gatePassed ? 'PASS' : 'FAIL'}
+                </span>
+              </Tooltip>
+            )}
+            {/* Modifier points badge */}
+            {signal.modifierPoints !== undefined && (
+              <Tooltip
+                content={signal.modifierActive
+                  ? `This India-specific modifier is active and ${signal.modifierPoints > 0 ? 'adds' : 'deducts'} ${Math.abs(signal.modifierPoints)} points to the segment score`
+                  : 'This modifier is inactive — the condition is not met, so no points are added or deducted'}
+                position="bottom"
+              >
+                <span className={cn(
+                  'text-[9px] font-semibold px-1.5 py-0.5 rounded cursor-help',
+                  signal.modifierActive
+                    ? signal.modifierPoints > 0
+                      ? 'bg-success-500/20 text-success-400'
+                      : 'bg-amber-500/20 text-amber-400'
+                    : 'bg-neutral-700/50 text-neutral-500'
+                )}>
+                  {signal.modifierPoints > 0 ? '+' : ''}{signal.modifierPoints} pts
+                  {!signal.modifierActive && ' (inactive)'}
+                </span>
+              </Tooltip>
+            )}
+            {/* BFSI substitute badge */}
+            {signal.isBfsiSubstitute && (
+              <Tooltip content="Banking/Financial sector metric — this replaces the standard metric with a BFSI-specific equivalent" position="bottom">
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-primary-500/15 text-primary-400 cursor-help">
+                  BFSI
+                </span>
+              </Tooltip>
             )}
           </div>
 
           {/* User-facing text */}
-          <p className={cn('text-xs leading-relaxed', config.text)}>
-            {signal.userText}
-          </p>
+          <AutoTooltipText
+            text={signal.userText}
+            className={cn('text-xs leading-relaxed block', config.text)}
+          />
+
+          {/* Gate value + threshold (for hard gates) */}
+          {signal.gateValue && (
+            <div className="mt-1.5 flex items-center gap-3 text-[10px]">
+              <span className="text-neutral-500">
+                Value: <span className="text-neutral-300 font-mono">{signal.gateValue}</span>
+              </span>
+              {signal.gateThreshold && (
+                <span className="text-neutral-500">
+                  Threshold: <span className="text-neutral-300 font-mono">{signal.gateThreshold}</span>
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Score (if available) */}
-          {signal.score != null && signal.state !== 'suppressed' && (
+          {signal.score != null && signal.state !== 'suppressed' && signal.gatePassed === undefined && signal.modifierPoints === undefined && (
             <div className="mt-1.5 flex items-center gap-2">
               <div className="flex-1 h-1 bg-dark-600 rounded-full overflow-hidden max-w-[100px]">
                 <div

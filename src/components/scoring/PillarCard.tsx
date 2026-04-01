@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { ChevronRight, BarChart3, Shield, Brain } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getScoreBandV2 } from '@/lib/scoring'
+import { Tooltip } from '@/components/ui'
 import type { PillarVerdict } from '@/types'
 
 interface PillarCardProps {
@@ -17,9 +18,15 @@ const PILLAR_ICONS = {
 } as const
 
 const PILLAR_LABELS = {
-  quant: 'Quantitative',
-  qual: 'Qualitative',
-  risk: 'Risk',
+  quant: 'Quant Score',
+  qual: 'Qual Score',
+  risk: 'Risk Score',
+} as const
+
+const PILLAR_DESCRIPTIONS = {
+  quant: 'Numbers-driven analysis — financials, valuation, growth metrics',
+  qual: 'Qualitative analysis — management, business quality, governance',
+  risk: 'Aggregated risk flags across all pillars',
 } as const
 
 export function PillarCard({ pillar, onClick, delay = 0 }: PillarCardProps) {
@@ -27,8 +34,7 @@ export function PillarCard({ pillar, onClick, delay = 0 }: PillarCardProps) {
   const Icon = PILLAR_ICONS[pillar.pillar] || BarChart3
   const label = PILLAR_LABELS[pillar.pillar] || pillar.name
 
-  const scoredSegments = pillar.segments.filter(s => s.scoringType === 'scored')
-  const contextSegments = pillar.segments.filter(s => s.scoringType === 'context')
+  const totalSegments = pillar.segments.length
 
   // Mini arc for score visualization
   const radius = 28
@@ -59,9 +65,11 @@ export function PillarCard({ pillar, onClick, delay = 0 }: PillarCardProps) {
             <Icon className={cn('w-4 h-4', band.colorClass)} />
           </div>
           <div>
-            <span className="text-sm font-semibold text-white block">{label}</span>
+            <Tooltip content={PILLAR_DESCRIPTIONS[pillar.pillar] || ''} position="bottom">
+              <span className="text-sm font-semibold text-white block">{label}</span>
+            </Tooltip>
             <span className="text-[10px] text-neutral-500">
-              {scoredSegments.length} scored{contextSegments.length > 0 ? ` + ${contextSegments.length} context` : ''}
+              {totalSegments} {pillar.pillar === 'qual' ? 'factors' : 'segments'}
             </span>
           </div>
         </div>

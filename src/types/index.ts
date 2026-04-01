@@ -474,7 +474,7 @@ export interface SegmentVerdictV2 {
   scoringType: SegmentScoringType
   score?: number                   // 0-100, undefined for context segments
   scoreBand?: ScoreBandV2
-  label?: string                   // Per-factor label (MG uses TRUSTED/ADEQUATE)
+  label?: string                   // Per-factor label override (defaults to band label)
   weight?: number                  // only for scored segments
   status: 'positive' | 'neutral' | 'negative'
   interpretation: string
@@ -500,19 +500,22 @@ export interface SubClassification {
   metrics: Metric[]
 }
 
-// Qual Factor Signal Architecture
+// Signal Architecture — shared by Qual factors and Quant segments
 export interface SignalGroup {
-  id: string                       // 'group_a', 'group_b', etc.
-  name: string                     // "Promoter Alignment", "Governance Structure"
+  id: string                       // 'group_a', 'group_b', 'gates', 'modifiers', etc.
+  name: string                     // "Promoter Alignment", "Cash Flow Quality", "Hard Gates"
   role: 'anchor' | 'scored' | 'red_flag_only' | 'narrative_only' | 'contextualiser'
+    | 'gate'                       // Quant: binary pass/fail gates (e.g., FH G1-G5)
+    | 'modifier'                   // Quant: India-specific point modifiers (±5 pts)
+    | 'context'                    // Quant: context signals (not in composite)
   weight?: number                  // Within non-anchor composite
   score?: number                   // 0-100
   signals: QualSignal[]
 }
 
 export interface QualSignal {
-  id: string                       // 'A1', 'A2', etc.
-  name: string                     // "Promoter Skin in the Game"
+  id: string                       // 'A1', 'A2', 'G1', 'B1', 'M1', etc.
+  name: string                     // "Promoter Skin in the Game", "Altman Z″ Solvency Gate"
   group: string
   escalationTier: EscalationTier
   score?: number                   // 0-100, undefined for hard triggers/contextualisers
@@ -520,6 +523,17 @@ export interface QualSignal {
   userText: string                 // Plain English 3-state text for current state
   isTriggered?: boolean            // For soft/hard escalations
   version: 'v1' | 'v2'            // Signal availability
+  // Quant gate-specific fields (optional)
+  gatePassed?: boolean             // true = pass, false = fail (hard gates only)
+  gateFormula?: string             // e.g., "Z″ = 6.56×(WC/TA) + ..."
+  gateThreshold?: string           // e.g., "> 1.10 for pass"
+  gateValue?: string               // Current computed value, e.g., "2.85"
+  // Quant modifier-specific fields (optional)
+  modifierPoints?: number          // e.g., -5, +5 (India modifiers)
+  modifierActive?: boolean         // Whether modifier is currently applied
+  // BFSI template marker
+  isBfsiSubstitute?: boolean       // true if this signal replaces a standard metric for BFSI
+  bfsiOriginal?: string            // Name of the standard metric this replaces
 }
 
 export interface RedFlagV2 {
@@ -558,7 +572,7 @@ export interface NewsEvent {
   date: string
   severity: 'positive' | 'neutral' | 'watch' | 'flag' | 'hard_stop'
   investorMeaning: string
-  impactPillars: VerdictPillar[]   // Which pillars this event affects
+  impactSegments: string[]         // Layer 3 segment/factor IDs this event affects (e.g., 'profitability', 'management_governance')
 }
 
 // V2 Overall Verdict — independent of pillar scores

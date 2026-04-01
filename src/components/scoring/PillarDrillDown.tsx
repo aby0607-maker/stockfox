@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
-import { ArrowLeft, ChevronRight, Info } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getScoreBandV2 } from '@/lib/scoring'
+import { Tooltip, AutoTooltipText } from '@/components/ui'
+import { SEGMENT_TOOLTIPS } from '@/data/signalTooltips'
 import type { PillarVerdict, SegmentVerdictV2 } from '@/types'
 
 interface PillarDrillDownProps {
@@ -12,8 +14,7 @@ interface PillarDrillDownProps {
 
 export function PillarDrillDown({ pillar, onBack, onSegmentClick }: PillarDrillDownProps) {
   const band = getScoreBandV2(pillar.score)
-  const scoredSegments = pillar.segments.filter(s => s.scoringType === 'scored')
-  const contextSegments = pillar.segments.filter(s => s.scoringType === 'context')
+  const allSegments = pillar.segments
 
   return (
     <motion.div
@@ -51,36 +52,25 @@ export function PillarDrillDown({ pillar, onBack, onSegmentClick }: PillarDrillD
         {pillar.summary}
       </p>
 
-      {/* Scored Segments */}
-      {scoredSegments.length > 0 && (
+      {/* Segments / Factors */}
+      {allSegments.length > 0 && (
         <div className="space-y-2">
-          <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
-            Scored {pillar.pillar === 'qual' ? 'Factors' : 'Segments'}
-          </span>
-          {scoredSegments.map((segment) => (
-            <SegmentRow
-              key={segment.id}
-              segment={segment}
-              onClick={() => onSegmentClick?.(segment.id)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Context Segments */}
-      {contextSegments.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
+          <div>
             <span className="text-xs font-medium text-neutral-500 uppercase tracking-wider">
-              Context (Unscored)
+              {pillar.pillar === 'qual' ? 'Factors' : 'Segments'}
             </span>
-            <Info className="w-3 h-3 text-neutral-600" />
+            <p className="text-[10px] text-neutral-600 mt-0.5">
+              {pillar.pillar === 'qual'
+                ? 'Each factor scores management, business quality, and governance signals'
+                : pillar.pillar === 'quant'
+                  ? 'Each segment scores a quantitative dimension — tap to see signals'
+                  : 'Risk dimensions aggregated from red flags across Quant and Qual'}
+            </p>
           </div>
-          {contextSegments.map((segment) => (
+          {allSegments.map((segment) => (
             <SegmentRow
               key={segment.id}
               segment={segment}
-              isContext
               onClick={() => onSegmentClick?.(segment.id)}
             />
           ))}
@@ -92,11 +82,9 @@ export function PillarDrillDown({ pillar, onBack, onSegmentClick }: PillarDrillD
 
 function SegmentRow({
   segment,
-  isContext = false,
   onClick,
 }: {
   segment: SegmentVerdictV2
-  isContext?: boolean
   onClick?: () => void
 }) {
   const band = segment.score != null ? getScoreBandV2(segment.score, segment.isSuppressed) : null
@@ -118,27 +106,34 @@ function SegmentRow({
             )} />
 
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-medium text-white block truncate">
-                {segment.name}
-              </span>
-              {segment.quickInsight && (
-                <span className="text-[10px] text-neutral-500 block truncate mt-0.5">
-                  {segment.quickInsight}
+              {SEGMENT_TOOLTIPS[segment.id] ? (
+                <Tooltip content={SEGMENT_TOOLTIPS[segment.id]} position="bottom" maxWidth={280}>
+                  <span className="text-sm font-medium text-white block truncate cursor-help border-b border-dotted border-neutral-700">
+                    {segment.name}
+                  </span>
+                </Tooltip>
+              ) : (
+                <span className="text-sm font-medium text-white block truncate">
+                  {segment.name}
                 </span>
+              )}
+              {segment.quickInsight && (
+                <AutoTooltipText
+                  text={segment.quickInsight}
+                  className="text-[10px] text-neutral-500 block truncate mt-0.5"
+                />
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Score or Context badge */}
-            {isContext ? (
-              <span className="px-2 py-0.5 rounded text-[10px] text-neutral-500 bg-dark-700">
-                CONTEXT
-              </span>
-            ) : segment.isSuppressed ? (
-              <span className="px-2 py-0.5 rounded text-[10px] text-destructive-400 bg-destructive-500/20 font-semibold">
-                RED FLAG
-              </span>
+            {/* Score or suppressed badge */}
+            {segment.isSuppressed ? (
+              <Tooltip content="Score suppressed — a hard gate failure has triggered. Tap to see which gate failed." position="top">
+                <span className="px-2 py-0.5 rounded text-[10px] text-destructive-400 bg-destructive-500/20 font-semibold cursor-help">
+                  RED FLAG
+                </span>
+              </Tooltip>
             ) : band ? (
               <div className="flex items-center gap-2">
                 <span className={cn('text-sm font-bold', band.colorClass)}>
@@ -157,8 +152,8 @@ function SegmentRow({
           </div>
         </div>
 
-        {/* Score bar for scored segments */}
-        {!isContext && segment.score != null && !segment.isSuppressed && (
+        {/* Score bar */}
+        {segment.score != null && !segment.isSuppressed && (
           <div className="mt-2 h-1.5 bg-dark-600 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}

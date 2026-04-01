@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getScoreBandV2 } from '@/lib/scoring'
+import { AutoTooltipText } from '@/components/ui'
 import { SignalGroupCard } from './SignalGroupCard'
 import { RedFlagBanner } from './RedFlagBanner'
 import { ConfidenceIndicator } from './ConfidenceIndicator'
@@ -37,7 +38,7 @@ export function QualFactorTab({ factor, onBack }: QualFactorTabProps) {
           <h3 className="font-semibold text-white">{factor.name}</h3>
           <div className="flex items-center gap-2 mt-0.5">
             {factor.isSuppressed ? (
-              <span className="text-sm font-bold text-destructive-400">SUPPRESSED</span>
+              <span className="text-sm font-bold text-destructive-400">RED FLAG</span>
             ) : band && factor.score != null ? (
               <>
                 <span className={cn('text-lg font-bold', band.colorClass)}>
@@ -62,9 +63,10 @@ export function QualFactorTab({ factor, onBack }: QualFactorTabProps) {
 
       {/* 1-line verdict */}
       {factor.interpretation && (
-        <p className="text-sm text-neutral-400 leading-relaxed">
-          {factor.interpretation}
-        </p>
+        <AutoTooltipText
+          text={factor.interpretation}
+          className="text-sm text-neutral-400 leading-relaxed block"
+        />
       )}
 
       {/* Score justification */}
@@ -73,9 +75,10 @@ export function QualFactorTab({ factor, onBack }: QualFactorTabProps) {
           <span className="text-[10px] text-neutral-500 uppercase tracking-wider block mb-1">
             Score Justification
           </span>
-          <p className="text-xs text-neutral-300 leading-relaxed">
-            {factor.scoreJustification}
-          </p>
+          <AutoTooltipText
+            text={factor.scoreJustification}
+            className="text-xs text-neutral-300 leading-relaxed block"
+          />
         </div>
       )}
 

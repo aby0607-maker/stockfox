@@ -1,23 +1,31 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeftRight, Plus, X, ChevronDown, Trophy, Star } from 'lucide-react'
+import { ArrowLeftRight, Plus, X, ChevronDown, Trophy, Star, BarChart3, Brain, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { stocks } from '@/data/stocks'
-import { getVerdict } from '@/data/verdicts'
+import { getVerdictV2 } from '@/data/verdictsV2'
+import { getScoreBandV2 } from '@/lib/scoring'
 import { useAppStore } from '@/store/useAppStore'
-import { ScoreGauge } from '@/components/ui/ScoreGauge'
-import { VerdictBadge } from '@/components/ui/VerdictBadge'
 import { StaggerContainer, StaggerItem } from '@/components/motion'
-import type { StockVerdict, SegmentScore } from '@/types'
+import type { StockVerdictV2, VerdictPillar } from '@/types'
 
-// Stock selector dropdown component
+// ── Pillar config ──────────────────────────────────────────────
+
+const PILLAR_CONFIG: Record<VerdictPillar, { label: string; icon: typeof BarChart3 }> = {
+  quant: { label: 'Quantitative', icon: BarChart3 },
+  qual: { label: 'Qualitative', icon: Brain },
+  risk: { label: 'Risk', icon: Shield },
+}
+
+// ── Stock Selector ─────────────────────────────────────────────
+
 function StockSelector({
   selectedId,
   onSelect,
   excludeIds,
   onRemove,
   canRemove,
-  verdict,
+  verdictV2,
   isWinner,
 }: {
   selectedId: string | null
@@ -25,7 +33,7 @@ function StockSelector({
   excludeIds: string[]
   onRemove?: () => void
   canRemove?: boolean
-  verdict?: StockVerdict
+  verdictV2?: StockVerdictV2
   isWinner?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -69,22 +77,31 @@ function StockSelector({
           )} />
         </button>
 
-        {/* Stock info */}
-        {selectedStock && verdict ? (
+        {/* Stock info — V2 */}
+        {selectedStock && verdictV2 ? (
           <div className="mt-3 text-center">
             <h3 className="text-lg font-semibold text-white">{selectedStock.symbol}</h3>
             <p className="text-xs text-neutral-400 truncate">{selectedStock.name}</p>
 
-            <div className="mt-3 flex flex-col items-center gap-2">
-              <ScoreGauge score={verdict.overallScore} size="sm" />
-              <VerdictBadge verdict={verdict.verdict} size="sm" />
+            <div className="mt-3 flex flex-col items-center gap-1.5">
+              {/* Overall score */}
+              {(() => {
+                const band = getScoreBandV2(verdictV2.overallScore)
+                return (
+                  <>
+                    <span className={cn('text-2xl font-bold', band.colorClass)}>
+                      {verdictV2.overallScore}
+                    </span>
+                    <span className={cn(
+                      'px-2 py-0.5 rounded text-[10px] font-semibold uppercase',
+                      band.bgClass, band.colorClass
+                    )}>
+                      {verdictV2.overallLabel}
+                    </span>
+                  </>
+                )
+              })()}
             </div>
-
-            {verdict.sectorRank && (
-              <p className="mt-2 text-xs text-neutral-500">
-                #{verdict.sectorRank} in {selectedStock.sector}
-              </p>
-            )}
           </div>
         ) : (
           <div className="mt-3 py-8 text-center">
@@ -141,57 +158,55 @@ function StockSelector({
   )
 }
 
-// Segment comparison row
-function SegmentRow({
-  segment,
-  scores,
+// ── Pillar comparison row ──────────────────────────────────────
+
+function PillarRow({
+  pillarKey,
+  verdicts,
   stockIds,
   isExpanded,
   onToggle,
 }: {
-  segment: SegmentScore
-  scores: (number | undefined)[]
+  pillarKey: VerdictPillar
+  verdicts: (StockVerdictV2 | undefined)[]
   stockIds: string[]
   isExpanded: boolean
   onToggle: () => void
 }) {
+  const config = PILLAR_CONFIG[pillarKey]
+  const Icon = config.icon
+
+  const pillarData = verdicts.map(v =>
+    v?.pillars.find(p => p.pillar === pillarKey)
+  )
+  const scores = pillarData.map(p => p?.score)
   const maxScore = Math.max(...scores.filter((s): s is number => s !== undefined))
   const winnerIndex = scores.findIndex(s => s === maxScore)
 
+  // Get segments/factors for expanded view
+  const segments = pillarData.find(p => p)?.segments || []
+
   return (
-    <motion.div
-      layout
-      className="border-b border-white/5 last:border-0"
-    >
+    <div className="border-b border-white/5 last:border-0">
+      {/* Pillar header row */}
       <button
         onClick={onToggle}
         className="w-full px-4 py-3 flex items-center gap-4 hover:bg-dark-700/50 transition-colors"
       >
-        {/* Segment name */}
-        <div className="flex-1 text-left">
-          <span className="text-sm font-medium text-white">{segment.name}</span>
-          {segment.weight && (
-            <span className="ml-2 text-xs text-neutral-600">
-              {(segment.weight * 100).toFixed(0)}% weight
-            </span>
-          )}
+        <div className="flex items-center gap-2 flex-1 text-left">
+          <Icon className="w-4 h-4 text-primary-400" />
+          <span className="text-sm font-semibold text-white">{config.label}</span>
         </div>
 
         {/* Score cells */}
         {scores.map((score, i) => (
-          <div
-            key={stockIds[i] || i}
-            className={cn(
-              'w-16 text-center',
-              i === winnerIndex && score !== undefined && 'relative'
-            )}
-          >
+          <div key={stockIds[i] || i} className="w-16 text-center">
             {score !== undefined ? (
               <span className={cn(
-                'text-sm font-semibold tabular-nums',
+                'text-sm font-bold tabular-nums',
                 i === winnerIndex ? 'text-success-400' : 'text-neutral-300'
               )}>
-                {score.toFixed(1)}
+                {Math.round(score)}
                 {i === winnerIndex && (
                   <Star className="inline w-3 h-3 ml-0.5 text-success-400 fill-success-400" />
                 )}
@@ -208,124 +223,88 @@ function SegmentRow({
         )} />
       </button>
 
-      {/* Expanded metrics */}
+      {/* Expanded: segment/factor rows */}
       <AnimatePresence>
-        {isExpanded && segment.metrics && (
+        {isExpanded && segments.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="overflow-hidden bg-dark-800/50"
           >
-            <div className="px-4 py-3 space-y-2">
-              {segment.metrics.slice(0, 4).map(metric => (
-                <div key={metric.name} className="flex items-center gap-4 text-xs">
-                  <span className="flex-1 text-neutral-400">{metric.name}</span>
-                  <span className="text-neutral-300">{metric.displayValue}</span>
-                  {metric.sectorAvgDisplay && (
-                    <span className="text-neutral-600">
-                      vs {metric.sectorAvgDisplay} sector
-                    </span>
-                  )}
-                </div>
-              ))}
+            <div className="px-4 py-2 space-y-0.5">
+              {segments.map(seg => {
+                const segScores = verdicts.map(v => {
+                  const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+                  return pillar?.segments.find(s => s.id === seg.id)?.score
+                })
+                const segMax = Math.max(...segScores.filter((s): s is number => s !== undefined))
+                const segWinner = segScores.findIndex(s => s === segMax)
+
+                return (
+                  <div key={seg.id} className="flex items-center gap-4 py-1.5">
+                    <div className="flex-1 flex items-center gap-2">
+                      <div className={cn(
+                        'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                        seg.isSuppressed ? 'bg-destructive-500' :
+                        seg.status === 'positive' ? 'bg-success-500' :
+                        seg.status === 'negative' ? 'bg-destructive-500' :
+                        'bg-neutral-500'
+                      )} />
+                      <span className="text-xs text-neutral-400">{seg.name}</span>
+                      {seg.scoringType === 'context' && (
+                        <span className="text-[9px] text-neutral-600 uppercase">ctx</span>
+                      )}
+                    </div>
+                    {segScores.map((score, i) => (
+                      <div key={stockIds[i] || i} className="w-16 text-center">
+                        {score !== undefined ? (
+                          <span className={cn(
+                            'text-xs font-medium tabular-nums',
+                            i === segWinner ? 'text-success-400' : 'text-neutral-400'
+                          )}>
+                            {Math.round(score)}
+                          </span>
+                        ) : seg.scoringType === 'context' ? (
+                          <span className="text-[10px] text-neutral-600">—</span>
+                        ) : (
+                          <span className="text-neutral-600">—</span>
+                        )}
+                      </div>
+                    ))}
+                    <div className="w-4" />
+                  </div>
+                )
+              })}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
-  )
-}
-
-// Key metrics comparison
-function KeyMetricsComparison({
-  verdicts,
-  stockSymbols,
-}: {
-  verdicts: (StockVerdict | undefined)[]
-  stockSymbols: string[]
-}) {
-  // Extract key metrics from first stock's segments
-  const keyMetrics = [
-    { id: 'roe', name: 'ROE', segmentId: 'profitability', metricName: 'ROE' },
-    { id: 'netMargin', name: 'Net Margin', segmentId: 'profitability', metricName: 'Net Margin' },
-    { id: 'debtEquity', name: 'Debt/Equity', segmentId: 'financials', metricName: 'Debt to Equity' },
-    { id: 'revenueGrowth', name: 'Revenue Growth', segmentId: 'growth', metricName: 'Revenue Growth' },
-    { id: 'pe', name: 'P/E Ratio', segmentId: 'valuation', metricName: 'P/E Ratio' },
-  ]
-
-  const getMetricValue = (verdict: StockVerdict | undefined, segmentId: string, metricName: string) => {
-    if (!verdict) return undefined
-    const segment = verdict.segments?.find(s => s.id === segmentId)
-    const metric = segment?.metrics?.find(m =>
-      m.name.toLowerCase().includes(metricName.toLowerCase()) ||
-      metricName.toLowerCase().includes(m.name.toLowerCase())
-    )
-    return metric?.displayValue
-  }
-
-  return (
-    <div className="rounded-xl bg-dark-800/80 backdrop-blur-xl border border-white/10 overflow-hidden">
-      <div className="px-4 py-3 border-b border-white/5">
-        <h3 className="text-sm font-semibold text-white">Key Metrics</h3>
-      </div>
-
-      <div className="divide-y divide-white/5">
-        {/* Header row */}
-        <div className="px-4 py-2 flex items-center gap-4 bg-dark-700/30">
-          <div className="flex-1 text-xs text-neutral-500 uppercase tracking-wide">Metric</div>
-          {stockSymbols.map((symbol, i) => (
-            <div key={i} className="w-20 text-center text-xs text-neutral-500 font-medium">
-              {symbol || '—'}
-            </div>
-          ))}
-        </div>
-
-        {/* Metric rows */}
-        {keyMetrics.map(metric => {
-          const values = verdicts.map(v => getMetricValue(v, metric.segmentId, metric.metricName))
-
-          return (
-            <div key={metric.id} className="px-4 py-2.5 flex items-center gap-4">
-              <div className="flex-1 text-sm text-neutral-300">{metric.name}</div>
-              {values.map((value, i) => (
-                <div key={i} className="w-20 text-center text-sm font-medium text-white">
-                  {value || '—'}
-                </div>
-              ))}
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }
 
-// Main Compare page component
+// ── Main Compare page ──────────────────────────────────────────
+
 export function Compare() {
   const { currentProfileId } = useAppStore()
   const [selectedStockIds, setSelectedStockIds] = useState<(string | null)[]>(['zomato', 'axisbank'])
-  const [expandedSegment, setExpandedSegment] = useState<string | null>(null)
+  const [expandedPillar, setExpandedPillar] = useState<string | null>(null)
 
-  // Get verdicts for selected stocks
-  const verdicts = useMemo(() => {
+  // Get V2 verdicts
+  const verdictsV2 = useMemo(() => {
     return selectedStockIds.map(id =>
-      id ? getVerdict(id, currentProfileId) : undefined
+      id ? getVerdictV2(id, currentProfileId) : undefined
     )
   }, [selectedStockIds, currentProfileId])
 
   // Find winner (highest overall score)
   const winnerIndex = useMemo(() => {
-    const scores = verdicts.map(v => v?.overallScore ?? 0)
+    const scores = verdictsV2.map(v => v?.overallScore ?? 0)
     const maxScore = Math.max(...scores)
     return scores.indexOf(maxScore)
-  }, [verdicts])
-
-  // Get all segments from first verdict with data
-  const segments = useMemo(() => {
-    const firstWithSegments = verdicts.find(v => v?.segments?.length)
-    return firstWithSegments?.segments || []
-  }, [verdicts])
+  }, [verdictsV2])
 
   // Stock symbols for display
   const stockSymbols = selectedStockIds.map(id =>
@@ -352,6 +331,8 @@ export function Compare() {
     }
   }
 
+  const hasPillars = verdictsV2.some(v => v?.pillars?.length)
+
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
@@ -366,7 +347,7 @@ export function Compare() {
           <h1 className="text-xl font-bold text-white">Compare Stocks</h1>
         </div>
         <p className="text-sm text-neutral-500">
-          Side-by-side analysis across all 11 segments
+          Side-by-side analysis across Quant, Qual & Risk pillars
         </p>
       </motion.div>
 
@@ -380,8 +361,8 @@ export function Compare() {
               excludeIds={selectedStockIds.filter((id): id is string => id !== null && id !== stockId)}
               onRemove={() => handleRemoveStock(index)}
               canRemove={selectedStockIds.length > 2}
-              verdict={verdicts[index]}
-              isWinner={index === winnerIndex && verdicts[index] !== undefined}
+              verdictV2={verdictsV2[index]}
+              isWinner={index === winnerIndex && verdictsV2[index] !== undefined}
             />
           </StaggerItem>
         ))}
@@ -405,8 +386,8 @@ export function Compare() {
         )}
       </div>
 
-      {/* 11-Segment Comparison Table */}
-      {segments.length > 0 && (
+      {/* ── Pillar Comparison Table ── */}
+      {hasPillars && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -416,8 +397,8 @@ export function Compare() {
           {/* Table header */}
           <div className="px-4 py-3 border-b border-white/5 flex items-center gap-4">
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-white">11-Segment Analysis</h3>
-              <p className="text-xs text-neutral-500">Click any row to see detailed metrics</p>
+              <h3 className="text-sm font-semibold text-white">Pillar Analysis</h3>
+              <p className="text-xs text-neutral-500">Expand to see segments & factors</p>
             </div>
             {stockSymbols.map((symbol, i) => (
               <div
@@ -430,47 +411,55 @@ export function Compare() {
                 {symbol || '—'}
               </div>
             ))}
-            <div className="w-4" /> {/* Spacer for chevron */}
+            <div className="w-4" />
           </div>
 
-          {/* Segment rows */}
-          <StaggerContainer staggerDelay={0.03} initialDelay={0.1}>
-            {segments.map(segment => {
-              const scores = verdicts.map(v =>
-                v?.segments?.find(s => s.id === segment.id)?.score
-              )
-
-              return (
-                <StaggerItem key={segment.id}>
-                  <SegmentRow
-                    segment={segment}
-                    scores={scores}
-                    stockIds={selectedStockIds.filter((id): id is string => id !== null)}
-                    isExpanded={expandedSegment === segment.id}
-                    onToggle={() => setExpandedSegment(
-                      expandedSegment === segment.id ? null : segment.id
+          {/* Overall score row */}
+          <div className="px-4 py-3 flex items-center gap-4 border-b border-white/5 bg-dark-700/20">
+            <div className="flex-1 text-left">
+              <span className="text-sm font-bold text-white">Overall</span>
+            </div>
+            {verdictsV2.map((v, i) => (
+              <div key={selectedStockIds[i] || i} className="w-16 text-center">
+                {v ? (
+                  <span className={cn(
+                    'text-sm font-bold tabular-nums',
+                    i === winnerIndex ? 'text-success-400' : 'text-neutral-300'
+                  )}>
+                    {v.overallScore}
+                    {i === winnerIndex && (
+                      <Star className="inline w-3 h-3 ml-0.5 text-success-400 fill-success-400" />
                     )}
-                  />
-                </StaggerItem>
-              )
-            })}
+                  </span>
+                ) : (
+                  <span className="text-neutral-600">—</span>
+                )}
+              </div>
+            ))}
+            <div className="w-4" />
+          </div>
+
+          {/* Pillar rows */}
+          <StaggerContainer staggerDelay={0.03} initialDelay={0.1}>
+            {(['quant', 'qual', 'risk'] as VerdictPillar[]).map(pillarKey => (
+              <StaggerItem key={pillarKey}>
+                <PillarRow
+                  pillarKey={pillarKey}
+                  verdicts={verdictsV2}
+                  stockIds={selectedStockIds.filter((id): id is string => id !== null)}
+                  isExpanded={expandedPillar === pillarKey}
+                  onToggle={() => setExpandedPillar(
+                    expandedPillar === pillarKey ? null : pillarKey
+                  )}
+                />
+              </StaggerItem>
+            ))}
           </StaggerContainer>
         </motion.div>
       )}
 
-      {/* Key Metrics Comparison */}
-      {verdicts.some(v => v) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <KeyMetricsComparison verdicts={verdicts} stockSymbols={stockSymbols} />
-        </motion.div>
-      )}
-
-      {/* Verdict Summary */}
-      {verdicts.filter(v => v).length >= 2 && (
+      {/* ── Verdict Summary ── */}
+      {verdictsV2.filter(v => v).length >= 2 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -479,9 +468,10 @@ export function Compare() {
         >
           <h3 className="text-sm font-semibold text-white mb-3">Verdict Summary</h3>
           <div className="space-y-3">
-            {verdicts.map((verdict, i) => {
-              if (!verdict) return null
+            {verdictsV2.map((v, i) => {
+              if (!v) return null
               const stock = stocks.find(s => s.id === selectedStockIds[i])
+              const band = getScoreBandV2(v.overallScore)
 
               return (
                 <div key={i} className="flex items-start gap-3">
@@ -491,7 +481,12 @@ export function Compare() {
                   )} />
                   <div>
                     <span className="font-medium text-white">{stock?.symbol}: </span>
-                    <span className="text-sm text-neutral-400">{verdict.verdictRationale}</span>
+                    <span className={cn('text-xs font-semibold mr-1', band.colorClass)}>
+                      {v.overallLabel}
+                    </span>
+                    <span className="text-sm text-neutral-400">
+                      {v.overallSummary}
+                    </span>
                   </div>
                 </div>
               )

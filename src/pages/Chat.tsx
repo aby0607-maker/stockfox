@@ -70,7 +70,7 @@ const getNewsResponse = (query: string, profileName?: string): { content: string
       newsItems: news.slice(0, 3),
       linkedSegments: [
         { stock: 'axisbank', segmentId: 'profitability', name: 'Profitability' },
-        { stock: 'axisbank', segmentId: 'financials', name: 'Financial Health' },
+        { stock: 'axisbank', segmentId: 'financial_health', name: 'Financial Health' },
       ],
     }
   }
@@ -120,8 +120,8 @@ const getNewsResponse = (query: string, profileName?: string): { content: string
     return {
       content: `**TCS Red Flag Analysis**\n\nGood news! TCS has **0 critical red flags** out of 16 parameters scanned.\n\n**All Clear:**\n- Debt/Equity: 0.02 (Excellent)\n- Promoter Pledge: 0% (Safe)\n- Auditor Opinion: Clean\n- Related Party Transactions: Normal\n- Cash Flow Quality: Strong\n\n**Minor Watch Items (not red flags):**\n1. **Attrition Rate: 13.2%** - Industry average, but worth monitoring\n2. **Revenue Concentration:** Top 10 clients = 35% revenue\n\n**Verdict:** TCS is one of the cleanest large-caps on governance and financial health metrics.\n\n*Source: Annual Report FY24, Corporate Governance Section*`,
       linkedSegments: [
-        { stock: 'tcs', segmentId: 'governance', name: 'Governance' },
-        { stock: 'tcs', segmentId: 'balancesheet', name: 'Balance Sheet' },
+        { stock: 'tcs', segmentId: 'management_governance', name: 'Governance' },
+        { stock: 'tcs', segmentId: 'financial_health', name: 'Balance Sheet' },
       ],
     }
   }
@@ -159,8 +159,8 @@ const getNewsResponse = (query: string, profileName?: string): { content: string
     return {
       content: `**Axis Bank: Top Risks to Monitor**\n\n**🔴 Primary Risk: Asset Quality Pressure**\nNPA ratio at 1.8% is manageable but higher than HDFC (1.2%). Watch for:\n- Retail loan slippages in unsecured segment\n- Corporate stress in SME portfolio\n\n**🟡 Secondary Risks:**\n\n1. **Competition Intensity**\n   - HDFC Bank merger creates a giant competitor\n   - Fintech eating into payments/cards revenue\n\n2. **Interest Rate Sensitivity**\n   - Net Interest Margin may compress if RBI cuts rates\n   - Currently benefits from high rate environment\n\n3. **Management Transition**\n   - New CEO appointed mid-2023\n   - Strategy continuity needs monitoring\n\n**Mitigating Factors:**\n- Strong capital adequacy (16.5%)\n- Improving RoA trajectory\n- Reasonable valuation vs peers\n\n**Verdict:** Risks are manageable for the reward. Suitable for moderate risk tolerance.\n\n*Source: Q3 FY24 Investor Presentation, RBI Data*`,
       linkedSegments: [
-        { stock: 'axisbank', segmentId: 'balancesheet', name: 'Balance Sheet Health' },
-        { stock: 'axisbank', segmentId: 'governance', name: 'Management & Governance' },
+        { stock: 'axisbank', segmentId: 'financial_health', name: 'Balance Sheet Health' },
+        { stock: 'axisbank', segmentId: 'management_governance', name: 'Management & Governance' },
       ],
     }
   }
@@ -170,7 +170,7 @@ const getNewsResponse = (query: string, profileName?: string): { content: string
       content: `**Is Zomato Safe to Invest?**\n\nIt depends on your definition of "safe" and your profile:\n\n**For ${profileName || 'a typical investor'}:**\n\n**✅ What's Safe:**\n- Zero debt (cash-rich balance sheet)\n- Market leadership (55% food delivery share)\n- Profitable as of Q4 FY24\n- Strong promoter backing (Deepinder Goyal)\n\n**⚠️ What's Risky:**\n- Valuation still expensive (P/E 150x+)\n- Blinkit burning cash for growth\n- Regulatory risks in quick commerce\n- Competition from Swiggy IPO\n\n**Profile-Based View:**\n| Profile | Is it Safe? |\n|---------|-------------|\n| Growth Investor | ✅ Yes - growth justifies risk |\n| Value Investor | ❌ No - too expensive |\n| Beginner | ⚠️ Maybe - high volatility |\n| Income Seeker | ❌ No - no dividends |\n\n**My Suggestion:** If you can handle 30-40% drawdowns and have 5+ year horizon, Zomato can be a 5-8% portfolio allocation.\n\n*Source: Company filings, market data*`,
       linkedSegments: [
         { stock: 'zomato', segmentId: 'valuation', name: 'Valuation Analysis' },
-        { stock: 'zomato', segmentId: 'balancesheet', name: 'Balance Sheet' },
+        { stock: 'zomato', segmentId: 'financial_health', name: 'Balance Sheet' },
       ],
     }
   }
