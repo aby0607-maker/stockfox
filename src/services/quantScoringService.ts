@@ -270,8 +270,20 @@ function buildProfitability(m: Record<string, number | null>): SegmentVerdictV2 
   const opmScore = scoreMetric(opm, { excellent: 25, good: 15, fair: 8 })
 
   const groups: SignalGroup[] = []
+  const redFlags: RedFlagV2[] = []
   let computed = 0
   const total = 9
+
+  // ── Red flag checks ──
+  if (roce != null && roce < 8) {
+    redFlags.push({ signalId: 'PROF_ROCE', severity: 'soft', title: 'Low Capital Efficiency', description: `ROCE is ${fmt(roce)} — below 8% threshold`, source: 'Prof-ROCE' })
+  }
+  if (opm != null && opm < 0) {
+    redFlags.push({ signalId: 'PROF_OPM', severity: 'hard', title: 'Negative Operating Margin', description: `OPM is ${fmt(opm)} — operating at a loss`, source: 'Prof-OPM' })
+  }
+  if (roe != null && roe < 5) {
+    redFlags.push({ signalId: 'PROF_ROE', severity: 'soft', title: 'Poor Return on Equity', description: `ROE is ${fmt(roe)} — below 5% threshold`, source: 'Prof-ROE' })
+  }
 
   // Anchor group: core return metrics
   const anchorScores = [roeScore, roceScore, opmScore]
@@ -347,7 +359,7 @@ function buildProfitability(m: Record<string, number | null>): SegmentVerdictV2 
     label: getScoreBandEnum(finalScore).toUpperCase(), weight: 20,
     status: finalScore >= 60 ? 'positive' : finalScore >= 40 ? 'neutral' : 'negative',
     interpretation: `Profitability scores ${finalScore}/100 — ROE ${fmt(roe)}, ROCE ${fmt(roce)}, OPM ${fmt(opm)}.`,
-    confidenceIndicator: confidence(computed, total), signalGroups: groups,
+    confidenceIndicator: confidence(computed, total), signalGroups: groups, redFlags,
   }
 }
 
@@ -360,6 +372,14 @@ function buildGrowth(m: Record<string, number | null>): SegmentVerdictV2 {
   const ebitdaScore = scoreMetric(ebitdaGrowth, { excellent: 20, good: 12, fair: 5 })
   const earningsScore = scoreMetric(earningsGrowth, { excellent: 20, good: 12, fair: 5 })
   const avgScore = Math.round((revScore + ebitdaScore + earningsScore) / 3)
+
+  const redFlags: RedFlagV2[] = []
+  if (revGrowth != null && revGrowth < 0) {
+    redFlags.push({ signalId: 'GRW_REV', severity: 'soft', title: 'Shrinking Revenue', description: `Revenue CAGR is ${fmt(revGrowth)} — top line is declining`, source: 'Grw-REV' })
+  }
+  if (earningsGrowth != null && earningsGrowth < -10) {
+    redFlags.push({ signalId: 'GRW_PAT', severity: 'soft', title: 'Earnings Decline', description: `Earnings CAGR is ${fmt(earningsGrowth)} — significant profit erosion`, source: 'Grw-PAT' })
+  }
 
   const groups: SignalGroup[] = [{
     id: 'A', name: 'Growth Anchors', role: 'anchor', score: avgScore, signals: [
@@ -411,7 +431,7 @@ function buildGrowth(m: Record<string, number | null>): SegmentVerdictV2 {
     label: getScoreBandEnum(growthFinal).toUpperCase(), weight: 25,
     status: growthFinal >= 60 ? 'positive' : growthFinal >= 40 ? 'neutral' : 'negative',
     interpretation: `Growth scores ${growthFinal}/100 — Revenue ${fmt(revGrowth)}, EBITDA ${fmt(ebitdaGrowth)}, Earnings ${fmt(earningsGrowth)} CAGR.`,
-    confidenceIndicator: confidence(7, 8), signalGroups: groups,
+    confidenceIndicator: confidence(7, 8), signalGroups: groups, redFlags,
   }
 }
 
@@ -428,8 +448,20 @@ function buildValuation(m: Record<string, number | null>): SegmentVerdictV2 {
   const rawEV = m['raw_ev']
 
   const groups: SignalGroup[] = []
+  const redFlags: RedFlagV2[] = []
   let computed = 0
   const total = 6
+
+  // ── Red flag checks ──
+  if (rawPE != null && rawPE > 80) {
+    redFlags.push({ signalId: 'VAL_PE', severity: 'soft', title: 'Extreme PE Premium', description: `PE ratio is ${fmt(rawPE, 'x')} — exceptionally expensive`, source: 'Val-PE' })
+  }
+  if (rawPB != null && rawPB > 8) {
+    redFlags.push({ signalId: 'VAL_PB', severity: 'soft', title: 'Extreme PB Premium', description: `PB ratio is ${fmt(rawPB, 'x')} — trading at significant premium to book`, source: 'Val-PB' })
+  }
+  if (peRatio != null && peRatio > 1.8) {
+    redFlags.push({ signalId: 'VAL_HIST', severity: 'soft', title: 'Well Above Historical Valuation', description: `PE is ${(peRatio * 100).toFixed(0)}% of 5Y average — significantly above historical range`, source: 'Val-HIST' })
+  }
 
   // ── L2: Historical Range (anchor) ──
   const peScore = scoreMetricLower(peRatio, { excellent: 0.7, good: 1.0, fair: 1.3 })
@@ -484,7 +516,7 @@ function buildValuation(m: Record<string, number | null>): SegmentVerdictV2 {
     label: getScoreBandEnum(finalScore).toUpperCase(), weight: 20,
     status: finalScore >= 60 ? 'positive' : finalScore >= 40 ? 'neutral' : 'negative',
     interpretation: `Valuation scores ${finalScore}/100 — PE/PB/EV vs history ${histAvg}, value benchmarks ${benchAvg}.`,
-    confidenceIndicator: confidence(computed, total), signalGroups: groups,
+    confidenceIndicator: confidence(computed, total), signalGroups: groups, redFlags,
   }
 }
 
@@ -497,6 +529,7 @@ function buildTechnical(m: Record<string, number | null>): SegmentVerdictV2 {
   const volumeChange = m['v2_volume_change']
 
   const groups: SignalGroup[] = []
+  const redFlags: RedFlagV2[] = []
   let computed = 0
   const total = 6
 
@@ -572,13 +605,21 @@ function buildTechnical(m: Record<string, number | null>): SegmentVerdictV2 {
 
   const avgScore = Math.round(trendAvg * 0.60 + rsAvg * 0.30 + volScore * 0.10)
 
+  // ── Red flag checks ──
+  if (ema200 != null && ema200 < -10) {
+    redFlags.push({ signalId: 'TECH_EMA200', severity: 'soft', title: 'Below 200-Day EMA', description: `Price is ${fmt(ema200)} below 200-day EMA — long-term downtrend`, source: 'Tech-EMA' })
+  }
+  if (rsiVal != null && rsiVal < 25) {
+    redFlags.push({ signalId: 'TECH_RSI', severity: 'soft', title: 'Deeply Oversold', description: `RSI is ${fmt(rsiVal, '', 0)} — extreme selling pressure`, source: 'Tech-RSI' })
+  }
+
   return {
     id: 'technical', name: 'Technical', pillar: 'quant',
     scoringType: 'scored', score: avgScore, scoreBand: getScoreBandEnum(avgScore),
     label: getScoreBandEnum(avgScore).toUpperCase(), weight: 15,
     status: avgScore >= 60 ? 'positive' : avgScore >= 40 ? 'neutral' : 'negative',
     interpretation: `Technical scores ${avgScore}/100 — EMA trend ${ema200 != null && ema200 > 0 ? 'bullish' : 'bearish'}, RSI ${fmt(rsiVal, '', 0)}.`,
-    confidenceIndicator: confidence(computed, total), signalGroups: groups,
+    confidenceIndicator: confidence(computed, total), signalGroups: groups, redFlags,
   }
 }
 
@@ -590,7 +631,19 @@ function buildPerformance(m: Record<string, number | null>): SegmentVerdictV2 {
   const vol = m['v2_volatility']
 
   const groups: SignalGroup[] = []
+  const redFlags: RedFlagV2[] = []
   let computed = 0
+
+  // ── Red flag checks ──
+  if (ret1y != null && ret1y < -30) {
+    redFlags.push({ signalId: 'PERF_RET', severity: 'soft', title: 'Severe Price Decline', description: `1-year return is ${fmt(ret1y)} — significant capital erosion`, source: 'Perf-RET' })
+  }
+  if (maxDD != null && maxDD < -40) {
+    redFlags.push({ signalId: 'PERF_DD', severity: 'soft', title: 'Deep Drawdown', description: `Max drawdown of ${fmt(maxDD)} — severe peak-to-trough decline`, source: 'Perf-DD' })
+  }
+  if (vol != null && vol > 50) {
+    redFlags.push({ signalId: 'PERF_VOL', severity: 'soft', title: 'Extreme Volatility', description: `Annualized volatility is ${fmt(vol)} — very high price swings`, source: 'Perf-VOL' })
+  }
 
   // ── Returns ──
   const retSignals: QualSignal[] = []
@@ -646,7 +699,7 @@ function buildPerformance(m: Record<string, number | null>): SegmentVerdictV2 {
     id: 'performance', name: 'Performance', pillar: 'quant',
     scoringType: 'context', status: 'neutral',
     interpretation: interp,
-    confidenceIndicator: confidence(computed, totalSignals), signalGroups: groups,
+    confidenceIndicator: confidence(computed, totalSignals), signalGroups: groups, redFlags,
   }
 }
 
@@ -660,7 +713,16 @@ function buildInstitutional(m: Record<string, number | null>): SegmentVerdictV2 
   const fiiChange = m['fii_holding_change_3m']
 
   const groups: SignalGroup[] = []
+  const redFlags: RedFlagV2[] = []
   let computed = 0
+
+  // ── Red flag checks ──
+  if (promoter != null && promoter < 25) {
+    redFlags.push({ signalId: 'INST_PROM_LOW', severity: 'soft', title: 'Low Promoter Holding', description: `Promoter holds only ${fmt(promoter)} — low skin in the game`, source: 'Inst-PROM' })
+  }
+  if (promoterChange1y != null && promoterChange1y < -5) {
+    redFlags.push({ signalId: 'INST_PROM_DROP', severity: 'soft', title: 'Significant Promoter Stake Decline', description: `Promoter stake fell ${fmt(Math.abs(promoterChange1y))} in 1 year`, source: 'Inst-PDROP' })
+  }
 
   // ── Institutional Flow ──
   const instSignals: QualSignal[] = []
@@ -720,7 +782,7 @@ function buildInstitutional(m: Record<string, number | null>): SegmentVerdictV2 
     interpretation: promoter != null
       ? `Promoter ${fmt(promoter)}, FII ${fmt(fii)}, DII ${fmt(dii)}${mf != null ? `, MF ${fmt(mf)}` : ''}.`
       : 'Ownership data not yet available.',
-    confidenceIndicator: confidence(computed, totalSignals), signalGroups: groups,
+    confidenceIndicator: confidence(computed, totalSignals), signalGroups: groups, redFlags,
   }
 }
 

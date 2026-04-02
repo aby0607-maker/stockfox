@@ -31,6 +31,13 @@ export default defineConfig(({ mode }) => {
         headers: {
           'access-token': env.DHAN_ACCESS_TOKEN || '',
         },
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // DhanHQ rejects requests with Origin header (CORS check)
+            proxyReq.removeHeader('origin')
+            proxyReq.removeHeader('referer')
+          })
+        },
       },
       '/api/indianapi': {
         target: 'https://stock.indianapi.in',
@@ -72,6 +79,17 @@ export default defineConfig(({ mode }) => {
           const rewritten = path.replace(/^\/api\/finnhub/, '')
           const sep = rewritten.includes('?') ? '&' : '?'
           return `${rewritten}${sep}token=${env.FINNHUB_API_KEY || ''}`
+        },
+      },
+      '/api/gnews': {
+        target: 'https://news.google.com/rss',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/gnews/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('origin')
+            proxyReq.removeHeader('referer')
+          })
         },
       },
     },

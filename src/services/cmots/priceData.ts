@@ -103,6 +103,52 @@ export async function getLatestPrice(symbol: string): Promise<CMOTSOHLCVRecord |
   return prices.length > 0 ? prices[prices.length - 1] : null
 }
 
+/**
+ * Get 52-week high/low for a stock from OHLCV history.
+ * Tries CMOTS first, falls back to DhanHQ via ISIN bridge.
+ */
+export async function get52WeekRange(
+  symbol: string,
+  resolvedCoCode?: number,
+  isin?: string,
+): Promise<{ high: number; low: number } | null> {
+  const to = new Date().toISOString().split('T')[0]
+  const from = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  // Try CMOTS first
+  const records = await getHistoricalPrices(symbol, from, to, 'bse', resolvedCoCode)
+  if (records.length > 0) return compute52WFromRecords(records)
+
+  // Fallback: DhanHQ via ISIN
+  if (isin) {
+    try {
+      const { resolveToSecurity } = await import('@/services/dhan/instrumentMap')
+      const { getDhanHistoricalPrices } = await import('@/services/dhan/priceData')
+      const security = await resolveToSecurity(isin)
+      if (security) {
+        const dhanRecords = await getDhanHistoricalPrices(
+          security.securityId, security.exchangeSegment, from, to,
+        )
+        if (dhanRecords.length > 0) return compute52WFromRecords(dhanRecords)
+      }
+    } catch (err) {
+      console.warn(`[PriceData] DhanHQ 52W fallback failed for ${symbol}:`, err instanceof Error ? err.message : err)
+    }
+  }
+
+  return null
+}
+
+function compute52WFromRecords(records: CMOTSOHLCVRecord[]): { high: number; low: number } {
+  let high = -Infinity
+  let low = Infinity
+  for (const r of records) {
+    if (r.DayHigh > high) high = r.DayHigh
+    if (r.Daylow > 0 && r.Daylow < low) low = r.Daylow
+  }
+  return { high, low }
+}
+
 /** Get prices for multiple stocks in parallel */
 export async function getBatchPrices(
   symbols: string[],

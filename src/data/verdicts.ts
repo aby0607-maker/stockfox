@@ -18,6 +18,67 @@ const createCitation = (
   url: `https://www.bseindia.com/stock-share-price/${source.toLowerCase().replace(/\s+/g, '-')}/`,
 })
 
+// ── Stock-specific scanner current values for demo stocks ──
+// Realistic values shown in Red Flag Scanner's 35-parameter framework.
+// One set per stock (factual data, not opinion-dependent).
+
+const SCANNER_VALUES_ETERNAL: Record<string, string> = {
+  'rf-asm': 'Clear', 'rf-gsm': 'Clear', 'rf-default': '<1%', 'rf-pledge': '0%',
+  'rf-sms': 'Clear', 'rf-audit': 'Clean', 'rf-icr': '∞ (zero debt)', 'rf-shell': 'Clear',
+  'rf-pledge-rising': '0%', 'rf-promoter-exit': 'Stable', 'rf-smart-money-exit': 'FII +2.1%',
+  'rf-neg-ocf': '₹2,100 Cr', 'rf-earnings-cash': 'Aligned', 'rf-rpt': '<3%',
+  'rf-receivables': 'Normal', 'rf-auditor-change': 'No change', 'rf-mgmt-churn': 'Stable',
+  'rf-credit-downgrade': 'Stable', 'rf-sebi': 'Clear', 'rf-forensic': 'Clear',
+  'rf-short-interest': 'Normal', 'rf-analyst-downgrade': '0', 'rf-debt-rising': 'Zero debt',
+  'rf-contingent': '<5%', 'rf-inventory': 'N/A (services)', 'rf-customer-conc': 'Diversified',
+  'rf-promoter-loans': 'None', 'rf-dilution': 'Blinkit acquisition', 'rf-dividend-cut': 'No dividend',
+  'rf-working-capital': 'Negative WC (asset-light)',
+  'rf-volatility': 'Beta 1.4', 'rf-liquidity': '₹1,200 Cr/day', 'rf-sector-headwind': 'None',
+  'rf-peer-underperform': '+115% 1Y', 'rf-insider-selling': 'None',
+}
+
+const SCANNER_VALUES_AXISBANK: Record<string, string> = {
+  'rf-asm': 'Clear', 'rf-gsm': 'Clear', 'rf-default': '<1%', 'rf-pledge': '0%',
+  'rf-sms': 'Clear', 'rf-audit': 'Clean', 'rf-icr': '4.2x', 'rf-shell': 'Clear',
+  'rf-pledge-rising': '0%', 'rf-promoter-exit': '8.2% (stable)', 'rf-smart-money-exit': 'FII +0.8%',
+  'rf-neg-ocf': 'N/A (bank)', 'rf-earnings-cash': 'Aligned', 'rf-rpt': '<2%',
+  'rf-receivables': 'N/A (bank)', 'rf-auditor-change': 'No change', 'rf-mgmt-churn': 'Stable',
+  'rf-credit-downgrade': 'AA+ (stable)', 'rf-sebi': 'Clear', 'rf-forensic': 'Clear',
+  'rf-short-interest': 'Normal', 'rf-analyst-downgrade': '0', 'rf-debt-rising': 'N/A (bank)',
+  'rf-contingent': '8%', 'rf-inventory': 'N/A (bank)', 'rf-customer-conc': 'Diversified',
+  'rf-promoter-loans': 'None', 'rf-dilution': 'None recent', 'rf-dividend-cut': '₹1/share',
+  'rf-working-capital': 'N/A (bank)',
+  'rf-volatility': 'Beta 1.2', 'rf-liquidity': '₹800 Cr/day', 'rf-sector-headwind': 'NIM pressure',
+  'rf-peer-underperform': '+18% 1Y', 'rf-insider-selling': 'None',
+}
+
+const SCANNER_VALUES_TCS: Record<string, string> = {
+  'rf-asm': 'Clear', 'rf-gsm': 'Clear', 'rf-default': '<0.5%', 'rf-pledge': '0%',
+  'rf-sms': 'Clear', 'rf-audit': 'Clean', 'rf-icr': '∞ (zero debt)', 'rf-shell': 'Clear',
+  'rf-pledge-rising': '0%', 'rf-promoter-exit': '72% Tata Sons (stable)', 'rf-smart-money-exit': 'FII stable',
+  'rf-neg-ocf': '₹42,000 Cr', 'rf-earnings-cash': 'Aligned', 'rf-rpt': '4% (Tata group)',
+  'rf-receivables': 'Normal', 'rf-auditor-change': 'No change', 'rf-mgmt-churn': 'Stable',
+  'rf-credit-downgrade': 'AAA', 'rf-sebi': 'Clear', 'rf-forensic': 'Clear',
+  'rf-short-interest': 'Normal', 'rf-analyst-downgrade': '0', 'rf-debt-rising': 'Zero debt',
+  'rf-contingent': '3%', 'rf-inventory': 'N/A (services)', 'rf-customer-conc': '~12% (BFSI heavy)',
+  'rf-promoter-loans': 'None', 'rf-dilution': 'Buybacks instead', 'rf-dividend-cut': '₹75/share + special',
+  'rf-working-capital': 'Healthy',
+  'rf-volatility': 'Beta 0.7', 'rf-liquidity': '₹600 Cr/day', 'rf-sector-headwind': 'IT slowdown',
+  'rf-peer-underperform': '+5% 1Y', 'rf-insider-selling': 'None',
+}
+
+const DEMO_SCANNER_VALUES: Record<string, Record<string, string>> = {
+  'zomato': SCANNER_VALUES_ETERNAL,
+  'eternal': SCANNER_VALUES_ETERNAL,
+  'axisbank': SCANNER_VALUES_AXISBANK,
+  'tcs': SCANNER_VALUES_TCS,
+}
+
+/** Get scanner current values for a demo stock */
+export function getDemoScannerValues(stockId: string): Record<string, string> | undefined {
+  return DEMO_SCANNER_VALUES[stockId.toLowerCase()]
+}
+
 // 9 Stock × Profile verdict combinations with FULL metrics
 export const verdicts: StockVerdict[] = [
   // ==================== ZOMATO × ANKIT (Growth) ====================

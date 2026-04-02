@@ -20,14 +20,6 @@ function getScoreColor(score: number): string {
   return 'text-destructive-400'
 }
 
-// Get score label for context (0-100 scale)
-function getScoreLabel(score: number): { label: string; color: string } {
-  if (score >= 80) return { label: 'Strong', color: 'text-success-400' }
-  if (score >= 65) return { label: 'Good', color: 'text-teal-400' }
-  if (score >= 50) return { label: 'Fair', color: 'text-warning-400' }
-  return { label: 'Weak', color: 'text-destructive-400' }
-}
-
 // Get rank badge color
 function getRankColor(rank: number, total: number): string {
   const percentile = ((total - rank + 1) / total) * 100
@@ -174,7 +166,6 @@ export function Dashboard() {
         ) : (
           <StaggerContainer className="space-y-3" staggerDelay={0.05} initialDelay={0.1}>
             {watchlist.map(stock => {
-              const scoreInfo = getScoreLabel(stock.score)
               const sectorAvg = stock.sectorAvgScore ?? stock.score
               const vsSector = stock.score - sectorAvg
               const sectorRank = stock.sectorRank ?? 1
@@ -247,9 +238,9 @@ export function Dashboard() {
                         </span>
                       </div>
 
-                      {/* Score label */}
-                      <span className={cn('text-xs font-medium px-2 py-0.5 rounded', scoreInfo.color, 'bg-white/5')}>
-                        {scoreInfo.label} {stock.verdictPeerGroup}
+                      {/* Sector */}
+                      <span className="text-xs text-neutral-500">
+                        {stock.verdictPeerGroup}
                       </span>
                     </div>
 

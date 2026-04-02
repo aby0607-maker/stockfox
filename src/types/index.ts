@@ -607,6 +607,7 @@ export interface StockVerdictV2 {
   riskWarning?: string
   learningPrompt?: string
   learningHighlights?: LearningHighlight[]
+  scannerValues?: Record<string, string>  // Dynamic scanner display values from CMOTS metrics
 }
 
 // V2 Profile weight structure
