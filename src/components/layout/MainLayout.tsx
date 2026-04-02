@@ -2,12 +2,16 @@ import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { BottomNav } from './BottomNav'
 import { ChatFAB } from './ChatFAB'
+import { SearchDialog } from '@/components/ui'
 
 export function MainLayout() {
   return (
     <div className="min-h-screen bg-surface-secondary flex flex-col">
       {/* Header */}
       <Header />
+
+      {/* Global search overlay */}
+      <SearchDialog />
 
       {/* Main content */}
       <main className="flex-1 pb-20">

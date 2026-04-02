@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stockfox-dev",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "--port", "5173"],
+      "env": { "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin" },
+      "port": 5173
+    }
+  ]
+}

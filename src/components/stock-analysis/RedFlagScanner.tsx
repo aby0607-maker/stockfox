@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, AlertCircle, Check, X, TrendingDown, Newspaper, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { StockVerdict, RedFlagSeverity } from '@/types'
+import { generateRedFlagFramework } from '@/services/redFlagScannerService'
+import { getDemoScannerValues } from '@/data/verdicts'
+import type { StockVerdict, StockVerdictV2 } from '@/types'
 
 interface NewsItem {
   id: string
@@ -12,109 +14,16 @@ interface NewsItem {
 }
 
 interface RedFlagScannerProps {
-  verdict: StockVerdict
+  verdict?: StockVerdict | null
+  verdictV2?: StockVerdictV2 | null
   news: NewsItem[]
 }
 
-// Generate comprehensive 35-parameter Red Flag Framework
-export function generateRedFlagFramework(verdict: StockVerdict) {
-  // Complete 35-parameter Red Flag Framework for Indian retail investors
-  const allFlags = [
-    // ===== CRITICAL (8 flags) - Always Block/Alert - Score Impact: -2 to -3 pts =====
-    { id: 'rf-asm', severity: 'critical' as RedFlagSeverity, title: 'ASM List', source: 'BSE/NSE', threshold: 'On list', currentValue: 'Clear', isTriggered: false, description: 'Stock on Additional Surveillance Measure', action: 'Exchange flagged for unusual activity', scoreImpact: -3 },
-    { id: 'rf-gsm', severity: 'critical' as RedFlagSeverity, title: 'GSM List', source: 'BSE/NSE', threshold: 'On list', currentValue: 'Clear', isTriggered: false, description: 'Stock on Graded Surveillance Measure', action: 'Serious compliance/trading concerns', scoreImpact: -3 },
-    { id: 'rf-default', severity: 'critical' as RedFlagSeverity, title: 'Default Probability >15%', source: 'ML Model', threshold: '>15%', currentValue: '2%', isTriggered: false, description: 'High likelihood of debt default', action: 'Company may not survive', scoreImpact: -3 },
-    { id: 'rf-pledge', severity: 'critical' as RedFlagSeverity, title: 'Promoter Pledging >20%', source: 'Ownership', threshold: '>20%', currentValue: '0%', isTriggered: false, description: 'No promoter pledging', action: 'Forced selling risk in downturn', scoreImpact: -2 },
-    { id: 'rf-sms', severity: 'critical' as RedFlagSeverity, title: 'Pump & Dump Alert', source: 'External', threshold: 'Circulating', currentValue: 'Clear', isTriggered: false, description: 'Stock circulating in SMS/WhatsApp tips', action: 'Manipulation in progress', scoreImpact: -3 },
-    { id: 'rf-audit', severity: 'critical' as RedFlagSeverity, title: 'Auditor Qualification', source: 'Annual Report', threshold: 'Qualified/Adverse', currentValue: 'Clean', isTriggered: false, description: 'Clean audit report', action: 'Accounting irregularities', scoreImpact: -3 },
-    { id: 'rf-icr', severity: 'critical' as RedFlagSeverity, title: 'Interest Coverage <1.5x', source: 'Ratios', threshold: '<1.5x', currentValue: '∞', isTriggered: false, description: 'No debt, comfortable coverage', action: 'Cannot service debt', scoreImpact: -2 },
-    { id: 'rf-shell', severity: 'critical' as RedFlagSeverity, title: 'Shell Company Flag', source: 'MCA/Exchange', threshold: 'Flagged', currentValue: 'Clear', isTriggered: false, description: 'Not flagged as shell company', action: 'No real business operations', scoreImpact: -3 },
-
-    // ===== HIGH (12 flags) - Always Show - Score Impact: -1 to -1.5 pts =====
-    { id: 'rf-pledge-rising', severity: 'high' as RedFlagSeverity, title: 'Promoter Pledging Rising', source: 'Ownership', threshold: '>5% QoQ', currentValue: '0%', isTriggered: false, description: 'Pledging stable', action: 'Monitor promoter position', scoreImpact: -1.5 },
-    { id: 'rf-promoter-exit', severity: 'high' as RedFlagSeverity, title: 'Promoter Stake Declining', source: 'Ownership', threshold: '>3% in 6M', currentValue: 'Stable', isTriggered: false, description: 'Promoter stake stable', action: 'Insider selling signal', scoreImpact: -1.5 },
-    { id: 'rf-smart-money-exit', severity: 'high' as RedFlagSeverity, title: 'FII + DII Both Exiting', source: 'Ownership', threshold: '>2% in 3M', currentValue: 'Stable', isTriggered: false, description: 'Institutional ownership stable', action: 'Smart money leaving', scoreImpact: -1.5 },
-    { id: 'rf-neg-ocf', severity: 'high' as RedFlagSeverity, title: 'Negative OCF 3 Quarters', source: 'Cash Flow', threshold: '3 consecutive', currentValue: 'Positive', isTriggered: false, description: 'Operating cash flow positive', action: 'Profits not converting to cash', scoreImpact: -1.5 },
-    { id: 'rf-earnings-cash', severity: 'high' as RedFlagSeverity, title: 'Earnings vs Cash Divergence', source: 'Financials', threshold: 'PAT↑ OCF↓', currentValue: 'Aligned', isTriggered: false, description: 'PAT and OCF aligned', action: 'Possible earnings manipulation', scoreImpact: -1.5 },
-    { id: 'rf-rpt', severity: 'high' as RedFlagSeverity, title: 'Related Party Transactions', source: 'Income Statement', threshold: '>10% revenue', currentValue: '3%', isTriggered: false, description: 'RPT within acceptable limits', action: 'Self-dealing concerns', scoreImpact: -1 },
-    { id: 'rf-receivables', severity: 'high' as RedFlagSeverity, title: 'Revenue Recognition Red Flag', source: 'Balance Sheet', threshold: 'Recv 2x Rev growth', currentValue: 'Normal', isTriggered: false, description: 'Receivables growth normal', action: 'Fake sales booking', scoreImpact: -1.5 },
-    { id: 'rf-auditor-change', severity: 'high' as RedFlagSeverity, title: 'Auditor Change', source: 'Annual Report', threshold: 'Unexplained', currentValue: 'No change', isTriggered: false, description: 'Stable auditor relationship', action: 'Covering up issues', scoreImpact: -1 },
-    { id: 'rf-mgmt-churn', severity: 'high' as RedFlagSeverity, title: 'Management Churn', source: 'Filings', threshold: 'CFO/CEO exit', currentValue: 'Stable', isTriggered: false, description: 'Stable management team', action: 'Governance instability', scoreImpact: -1 },
-    { id: 'rf-credit-downgrade', severity: 'high' as RedFlagSeverity, title: 'Credit Rating Downgrade', source: 'Rating Agency', threshold: 'Downgrade', currentValue: 'Stable', isTriggered: false, description: 'Credit rating stable', action: 'Credit quality deteriorating', scoreImpact: -1.5 },
-    { id: 'rf-sebi', severity: 'high' as RedFlagSeverity, title: 'SEBI Order/Investigation', source: 'SEBI', threshold: 'Active', currentValue: 'Clear', isTriggered: false, description: 'No SEBI action', action: 'Regulatory trouble', scoreImpact: -1.5 },
-    { id: 'rf-forensic', severity: 'high' as RedFlagSeverity, title: 'Forensic Accounting Concerns', source: 'Research', threshold: 'Flagged', currentValue: 'Clear', isTriggered: false, description: 'No forensic flags', action: 'Accounting red flags', scoreImpact: -1.5 },
-
-    // ===== MEDIUM (10 flags) - Show in Segment - Score Impact: -0.5 pts =====
-    { id: 'rf-short-interest', severity: 'medium' as RedFlagSeverity, title: 'High Short Interest', source: 'F&O Data', threshold: '>2x avg OI', currentValue: 'Normal', isTriggered: false, description: 'Normal short interest', action: 'Bears betting against', scoreImpact: -0.5 },
-    { id: 'rf-analyst-downgrade', severity: 'medium' as RedFlagSeverity, title: 'Analyst Downgrade Cluster', source: 'Broker Ratings', threshold: '3+ in 30 days', currentValue: '0', isTriggered: false, description: 'No recent downgrades', action: 'Consensus turning negative', scoreImpact: -0.5 },
-    { id: 'rf-debt-rising', severity: 'medium' as RedFlagSeverity, title: 'Debt Increasing Rapidly', source: 'Balance Sheet', threshold: 'D/E +0.5x YoY', currentValue: '0', isTriggered: false, description: 'Debt-free company', action: 'Leverage risk building', scoreImpact: -0.5 },
-    { id: 'rf-contingent', severity: 'medium' as RedFlagSeverity, title: 'Contingent Liabilities High', source: 'Balance Sheet', threshold: '>20% net worth', currentValue: '5%', isTriggered: false, description: 'Low contingent liabilities', action: 'Hidden obligations', scoreImpact: -0.5 },
-    { id: 'rf-inventory', severity: 'medium' as RedFlagSeverity, title: 'Inventory Pileup', source: 'Balance Sheet', threshold: '>30% YoY', currentValue: 'N/A', isTriggered: false, description: 'Service company - N/A', action: 'Demand slowdown signal', scoreImpact: -0.5 },
-    { id: 'rf-customer-conc', severity: 'medium' as RedFlagSeverity, title: 'Customer Concentration', source: 'Income Statement', threshold: '>25% revenue', currentValue: '8%', isTriggered: false, description: 'Diversified customer base', action: 'Single point of failure', scoreImpact: -0.5 },
-    { id: 'rf-promoter-loans', severity: 'medium' as RedFlagSeverity, title: 'Promoter Entity Loans', source: 'Related Party', threshold: 'Present', currentValue: 'None', isTriggered: false, description: 'No loans to promoter entities', action: 'Cash siphoning risk', scoreImpact: -0.5 },
-    { id: 'rf-dilution', severity: 'medium' as RedFlagSeverity, title: 'Frequent Equity Dilution', source: 'Capital Structure', threshold: '>2 raises in 3Y', currentValue: '1', isTriggered: false, description: 'Limited dilution', action: 'Shareholder dilution', scoreImpact: -0.5 },
-    { id: 'rf-dividend-cut', severity: 'medium' as RedFlagSeverity, title: 'Dividend Cut/Skip', source: 'Dividend History', threshold: '>50% cut', currentValue: 'N/A', isTriggered: false, description: 'Growth company - no dividend', action: 'Cash flow stress', scoreImpact: -0.5 },
-    { id: 'rf-working-capital', severity: 'medium' as RedFlagSeverity, title: 'Working Capital Deterioration', source: 'Balance Sheet', threshold: 'CCC +30 days', currentValue: 'Improving', isTriggered: false, description: 'Working capital healthy', action: 'Operational stress', scoreImpact: -0.5 },
-
-    // ===== MONITOR (5 flags) - Informational - No Score Impact =====
-    { id: 'rf-volatility', severity: 'monitor' as RedFlagSeverity, title: 'Volatility Warning', source: 'Price Data', threshold: 'Beta >1.5', currentValue: '1.3', isTriggered: false, description: 'Moderate volatility', action: 'High price swings', scoreImpact: 0 },
-    { id: 'rf-liquidity', severity: 'monitor' as RedFlagSeverity, title: 'Liquidity Warning', source: 'Volume', threshold: '<₹1 Cr daily', currentValue: '₹150 Cr', isTriggered: false, description: 'Good liquidity', action: 'Hard to exit', scoreImpact: 0 },
-    { id: 'rf-sector-headwind', severity: 'monitor' as RedFlagSeverity, title: 'Sector Headwind', source: 'News', threshold: 'Regulatory/macro', currentValue: 'None', isTriggered: false, description: 'No sector headwinds', action: 'External risk factor', scoreImpact: 0 },
-    { id: 'rf-peer-underperform', severity: 'monitor' as RedFlagSeverity, title: 'Peer Underperformance', source: 'Price', threshold: '-20% vs peers', currentValue: '+5%', isTriggered: false, description: 'Outperforming peers', action: 'Relative weakness', scoreImpact: 0 },
-    { id: 'rf-insider-selling', severity: 'monitor' as RedFlagSeverity, title: 'Insider Selling Pattern', source: 'SAST', threshold: 'Multiple insiders', currentValue: 'None', isTriggered: false, description: 'No insider selling', action: 'Confidence concern', scoreImpact: 0 },
-  ]
-
-  // Override with actual red flags from verdict if present
-  const triggeredFlags = verdict.redFlags?.map(f => ({
-    ...f,
-    severity: (f.severity as RedFlagSeverity) || 'medium' as RedFlagSeverity,
-    isTriggered: true,
-    source: 'Analysis',
-    currentValue: (f as any).currentValue || 'Triggered',
-    threshold: (f as any).threshold || 'Exceeded',
-    scoreImpact: f.severity === 'critical' ? -2.5 : f.severity === 'high' ? -1.25 : -0.5
-  })) || []
-
-  // Merge triggered flags with framework
-  const mergedFlags = allFlags.map(flag => {
-    const override = triggeredFlags.find(tf => tf.id === flag.id || tf.title === flag.title)
-    return override || flag
-  })
-
-  const additionalTriggered = triggeredFlags.filter(tf =>
-    !allFlags.some(f => f.id === tf.id || f.title === tf.title)
-  )
-
-  const finalFlags = [...mergedFlags, ...additionalTriggered]
-  const triggered = finalFlags.filter(f => f.isTriggered)
-
-  // Calculate total score impact (capped at -5)
-  const rawScoreImpact = triggered.reduce((sum, f) => sum + (f.scoreImpact || 0), 0)
-  const scoreImpact = Math.max(-5, rawScoreImpact)
-
-  return {
-    triggeredCount: triggered.length,
-    totalParameters: 35,
-    scoreImpact,
-    flags: finalFlags,
-    triggeredFlags: triggered,
-    bySeverity: {
-      critical: finalFlags.filter(f => f.severity === 'critical'),
-      high: finalFlags.filter(f => f.severity === 'high'),
-      medium: finalFlags.filter(f => f.severity === 'medium'),
-      monitor: finalFlags.filter(f => f.severity === 'monitor'),
-    },
-    triggeredBySeverity: {
-      critical: triggered.filter(f => f.severity === 'critical'),
-      high: triggered.filter(f => f.severity === 'high'),
-      medium: triggered.filter(f => f.severity === 'medium'),
-      monitor: triggered.filter(f => f.severity === 'monitor'),
-    }
-  }
-}
-
-export function RedFlagScanner({ verdict, news }: RedFlagScannerProps) {
-  const framework = generateRedFlagFramework(verdict)
+export function RedFlagScanner({ verdict, verdictV2, news }: RedFlagScannerProps) {
+  const stockId = verdict?.stockId || verdictV2?.stockId
+  // Demo stocks use hardcoded scanner values; non-demo stocks use CMOTS-derived values from verdict
+  const scannerValues = (stockId ? getDemoScannerValues(stockId) : undefined) ?? verdictV2?.scannerValues
+  const framework = generateRedFlagFramework(verdict, verdictV2, undefined, scannerValues)
   const { triggeredBySeverity, bySeverity, scoreImpact } = framework
 
   // Track which severity categories are expanded

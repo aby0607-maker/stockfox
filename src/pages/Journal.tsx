@@ -15,7 +15,7 @@ const journalEntries = [
     id: '1',
     date: '2025-01-10',
     stock: { symbol: 'ZOMATO', name: 'Eternal (Zomato)', sector: 'Food Tech' },
-    scoreAtAnalysis: 8.2,
+    scoreAtAnalysis: 82,
     verdictAtAnalysis: 'STRONG BUY' as const,
     userVerdict: 'BUY',
     priceAtAnalysis: 252,
@@ -28,7 +28,7 @@ const journalEntries = [
     id: '2',
     date: '2025-01-05',
     stock: { symbol: 'AXISBANK', name: 'Axis Bank', sector: 'Banking' },
-    scoreAtAnalysis: 7.8,
+    scoreAtAnalysis: 78,
     verdictAtAnalysis: 'BUY' as const,
     userVerdict: 'WATCHLIST',
     priceAtAnalysis: 1120,
@@ -41,7 +41,7 @@ const journalEntries = [
     id: '3',
     date: '2024-12-20',
     stock: { symbol: 'PAYTM', name: 'One 97 Communications', sector: 'Fintech' },
-    scoreAtAnalysis: 4.5,
+    scoreAtAnalysis: 45,
     verdictAtAnalysis: 'AVOID' as const,
     userVerdict: 'SKIP',
     priceAtAnalysis: 850,
@@ -54,7 +54,7 @@ const journalEntries = [
     id: '4',
     date: '2024-12-15',
     stock: { symbol: 'TCS', name: 'Tata Consultancy Services', sector: 'IT Services' },
-    scoreAtAnalysis: 7.5,
+    scoreAtAnalysis: 75,
     verdictAtAnalysis: 'BUY' as const,
     userVerdict: 'BUY',
     priceAtAnalysis: 3800,
@@ -67,7 +67,7 @@ const journalEntries = [
     id: '5',
     date: '2024-12-08',
     stock: { symbol: 'RELIANCE', name: 'Reliance Industries', sector: 'Conglomerate' },
-    scoreAtAnalysis: 6.8,
+    scoreAtAnalysis: 68,
     verdictAtAnalysis: 'HOLD' as const,
     userVerdict: 'SKIP',
     priceAtAnalysis: 2450,
@@ -80,7 +80,7 @@ const journalEntries = [
     id: '6',
     date: '2024-11-28',
     stock: { symbol: 'ADANIENT', name: 'Adani Enterprises', sector: 'Infrastructure' },
-    scoreAtAnalysis: 5.8,
+    scoreAtAnalysis: 58,
     verdictAtAnalysis: 'HOLD' as const,
     userVerdict: 'BUY',
     priceAtAnalysis: 2850,
@@ -99,9 +99,9 @@ const winRate = Math.round((wins / totalAnalyses) * 100)
 const avgTime = Math.round(journalEntries.reduce((sum, e) => sum + e.timeSpent, 0) / totalAnalyses)
 
 function getScoreColor(score: number): string {
-  if (score >= 8) return 'text-success-400'
-  if (score >= 6.5) return 'text-teal-400'
-  if (score >= 5) return 'text-warning-400'
+  if (score >= 80) return 'text-success-400'
+  if (score >= 65) return 'text-teal-400'
+  if (score >= 50) return 'text-warning-400'
   return 'text-destructive-400'
 }
 
@@ -289,7 +289,7 @@ export function Journal() {
                 </div>
                 <div className="text-right">
                   <span className={cn('text-lg font-bold', getScoreColor(entry.scoreAtAnalysis))}>
-                    {entry.scoreAtAnalysis.toFixed(1)}
+                    {entry.scoreAtAnalysis}/100
                   </span>
                   <div className="text-[10px] text-neutral-500 uppercase">
                     {getOutcomeLabel(entry.outcomeStatus)}

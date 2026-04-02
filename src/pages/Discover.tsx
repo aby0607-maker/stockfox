@@ -14,33 +14,33 @@ const tabs = [
 
 // Placeholder data
 const trendingStocks = [
-  { symbol: 'ZOMATO', name: 'Eternal (Zomato)', sector: 'Food Tech', score: 7.5, verdict: 'BUY', analyses: 1247, sectorRank: 1, sectorTotal: 6 },
-  { symbol: 'TATAMOTORS', name: 'Tata Motors', sector: 'Auto', score: 8.1, verdict: 'STRONG BUY', analyses: 892, sectorRank: 2, sectorTotal: 8 },
-  { symbol: 'IRFC', name: 'IRFC', sector: 'NBFC', score: 6.8, verdict: 'HOLD', analyses: 756, sectorRank: 4, sectorTotal: 10 },
+  { symbol: 'ZOMATO', name: 'Eternal (Zomato)', sector: 'Food Tech', score: 75, verdict: 'BUY', analyses: 1247, sectorRank: 1, sectorTotal: 6 },
+  { symbol: 'TATAMOTORS', name: 'Tata Motors', sector: 'Auto', score: 81, verdict: 'STRONG BUY', analyses: 892, sectorRank: 2, sectorTotal: 8 },
+  { symbol: 'IRFC', name: 'IRFC', sector: 'NBFC', score: 68, verdict: 'HOLD', analyses: 756, sectorRank: 4, sectorTotal: 10 },
 ]
 
 const topRatedStocks = [
-  { symbol: 'TCS', name: 'TCS', sector: 'IT', score: 8.8, verdict: 'STRONG BUY', sectorRank: 1, sectorTotal: 5 },
-  { symbol: 'HDFCBANK', name: 'HDFC Bank', sector: 'Banking', score: 8.5, verdict: 'STRONG BUY', sectorRank: 1, sectorTotal: 8 },
-  { symbol: 'RELIANCE', name: 'Reliance Industries', sector: 'Conglomerate', score: 8.2, verdict: 'BUY', sectorRank: 1, sectorTotal: 4 },
+  { symbol: 'TCS', name: 'TCS', sector: 'IT', score: 88, verdict: 'STRONG BUY', sectorRank: 1, sectorTotal: 5 },
+  { symbol: 'HDFCBANK', name: 'HDFC Bank', sector: 'Banking', score: 85, verdict: 'STRONG BUY', sectorRank: 1, sectorTotal: 8 },
+  { symbol: 'RELIANCE', name: 'Reliance Industries', sector: 'Conglomerate', score: 82, verdict: 'BUY', sectorRank: 1, sectorTotal: 4 },
 ]
 
 const forYouStocks = [
-  { symbol: 'DMART', name: 'Avenue Supermarts', sector: 'Retail', score: 7.8, verdict: 'BUY', reason: 'Matches your growth preference', sectorRank: 1, sectorTotal: 5 },
-  { symbol: 'PIDILITE', name: 'Pidilite Industries', sector: 'Chemicals', score: 8.0, verdict: 'BUY', reason: 'High ROE like stocks you favor', sectorRank: 1, sectorTotal: 6 },
+  { symbol: 'DMART', name: 'Avenue Supermarts', sector: 'Retail', score: 78, verdict: 'BUY', reason: 'Matches your growth preference', sectorRank: 1, sectorTotal: 5 },
+  { symbol: 'PIDILITE', name: 'Pidilite Industries', sector: 'Chemicals', score: 80, verdict: 'BUY', reason: 'High ROE like stocks you favor', sectorRank: 1, sectorTotal: 6 },
 ]
 
 const sectors = [
-  { name: 'Banking', topStock: 'HDFCBANK', avgScore: 7.8, stockCount: 8 },
-  { name: 'IT Services', topStock: 'TCS', avgScore: 8.2, stockCount: 5 },
-  { name: 'Pharma', topStock: 'SUNPHARMA', avgScore: 7.1, stockCount: 6 },
-  { name: 'FMCG', topStock: 'HINDUNILVR', avgScore: 7.5, stockCount: 7 },
+  { name: 'Banking', topStock: 'HDFCBANK', avgScore: 78, stockCount: 8 },
+  { name: 'IT Services', topStock: 'TCS', avgScore: 82, stockCount: 5 },
+  { name: 'Pharma', topStock: 'SUNPHARMA', avgScore: 71, stockCount: 6 },
+  { name: 'FMCG', topStock: 'HINDUNILVR', avgScore: 75, stockCount: 7 },
 ]
 
 function getScoreColor(score: number): string {
-  if (score >= 8) return 'text-success-400'
-  if (score >= 6.5) return 'text-teal-400'
-  if (score >= 5) return 'text-warning-400'
+  if (score >= 80) return 'text-success-400'
+  if (score >= 65) return 'text-teal-400'
+  if (score >= 50) return 'text-warning-400'
   return 'text-destructive-400'
 }
 
@@ -151,7 +151,7 @@ export function Discover() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={cn('text-lg font-bold', getScoreColor(stock.score))}>
-                      {stock.score.toFixed(1)}
+                      {stock.score}/100
                     </span>
                     <ChevronRight className="w-5 h-5 text-neutral-600 group-hover:text-neutral-400 group-hover:translate-x-0.5 transition-all" />
                   </div>
@@ -200,7 +200,7 @@ export function Discover() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={cn('text-lg font-bold', getScoreColor(stock.score))}>
-                      {stock.score.toFixed(1)}
+                      {stock.score}/100
                     </span>
                     <ChevronRight className="w-5 h-5 text-neutral-600 group-hover:text-neutral-400 group-hover:translate-x-0.5 transition-all" />
                   </div>
@@ -236,7 +236,7 @@ export function Discover() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={cn('text-lg font-bold', getScoreColor(stock.score))}>
-                      {stock.score.toFixed(1)}
+                      {stock.score}/100
                     </span>
                     <ChevronRight className="w-5 h-5 text-neutral-600 group-hover:text-neutral-400 group-hover:translate-x-0.5 transition-all" />
                   </div>
@@ -267,7 +267,7 @@ export function Discover() {
                       Top: {sector.topStock}
                     </span>
                     <span className={cn('text-sm font-bold', getScoreColor(sector.avgScore))}>
-                      {sector.avgScore.toFixed(1)}
+                      {sector.avgScore}/100
                     </span>
                   </div>
                 </button>

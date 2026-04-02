@@ -282,7 +282,10 @@ export function scoreQualFactor(
   }
 
   // Step 6: Hybrid formula — (Anchor × 0.50) + (Non-anchor × 0.50)
-  let rawScore = (anchorScore * 0.50) + (nonAnchorComposite * 0.50)
+  // When no non-anchor data exists (all not_applicable), use anchor score directly
+  let rawScore = totalWeight > 0
+    ? (anchorScore * 0.50) + (nonAnchorComposite * 0.50)
+    : anchorScore
 
   // Step 7: Clamp to ceiling/floor
   const finalScore = Math.max(floor, Math.min(ceiling, Math.round(rawScore)))

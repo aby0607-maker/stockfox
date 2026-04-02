@@ -607,6 +607,7 @@ export interface StockVerdictV2 {
   riskWarning?: string
   learningPrompt?: string
   learningHighlights?: LearningHighlight[]
+  scannerValues?: Record<string, string>  // Dynamic scanner display values from CMOTS metrics
 }
 
 // V2 Profile weight structure
@@ -626,4 +627,235 @@ export interface ProfileWeightsV2 {
     earnings_quality: number
     execution_quality: number
   }
+}
+
+// ─────────────────────────────────────────────────
+// CMOTS API Types
+// ─────────────────────────────────────────────────
+
+export interface CMOTSCompany {
+  co_code: number
+  bsecode: string
+  nsesymbol: string
+  companyname: string
+  companyshortname: string
+  categoryname: string
+  isin: string
+  bsegroup: string
+  mcaptype: string        // 'Large Cap' | 'Mid Cap' | 'Small Cap'
+  sectorcode: string
+  sectorname: string
+  industrycode: string
+  industryname: string
+  bselistedflag: string
+  nselistedflag: string
+  BSEStatus: string
+  NSEStatus: string
+}
+
+/** /AdjustedPriceChart/{exchange}/{co_code}/{from}/{to} */
+export interface CMOTSOHLCVRecord {
+  CO_CODE: number
+  companyname: string
+  Tradedate: string       // ISO datetime "2025-01-15T00:00:00"
+  DayOpen: number
+  DayHigh: number
+  Daylow: number
+  Dayclose: number
+  TotalVolume: number
+  TotalValue: number
+  DMCAP: number
+}
+
+/** /BSEDelayedPriceFeed — bulk real-time/delayed prices for all BSE stocks */
+export interface CMOTSDelayedPrice {
+  sc_code: string
+  co_code: number
+  CO_NAME: string
+  lname: string
+  isin: string
+  price: number         // Last traded price
+  Open: number
+  High: number
+  Low: number
+  Price_diff: number    // Absolute change from previous close
+  change: number        // % change from previous close
+  Volume: number
+  Value: number         // Total traded value
+  Tr_Date: string       // ISO datetime "2026-02-20T00:00:00"
+}
+
+/** /TTMData/{co_code}/{type} */
+export interface CMOTSTTMRecord {
+  co_code: number
+  pe_ttm: number
+  dividendyield: number
+  roe_ttm: number
+  roce_ttm: number
+  mcap: number            // Market cap in crores
+  pb_ttm: number
+  eps_ttm: number
+  debttoequity: number
+  ev_ebitda: number
+  currentratio: number
+  returnonassets: number
+  operatingprofitmargin: number
+  netprofitmargin: number
+  quickratio: number
+  assetturnover_ttm: number
+  pegratio: number
+}
+
+/** /FinData/{co_code}/{type} — one record per year */
+export interface CMOTSFinancialRecord {
+  co_code: number
+  yrc: number             // Year code, e.g. 202503
+  revenue: number
+  totalassets: number
+  totalliabilities: number
+  workingcapital: number
+  interestcoverageratio: number
+  freecashflowpershare: number
+  revenue_perc: number    // Revenue growth %
+}
+
+/** Row-based financial statement (P&L, Balance Sheet, Cash Flow, Quarterly) */
+export interface CMOTSStatementRow {
+  COLUMNNAME: string
+  RID: number
+  rowno: number
+  [key: string]: string | number  // Y202503, Y202403, etc.
+}
+
+/** /Aggregate-Share-Holding/{co_code} */
+export interface CMOTSShareholding {
+  co_code: number
+  YRC: number             // Quarter code, e.g. 202512
+  Promoters: number
+  Retail: number
+  ForeignInstitution: number
+  MutualFund: number
+  OtherDomesticInstitution: number
+  Others: number
+}
+
+// ─────────────────────────────────────────────────
+// DhanHQ API Types
+// ─────────────────────────────────────────────────
+
+export interface DhanSecurity {
+  securityId: string
+  exchangeSegment: string  // 'NSE_EQ' | 'BSE'
+  tradingSymbol: string
+  isin: string
+}
+
+/** DhanHQ /v2/charts/historical response — parallel arrays */
+export interface DhanHistoricalResponse {
+  open: number[]
+  high: number[]
+  low: number[]
+  close: number[]
+  volume: number[]
+  timestamp: number[]   // Unix epoch seconds
+}
+
+// ─────────────────────────────────────────────────
+// Screener.in API Types
+// ─────────────────────────────────────────────────
+
+/** Top-level response from /api/company/{symbol}/ */
+export interface ScreenerCompanyResponse {
+  warehouse_set: ScreenerWarehouseSet
+  number_set: ScreenerNumberEntry[]
+  peers: ScreenerPeer[]
+  ranges: ScreenerRanges
+  company_id: number
+  company_name: string
+}
+
+/** Computed ratios and metadata */
+export interface ScreenerWarehouseSet {
+  // Identification
+  name: string
+  bse_code: number
+  nse_code: string
+  sector: string
+  industry: string
+
+  // Key ratios (latest)
+  market_capitalization: number
+  face_value: number
+  book_value: number
+  dividend_yield: number
+  roce: number
+  roe: number
+  sales_growth_3yr: number
+  profit_growth_3yr: number
+  promoter_holding: number
+  pledged_percentage: number     // Key: pledge data CMOTS lacks
+  number_of_equity_shares: number
+
+  // Allow additional fields
+  [key: string]: string | number | boolean | null | undefined
+}
+
+/** Financial line item with yearly values */
+export interface ScreenerNumberEntry {
+  name: string                    // e.g. "Trade Receivables", "Inventories", "Goodwill"
+  values: ScreenerYearlyValue[]
+}
+
+export interface ScreenerYearlyValue {
+  label: string                   // e.g. "Mar 2024", "Mar 2023"
+  value: number
+}
+
+export interface ScreenerPeer {
+  name: string
+  market_capitalization: number
+  current_price: number
+  [key: string]: string | number | null | undefined
+}
+
+export interface ScreenerRanges {
+  high: number
+  low: number
+  [key: string]: number | undefined
+}
+
+/** Extracted Screener qual data for signal computation */
+export interface ScreenerQualData {
+  // MG signals
+  pledgePercent: number | null
+  promoterHolding: number | null
+
+  // CD signals — share capital history for dilution detection
+  shareCapitalHistory: { year: string; value: number }[]
+
+  // EQ signals — balance sheet line items
+  tradeReceivables: { year: string; value: number }[]
+  inventories: { year: string; value: number }[]
+  goodwill: { year: string; value: number }[]
+  intangibleAssets: { year: string; value: number }[]
+  contingentLiabilities: { year: string; value: number }[]
+  revenue: { year: string; value: number }[]
+  cogs: { year: string; value: number }[]
+  tradePayables: { year: string; value: number }[]
+
+  // CD signals — capex
+  capex: { year: string; value: number }[]
+  depreciation: { year: string; value: number }[]
+
+  // CD signals — buyback / dividends
+  dividendPayout: { year: string; value: number }[]
+
+  // Pre-computed ratios from Screener "ratios" section (12-year history)
+  debtorDays: { year: string; value: number }[]
+  inventoryDays: { year: string; value: number }[]
+  daysPay: { year: string; value: number }[]
+  cashConversionCycle: { year: string; value: number }[]
+  workingCapitalDays: { year: string; value: number }[]
+  roce: { year: string; value: number }[]
+  opm: { year: string; value: number }[]
 }
