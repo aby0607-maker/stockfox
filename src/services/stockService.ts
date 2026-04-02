@@ -108,7 +108,21 @@ export function getStocksBySector(sector: string): Stock[] {
  * Generate a peer group for any stock by querying the in-memory company master.
  * Matches by industry first (specific), broadens to sector if too few peers.
  */
+export interface PeerInfo {
+  symbol: string   // NSE symbol (for resolveStock)
+  name: string     // Display name
+}
+
 async function generatePeerGroup(company: CMOTSCompany): Promise<string[]> {
+  const peers = await generatePeerGroupDetailed(company)
+  return peers.map(p => p.symbol)
+}
+
+/**
+ * Generate detailed peer group with symbol + name for each peer.
+ * Used by Compare page to show display names and resolve by symbol.
+ */
+export async function generatePeerGroupDetailed(company: CMOTSCompany): Promise<PeerInfo[]> {
   try {
     const allCompanies = await getCompanyMaster()
     if (allCompanies.length === 0) return []
@@ -116,21 +130,26 @@ async function generatePeerGroup(company: CMOTSCompany): Promise<string[]> {
     // Filter by same industry (more specific)
     let peers = allCompanies.filter(c =>
       c.industryname === company.industryname &&
-      c.co_code !== company.co_code
+      c.co_code !== company.co_code &&
+      c.nsesymbol  // Must have an NSE symbol for resolution
     )
 
     // Broaden to sector if fewer than 3 industry peers
     if (peers.length < 3 && company.sectorname) {
       peers = allCompanies.filter(c =>
         c.sectorname === company.sectorname &&
-        c.co_code !== company.co_code
+        c.co_code !== company.co_code &&
+        c.nsesymbol
       )
     }
 
-    // Prefer same market cap tier, then take top 6 by name
+    // Prefer same market cap tier, then take top 6
     const sameTier = peers.filter(c => c.mcaptype === company.mcaptype)
     const pool = sameTier.length >= 3 ? sameTier : peers
-    return pool.slice(0, 6).map(c => c.companyshortname || c.companyname)
+    return pool.slice(0, 6).map(c => ({
+      symbol: c.nsesymbol,
+      name: c.companyshortname || c.companyname,
+    }))
   } catch {
     return []
   }

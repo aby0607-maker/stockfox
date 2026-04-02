@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils'
 import { getVerdictV2 } from '@/data/verdictsV2'
 import { getScoreBandV2 } from '@/lib/scoring'
 import { useAppStore } from '@/store/useAppStore'
-import { resolveStock, isDemoStock } from '@/services/stockService'
+import { resolveStock, isDemoStock, generatePeerGroupDetailed } from '@/services/stockService'
+import { getCompanyBySymbol } from '@/services/cmots'
 import { buildVerdictForStock } from '@/services/verdictService'
 import { StaggerContainer, StaggerItem } from '@/components/motion'
 import type { Stock, StockVerdictV2, VerdictPillar } from '@/types'
@@ -340,18 +341,23 @@ export function Compare() {
         [symbol.toUpperCase()]: { stock, loading: true },
       }))
 
-      // Merge peer options from all resolved stocks
-      if (stock.peerGroup.length > 0) {
-        const peers = stock.peerGroup.map(name => ({
-          symbol: name.toUpperCase().replace(/\s+/g, ''),
-          name,
-          id: name.toLowerCase().replace(/\s+/g, ''),
-        }))
-        setPeerOptions(prev => {
-          const existing = new Set(prev.map(p => p.symbol))
-          const newPeers = peers.filter(p => !existing.has(p.symbol))
-          return [...prev, ...newPeers]
-        })
+      // Fetch detailed peer group (with proper NSE symbols) from company master
+      try {
+        const company = await getCompanyBySymbol(symbol)
+        if (company) {
+          const detailedPeers = await generatePeerGroupDetailed(company)
+          if (detailedPeers.length > 0) {
+            setPeerOptions(prev => {
+              const existing = new Set(prev.map(p => p.symbol))
+              const newPeers = detailedPeers
+                .filter(p => !existing.has(p.symbol))
+                .map(p => ({ symbol: p.symbol, name: p.name, id: p.symbol.toLowerCase() }))
+              return [...prev, ...newPeers]
+            })
+          }
+        }
+      } catch {
+        // Peer lookup failed — proceed without
       }
 
       // Get verdict (demo or live)
