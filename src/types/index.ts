@@ -758,3 +758,103 @@ export interface DhanHistoricalResponse {
   volume: number[]
   timestamp: number[]   // Unix epoch seconds
 }
+
+// ─────────────────────────────────────────────────
+// Screener.in API Types
+// ─────────────────────────────────────────────────
+
+/** Top-level response from /api/company/{symbol}/ */
+export interface ScreenerCompanyResponse {
+  warehouse_set: ScreenerWarehouseSet
+  number_set: ScreenerNumberEntry[]
+  peers: ScreenerPeer[]
+  ranges: ScreenerRanges
+  company_id: number
+  company_name: string
+}
+
+/** Computed ratios and metadata */
+export interface ScreenerWarehouseSet {
+  // Identification
+  name: string
+  bse_code: number
+  nse_code: string
+  sector: string
+  industry: string
+
+  // Key ratios (latest)
+  market_capitalization: number
+  face_value: number
+  book_value: number
+  dividend_yield: number
+  roce: number
+  roe: number
+  sales_growth_3yr: number
+  profit_growth_3yr: number
+  promoter_holding: number
+  pledged_percentage: number     // Key: pledge data CMOTS lacks
+  number_of_equity_shares: number
+
+  // Allow additional fields
+  [key: string]: string | number | boolean | null | undefined
+}
+
+/** Financial line item with yearly values */
+export interface ScreenerNumberEntry {
+  name: string                    // e.g. "Trade Receivables", "Inventories", "Goodwill"
+  values: ScreenerYearlyValue[]
+}
+
+export interface ScreenerYearlyValue {
+  label: string                   // e.g. "Mar 2024", "Mar 2023"
+  value: number
+}
+
+export interface ScreenerPeer {
+  name: string
+  market_capitalization: number
+  current_price: number
+  [key: string]: string | number | null | undefined
+}
+
+export interface ScreenerRanges {
+  high: number
+  low: number
+  [key: string]: number | undefined
+}
+
+/** Extracted Screener qual data for signal computation */
+export interface ScreenerQualData {
+  // MG signals
+  pledgePercent: number | null
+  promoterHolding: number | null
+
+  // CD signals — share capital history for dilution detection
+  shareCapitalHistory: { year: string; value: number }[]
+
+  // EQ signals — balance sheet line items
+  tradeReceivables: { year: string; value: number }[]
+  inventories: { year: string; value: number }[]
+  goodwill: { year: string; value: number }[]
+  intangibleAssets: { year: string; value: number }[]
+  contingentLiabilities: { year: string; value: number }[]
+  revenue: { year: string; value: number }[]
+  cogs: { year: string; value: number }[]
+  tradePayables: { year: string; value: number }[]
+
+  // CD signals — capex
+  capex: { year: string; value: number }[]
+  depreciation: { year: string; value: number }[]
+
+  // CD signals — buyback / dividends
+  dividendPayout: { year: string; value: number }[]
+
+  // Pre-computed ratios from Screener "ratios" section (12-year history)
+  debtorDays: { year: string; value: number }[]
+  inventoryDays: { year: string; value: number }[]
+  daysPay: { year: string; value: number }[]
+  cashConversionCycle: { year: string; value: number }[]
+  workingCapitalDays: { year: string; value: number }[]
+  roce: { year: string; value: number }[]
+  opm: { year: string; value: number }[]
+}

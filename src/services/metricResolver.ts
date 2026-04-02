@@ -84,6 +84,78 @@ function mapCMOTSToMetricIds(
     metrics['v2_roe'] = ttm?.roe_ttm ?? null
   }
 
+  // ── Profitability: TTM ratios (pass-through) ──
+  metrics['v2_roce'] = ttm?.roce_ttm ?? null
+  metrics['v2_opm'] = ttm?.operatingprofitmargin ?? null
+  metrics['v2_npm'] = ttm?.netprofitmargin ?? null
+  metrics['v2_roa'] = ttm?.returnonassets ?? null
+
+  // ── Profitability: ROE multi-year trend (slope) ──
+  metrics['v2_roe_trend'] = computeROETrend(pnl, balanceSheet)
+
+  // ── Financial Health: TTM ratios ──
+  metrics['v2_current_ratio'] = ttm?.currentratio ?? null
+  metrics['v2_quick_ratio'] = ttm?.quickratio ?? null
+  metrics['v2_debt_to_equity'] = ttm?.debttoequity ?? null
+  metrics['v2_asset_turnover'] = ttm?.assetturnover_ttm ?? null
+
+  // ── Financial Health: Interest Coverage from FinData ──
+  metrics['v2_interest_coverage'] = finData.length > 0
+    ? finData[finData.length - 1].interestcoverageratio : null
+
+  // ── Financial Health: Accruals Ratio (PAT - OCF) / Total Assets ──
+  const latestPAT = getLatestStatementValue(pnl, PNL_ROW_PAT)
+  const latestOCF = getLatestStatementValue(cashFlow, CF_ROW_OCF)
+  const latestTotalAssets = finData.length > 0 ? finData[finData.length - 1].totalassets : null
+  metrics['v2_accruals_ratio'] = latestPAT != null && latestOCF != null && latestTotalAssets != null && latestTotalAssets !== 0
+    ? ((latestPAT - latestOCF) / latestTotalAssets) * 100 : null
+
+  // ── Financial Health: FCF Yield (FCF per share / price) ──
+  const fcfPerShare = finData.length > 0 ? finData[finData.length - 1].freecashflowpershare : null
+  const latestPrice = priceHistory && priceHistory.length > 0
+    ? priceHistory[priceHistory.length - 1].price : null
+  metrics['v2_fcf_yield'] = fcfPerShare != null && latestPrice != null && latestPrice > 0
+    ? (fcfPerShare / latestPrice) * 100 : null
+
+  // ── Valuation: PEG and Dividend Yield ──
+  metrics['v2_peg_ratio'] = ttm?.pegratio ?? null
+  metrics['v2_dividend_yield'] = ttm?.dividendyield ?? null
+  metrics['v2_earnings_yield'] = ttm?.pe_ttm != null && ttm.pe_ttm > 0
+    ? (1 / ttm.pe_ttm) * 100 : null
+
+  // ── Performance: Period returns from price history ──
+  if (priceHistory && priceHistory.length > 0) {
+    const currentP = priceHistory[priceHistory.length - 1].price
+    metrics['v2_return_1y'] = computePeriodReturn(priceHistory, currentP, 252)
+    metrics['v2_return_3y'] = computePeriodReturn(priceHistory, currentP, 756)
+    metrics['v2_return_5y'] = computePeriodReturn(priceHistory, currentP, 1260)
+    metrics['v2_max_drawdown'] = computeMaxDrawdown(priceHistory.map(p => p.price))
+    metrics['v2_volatility'] = computeAnnualizedVolatility(priceHistory.map(p => p.price))
+  } else {
+    metrics['v2_return_1y'] = null
+    metrics['v2_return_3y'] = null
+    metrics['v2_return_5y'] = null
+    metrics['v2_max_drawdown'] = null
+    metrics['v2_volatility'] = null
+  }
+
+  // ── Institutional: MF holding ──
+  if (shareholding && shareholding.length > 0) {
+    metrics['mf_holding'] = shareholding[0].MutualFund
+    metrics['promoter_pledge'] = null // Not available from CMOTS shareholding endpoint
+
+    if (shareholding.length >= 4) {
+      // 1-year promoter change (4 quarters back)
+      metrics['promoter_holding_change_1y'] = shareholding[0].Promoters - shareholding[3].Promoters
+    } else {
+      metrics['promoter_holding_change_1y'] = null
+    }
+  } else {
+    metrics['mf_holding'] = null
+    metrics['promoter_pledge'] = null
+    metrics['promoter_holding_change_1y'] = null
+  }
+
   // ── Cash Flow Quality: OCF / EBITDA ──
   const ocf = getLatestStatementValue(cashFlow, CF_ROW_OCF)
   const ebitdaVal = getLatestStatementValue(pnl, PNL_ROW_EBITDA)
@@ -471,6 +543,78 @@ function findClosestPrice(
     else h = mid - 1
   }
   return priceHistory[lo].date <= targetDate ? priceHistory[lo].price : null
+}
+
+// ─── ROE Trend ──────────────────────────────────
+
+function computeROETrend(
+  pnl: CMOTSStatementRow[], balanceSheet: CMOTSStatementRow[],
+): number | null {
+  const patRow = findStatementRow(pnl, PNL_ROW_PAT)
+  const shFundRow = findStatementRow(balanceSheet, BS_ROW_SHAREHOLDERS_FUND)
+  if (!patRow || !shFundRow) return null
+
+  const patCols = getYearColumns(patRow)
+  const shFundCols = getYearColumns(shFundRow)
+  const roeValues: number[] = []
+
+  for (const col of patCols) {
+    if (!shFundCols.includes(col)) continue
+    const pat = getStatementValue(patRow, col)
+    const shFund = getStatementValue(shFundRow, col)
+    if (pat != null && shFund != null && shFund !== 0) {
+      roeValues.push((pat / shFund) * 100)
+    }
+  }
+
+  if (roeValues.length < 3) return null
+  // Simple trend: (latest - oldest) / years — positive = improving
+  const latest = roeValues[0] // Most recent year first
+  const oldest = roeValues[roeValues.length - 1]
+  return (latest - oldest) / roeValues.length
+}
+
+// ─── Performance Helpers ────────────────────────
+
+function computePeriodReturn(
+  priceHistory: { date: string; price: number }[],
+  currentPrice: number,
+  tradingDays: number,
+): number | null {
+  if (priceHistory.length < tradingDays) return null
+  const pastIdx = priceHistory.length - 1 - tradingDays
+  if (pastIdx < 0) return null
+  const pastPrice = priceHistory[pastIdx].price
+  if (pastPrice <= 0) return null
+  return ((currentPrice - pastPrice) / pastPrice) * 100
+}
+
+function computeMaxDrawdown(prices: number[]): number | null {
+  if (prices.length < 20) return null
+  // Use last 252 trading days (1 year) for drawdown
+  const slice = prices.slice(-Math.min(252, prices.length))
+  let peak = slice[0]
+  let maxDD = 0
+  for (const p of slice) {
+    if (p > peak) peak = p
+    const dd = ((peak - p) / peak) * 100
+    if (dd > maxDD) maxDD = dd
+  }
+  return -maxDD // Negative number (e.g., -15.3%)
+}
+
+function computeAnnualizedVolatility(prices: number[]): number | null {
+  // Daily returns std dev × sqrt(252)
+  const slice = prices.slice(-Math.min(252, prices.length))
+  if (slice.length < 20) return null
+  const returns: number[] = []
+  for (let i = 1; i < slice.length; i++) {
+    if (slice[i - 1] > 0) returns.push((slice[i] - slice[i - 1]) / slice[i - 1])
+  }
+  if (returns.length < 10) return null
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length
+  const variance = returns.reduce((a, r) => a + (r - mean) ** 2, 0) / returns.length
+  return Math.sqrt(variance) * Math.sqrt(252) * 100 // Annualized %
 }
 
 // ─── Growth Context ──────────────────────────────

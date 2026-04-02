@@ -22,12 +22,7 @@ export {
 
 // Verdict service
 export {
-  getVerdict,
-  getVerdictForStock,
-  getVerdictsByProfile,
-  getVerdictsByStock,
-  getVerdictsBatch,
-  invalidateVerdictCache,
+  buildVerdictForStock,
 } from './verdictService'
 
 // Journal service

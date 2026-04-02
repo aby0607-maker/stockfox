@@ -40,6 +40,40 @@ export default defineConfig(({ mode }) => {
           'X-Api-Key': env.INDIANAPI_KEY || '',
         },
       },
+      '/api/screener': {
+        target: 'https://www.screener.in',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/screener/, ''),
+        headers: {
+          'Cookie': env.SCREENER_SESSION_ID ? `sessionid=${env.SCREENER_SESSION_ID}` : '',
+        },
+      },
+      '/api/trendlyne': {
+        target: 'https://trendlyne.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/trendlyne/, ''),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Referer': 'https://trendlyne.com/',
+        },
+      },
+      '/api/bse': {
+        target: 'https://api.bseindia.com/BseIndiaAPI/api',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/bse/, ''),
+        headers: {
+          'Referer': 'https://www.bseindia.com/',
+        },
+      },
+      '/api/finnhub': {
+        target: 'https://finnhub.io/api/v1',
+        changeOrigin: true,
+        rewrite: (path) => {
+          const rewritten = path.replace(/^\/api\/finnhub/, '')
+          const sep = rewritten.includes('?') ? '&' : '?'
+          return `${rewritten}${sep}token=${env.FINNHUB_API_KEY || ''}`
+        },
+      },
     },
   },
   build: {

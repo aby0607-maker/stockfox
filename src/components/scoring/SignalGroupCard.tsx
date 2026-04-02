@@ -30,34 +30,51 @@ export function SignalGroupCard({ group, defaultExpanded = false }: SignalGroupC
   const roleBadge = ROLE_BADGES[group.role]
 
   const applicableSignals = group.signals.filter(s => s.state !== 'not_applicable')
+  const naSignals = group.signals.filter(s => s.state === 'not_applicable')
   const flaggedSignals = group.signals.filter(s => s.state === 'flag' || s.state === 'suppressed')
+  const allNA = applicableSignals.length === 0 && group.signals.length > 0
 
   return (
-    <div className="rounded-xl border border-white/5 bg-dark-800 overflow-hidden">
+    <div className={cn(
+      'rounded-xl border overflow-hidden',
+      allNA ? 'border-white/3 bg-dark-800/50' : 'border-white/5 bg-dark-800'
+    )}>
       {/* Group header */}
       <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full p-3 text-left hover:bg-dark-700/30 transition-colors"
+        onClick={() => !allNA && setExpanded(!expanded)}
+        className={cn(
+          'w-full p-3 text-left transition-colors',
+          allNA ? 'cursor-default' : 'hover:bg-dark-700/30'
+        )}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {GROUP_TOOLTIPS[group.name] ? (
               <Tooltip content={GROUP_TOOLTIPS[group.name]} position="bottom" maxWidth={280}>
-                <span className="text-sm font-medium text-white truncate cursor-help border-b border-dotted border-neutral-700">{group.name}</span>
+                <span className={cn('text-sm font-medium truncate cursor-help border-b border-dotted border-neutral-700', allNA ? 'text-neutral-500' : 'text-white')}>{group.name}</span>
               </Tooltip>
             ) : (
-              <span className="text-sm font-medium text-white truncate">{group.name}</span>
+              <span className={cn('text-sm font-medium truncate', allNA ? 'text-neutral-500' : 'text-white')}>{group.name}</span>
             )}
             <Tooltip content={roleBadge.tooltip} position="bottom">
-              <span className={cn('text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded cursor-help', roleBadge.class)}>
+              <span className={cn('text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded cursor-help', allNA ? 'bg-neutral-700/30 text-neutral-600' : roleBadge.class)}>
                 {roleBadge.label}
               </span>
             </Tooltip>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* All-NA: Coming Soon badge */}
+            {allNA && (
+              <Tooltip content={`${group.signals.length} signals will be available when annual report and editorial data sources are added`} position="bottom" maxWidth={280}>
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary-500/10 text-primary-400/70 cursor-help">
+                  COMING SOON
+                </span>
+              </Tooltip>
+            )}
+
             {/* Group score */}
-            {band && group.score != null && (
+            {!allNA && band && group.score != null && (
               <div className="flex items-center gap-1.5">
                 <span className={cn('text-sm font-bold', band.colorClass)}>
                   {Math.round(group.score)}
@@ -79,19 +96,23 @@ export function SignalGroupCard({ group, defaultExpanded = false }: SignalGroupC
             )}
 
             {/* Signal count */}
-            <span className="text-[10px] text-neutral-600">
-              {applicableSignals.length}/{group.signals.length}
-            </span>
+            {!allNA && (
+              <span className="text-[10px] text-neutral-600">
+                {applicableSignals.length}/{group.signals.length}
+              </span>
+            )}
 
-            <ChevronDown className={cn(
-              'w-4 h-4 text-neutral-500 transition-transform',
-              expanded && 'rotate-180'
-            )} />
+            {!allNA && (
+              <ChevronDown className={cn(
+                'w-4 h-4 text-neutral-500 transition-transform',
+                expanded && 'rotate-180'
+              )} />
+            )}
           </div>
         </div>
 
         {/* Mini progress bar for group score */}
-        {group.score != null && (
+        {!allNA && group.score != null && (
           <div className="mt-2 h-1 bg-dark-600 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
@@ -102,11 +123,22 @@ export function SignalGroupCard({ group, defaultExpanded = false }: SignalGroupC
             />
           </div>
         )}
+
+        {/* All-NA: compact signal name list */}
+        {allNA && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {group.signals.map((s) => (
+              <span key={s.id} className="text-[10px] text-neutral-600 px-1.5 py-0.5 rounded bg-dark-700/40">
+                {s.name}
+              </span>
+            ))}
+          </div>
+        )}
       </button>
 
       {/* Expanded signal list */}
       <AnimatePresence>
-        {expanded && (
+        {expanded && !allNA && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -115,9 +147,29 @@ export function SignalGroupCard({ group, defaultExpanded = false }: SignalGroupC
             className="overflow-hidden"
           >
             <div className="px-3 pb-3 space-y-2">
-              {group.signals.map((signal) => (
+              {/* Computed signals — full cards */}
+              {applicableSignals.map((signal) => (
                 <SignalCard key={signal.id} signal={signal} />
               ))}
+
+              {/* N/A signals in mixed group — collapsed summary */}
+              {naSignals.length > 0 && (
+                <div className="px-3 py-2.5 rounded-lg bg-dark-700/20 border border-white/3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-neutral-600 flex-shrink-0" />
+                    <span className="text-[11px] text-neutral-500 font-medium">
+                      {naSignals.length} more signal{naSignals.length > 1 ? 's' : ''} coming soon
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 ml-3.5">
+                    {naSignals.map((s) => (
+                      <span key={s.id} className="text-[10px] text-neutral-600 px-1.5 py-0.5 rounded bg-dark-700/40">
+                        {s.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
