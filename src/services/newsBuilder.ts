@@ -7,10 +7,11 @@
  * Produces NewsItem[], UpcomingEvent[], and NewsEvent[] for the UI.
  */
 
-import type { NewsEvent, NewsBucket } from '@/types'
+import type { NewsEvent } from '@/types'
 import type { NewsItem, UpcomingEvent } from '@/data/news'
 import { getInsiderTransactions, getCorporateActions } from '@/services/bse'
 import { cache } from '@/services/cache'
+import { classifyNewsEvent, classifyCorporateAction, classifyInsiderFiling } from '@/data/newsEventTaxonomy'
 
 // ─── Date Helpers ──────────────────────────────────
 
@@ -132,16 +133,17 @@ async function fetchGoogleNews(companyName: string, stockId: string): Promise<Ne
       const timestamp = parseRSSDate(pubDate)
       if (!timestamp) return
 
+      const classified = classifyNewsEvent(title)
       items.push({
         id: `gnews-${i}-${Date.now()}`,
         stockId,
         headline: title,
-        summary: title, // RSS description contains HTML markup, title is cleaner
+        summary: title,
         source,
         timestamp,
         category: categorizeNews(title),
         sentiment: detectNewsSentiment(title),
-        impactSegments: [],
+        impactSegments: classified.impactSegments,
         importance: isRecentDate(timestamp.split('T')[0], 1) ? 'high' : 'medium',
         url: link || undefined,
       })
@@ -172,29 +174,32 @@ export async function buildNewsItems(symbol: string, companyName?: string): Prom
   const items: NewsItem[] = []
   const stockId = symbol.toLowerCase()
 
-  // Insider filings → news items
+  // Insider filings → news items (classified via taxonomy)
   if (insiderData?.recentFilings) {
     for (const filing of insiderData.recentFilings) {
       const date = parseBSEDate(filing.NEWS_DT)
+      const text = filing.HEADLINE || filing.NEWSSUB || ''
+      const classified = classifyInsiderFiling(text)
       items.push({
         id: `bse-insider-${filing.SCRIP_CD}-${date}`,
         stockId,
-        headline: filing.HEADLINE || filing.NEWSSUB || 'Insider Transaction',
+        headline: text || 'Insider Transaction',
         summary: filing.NEWSSUB || filing.HEADLINE || '',
         source: 'BSE Filing',
         timestamp: filing.NEWS_DT,
         category: 'management',
-        sentiment: detectInsiderSentiment(filing.NEWSSUB || filing.HEADLINE || ''),
-        impactSegments: ['management_governance'],
+        sentiment: detectInsiderSentiment(text),
+        impactSegments: classified.impactSegments,
         importance: isRecentDate(date, 3) ? 'high' : 'medium',
       })
     }
   }
 
-  // Corporate actions → news items
+  // Corporate actions → news items (classified via taxonomy)
   if (corpData?.actions) {
     for (const action of corpData.actions) {
       const date = parseBSEDate(action.ex_date)
+      const classified = classifyCorporateAction(action.purpose)
       items.push({
         id: `bse-action-${action.scrip_code}-${date}`,
         stockId,
@@ -204,7 +209,7 @@ export async function buildNewsItems(symbol: string, companyName?: string): Prom
         timestamp: `${date}T00:00:00`,
         category: 'market',
         sentiment: detectActionSentiment(action.purpose),
-        impactSegments: ['capital_discipline'],
+        impactSegments: classified.impactSegments,
         importance: isRecentDate(date, 3) ? 'high' : 'medium',
       })
     }
@@ -273,70 +278,60 @@ export async function buildNewsEvents(symbol: string, companyName?: string): Pro
   const events: NewsEvent[] = []
   let counter = 0
 
-  // Insider filings → governance_ownership events
+  // Insider filings → classified via taxonomy
   if (insiderData?.recentFilings) {
     for (const filing of insiderData.recentFilings.slice(0, 5)) {
       const date = parseBSEDate(filing.NEWS_DT)
-      const sentiment = detectInsiderSentiment(filing.NEWSSUB || filing.HEADLINE || '')
+      const text = filing.HEADLINE || filing.NEWSSUB || ''
+      const classified = classifyInsiderFiling(text)
+      const sentiment = detectInsiderSentiment(text)
       events.push({
         id: `news-insider-${++counter}`,
-        type: 'insider_transaction',
-        bucket: 'governance_ownership' as NewsBucket,
-        title: filing.HEADLINE || filing.NEWSSUB || 'Insider Transaction',
+        type: classified.id,
+        bucket: classified.bucket,
+        title: text || 'Insider Transaction',
         source: 'BSE SAST Filing',
         date,
-        severity: sentiment === 'positive' ? 'positive' : sentiment === 'negative' ? 'watch' : 'neutral',
-        investorMeaning: sentiment === 'positive'
-          ? 'Insider buying signals confidence in the company'
-          : sentiment === 'negative'
-            ? 'Insider selling may indicate reduced confidence'
-            : 'Insider transaction — monitor for pattern',
-        impactSegments: ['management_governance'],
+        severity: sentiment === 'positive' ? 'positive' : sentiment === 'negative' ? 'watch' : classified.defaultSeverity,
+        investorMeaning: classified.investorMeaning,
+        impactSegments: classified.impactSegments,
       })
     }
   }
 
-  // Corporate actions → corporate_actions events
+  // Corporate actions → classified via taxonomy
   if (corpData?.actions) {
     for (const action of corpData.actions.slice(0, 5)) {
       const date = parseBSEDate(action.ex_date)
-      const sentiment = detectActionSentiment(action.purpose)
-      const purpose = action.purpose.toLowerCase()
+      const classified = classifyCorporateAction(action.purpose)
       events.push({
         id: `news-action-${++counter}`,
-        type: purpose.includes('dividend') ? 'dividend' : purpose.includes('bonus') ? 'bonus' : 'corporate_action',
-        bucket: 'corporate_actions' as NewsBucket,
+        type: classified.id,
+        bucket: classified.bucket,
         title: action.purpose,
         source: 'BSE Corporate Actions',
         date,
-        severity: sentiment === 'positive' ? 'positive' : 'neutral',
-        investorMeaning: purpose.includes('dividend') ? 'Dividend payout signals healthy cash flow and shareholder returns'
-          : purpose.includes('bonus') ? 'Bonus issue increases share count — signals confidence in growth'
-          : purpose.includes('buyback') ? 'Share buyback reduces supply — typically signals undervaluation'
-          : `Corporate action: ${action.purpose}`,
-        impactSegments: ['capital_discipline'],
+        severity: classified.defaultSeverity,
+        investorMeaning: classified.investorMeaning,
+        impactSegments: classified.impactSegments,
       })
     }
   }
 
-  // Google News → external_macro / financial_performance events
+  // Google News → classified via 48-type taxonomy
   for (const gn of googleNews.slice(0, 6)) {
     const date = gn.timestamp.split('T')[0]
-    const category = gn.category
-    const bucket: NewsBucket = category === 'earnings' ? 'financial_performance'
-      : category === 'regulatory' ? 'governance_ownership'
-      : category === 'management' ? 'governance_ownership'
-      : 'external_macro'
+    const classified = classifyNewsEvent(gn.headline)
     events.push({
       id: `news-gnews-${++counter}`,
-      type: category === 'earnings' ? 'quarterly_results' : 'market_news',
-      bucket,
+      type: classified.id,
+      bucket: classified.bucket,
       title: gn.headline,
       source: gn.source,
       date,
-      severity: gn.sentiment === 'positive' ? 'positive' : gn.sentiment === 'negative' ? 'watch' : 'neutral',
-      investorMeaning: gn.summary,
-      impactSegments: [],
+      severity: gn.sentiment === 'positive' ? 'positive' : gn.sentiment === 'negative' ? 'watch' : classified.defaultSeverity,
+      investorMeaning: classified.investorMeaning,
+      impactSegments: classified.impactSegments,
     })
   }
 
