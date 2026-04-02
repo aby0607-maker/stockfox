@@ -56,3 +56,4 @@ lerna-debug.log*
 
 # Testing
 coverage/
+.vercel
