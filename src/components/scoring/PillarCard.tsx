@@ -9,6 +9,8 @@ interface PillarCardProps {
   pillar: PillarVerdict
   onClick?: () => void
   delay?: number
+  learningMode?: boolean
+  pillarRevealed?: boolean  // true after all segments in this pillar have been rated
 }
 
 const PILLAR_ICONS = {
@@ -29,17 +31,18 @@ const PILLAR_DESCRIPTIONS = {
   risk: 'Aggregated risk flags across all pillars',
 } as const
 
-export function PillarCard({ pillar, onClick, delay = 0 }: PillarCardProps) {
+export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRevealed }: PillarCardProps) {
   const band = getScoreBandV2(pillar.score)
   const Icon = PILLAR_ICONS[pillar.pillar] || BarChart3
   const label = PILLAR_LABELS[pillar.pillar] || pillar.name
+  const hideScore = learningMode && !pillarRevealed
 
   const totalSegments = pillar.segments.length
 
   // Mini arc for score visualization
   const radius = 28
   const circumference = 2 * Math.PI * radius
-  const progress = Math.min(pillar.score / 100, 1)
+  const progress = hideScore ? 0 : Math.min(pillar.score / 100, 1)
   const strokeDashoffset = circumference * (1 - progress)
 
   return (
@@ -97,23 +100,36 @@ export function PillarCard({ pillar, onClick, delay = 0 }: PillarCardProps) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={cn('text-lg font-bold', band.colorClass)}>
-              {Math.round(pillar.score)}
+            <span className={cn('text-lg font-bold', hideScore ? 'text-primary-400' : band.colorClass)}>
+              {hideScore ? '?' : Math.round(pillar.score)}
             </span>
           </div>
         </div>
 
         {/* Band + Summary */}
         <div className="flex-1 min-w-0">
-          <span className={cn(
-            'inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase mb-1',
-            band.bgClass, band.colorClass
-          )}>
-            {band.shortLabel}
-          </span>
-          <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
-            {pillar.summary}
-          </p>
+          {hideScore ? (
+            <>
+              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase mb-1 bg-primary-500/20 text-primary-400">
+                RATE TO REVEAL
+              </span>
+              <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
+                Tap to rate segments and reveal this pillar's score
+              </p>
+            </>
+          ) : (
+            <>
+              <span className={cn(
+                'inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase mb-1',
+                band.bgClass, band.colorClass
+              )}>
+                {band.shortLabel}
+              </span>
+              <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
+                {pillar.summary}
+              </p>
+            </>
+          )}
         </div>
       </div>
     </motion.button>

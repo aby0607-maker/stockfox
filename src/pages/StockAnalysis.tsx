@@ -8,11 +8,9 @@ import { getStockBySymbol, getVerdictForStock } from '@/data'
 import { resolveStock, isDemoStock } from '@/services/stockService'
 import { buildVerdictForStock } from '@/services/verdictService'
 import { buildNewsItems, buildUpcomingEvents } from '@/services/newsBuilder'
-import { SegmentRatingCard } from '@/components/learning/SegmentRatingCard'
-import { RatingReveal } from '@/components/learning/RatingReveal'
 import { LearningProgress } from '@/components/learning/LearningProgress'
 import { LearningCompletion } from '@/components/learning/LearningCompletion'
-import { SEGMENT_PREVIEW_METRICS, getAccuracy, type RatingBand } from '@/data/learningMetrics'
+import { getAccuracy } from '@/data/learningMetrics'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
 // V1 UI imports kept for evidence modals (ScoreGauge, VerdictBadge removed — replaced by V2 components)
 import { SegmentBar, DIYSegmentList } from '@/components/charts'
@@ -251,6 +249,17 @@ export function StockAnalysis() {
         const verdictData = getVerdictForStock(symbol, profileId)
         const newsData = getNewsForStock(symbol)
         const verdictV2Data = getVerdictV2(symbol, profileId)
+
+        // Fetch CMOTS metrics for learning mode (even for demo stocks)
+        if (verdictV2Data && !verdictV2Data.resolvedMetrics) {
+          import('@/services/metricResolver').then(({ resolveMetricValues }) => {
+            resolveMetricValues(symbol).then(resolved => {
+              if (resolved && !cancelled) {
+                setVerdictV2(prev => prev ? { ...prev, resolvedMetrics: resolved.data } : prev)
+              }
+            }).catch(() => {}) // Metrics unavailable — learning mode will use signal-level cues
+          })
+        }
 
         if (cancelled) return
         setStock(stockData || null)
@@ -506,13 +515,20 @@ export function StockAnalysis() {
           </div>
         </div>
 
-        {/* HERO: V2 Overall Verdict */}
-        {verdictV2 && (
+        {/* HERO: V2 Overall Verdict — hidden in learning mode */}
+        {verdictV2 && !learningMode && (
           <div className="p-5 pt-0" data-spotlight="hero-card">
             <OverallVerdictCard
               verdict={verdictV2}
               profileName={currentProfile.investmentThesis}
             />
+          </div>
+        )}
+        {verdictV2 && learningMode && (
+          <div className="p-5 pt-0 text-center">
+            <span className="text-3xl font-bold text-primary-400">?</span>
+            <span className="text-sm text-neutral-500 ml-1">/100</span>
+            <p className="text-xs text-primary-400 mt-1">Rate all segments to reveal the overall score</p>
           </div>
         )}
       </motion.div>
@@ -601,14 +617,21 @@ export function StockAnalysis() {
               {learningMode && (
                 <LearningProgress ratings={learningRatings} totalSegments={11} />
               )}
-              {verdictV2.pillars.map((pillar, i) => (
-                <PillarCard
-                  key={pillar.pillar}
-                  pillar={pillar}
-                  delay={i * 0.08}
-                  onClick={() => setSelectedPillar(pillar.pillar)}
-                />
-              ))}
+              {verdictV2.pillars.map((pillar, i) => {
+                // In learning mode, check if all scored segments in this pillar have been rated
+                const scoredSegs = pillar.segments.filter(s => s.scoringType === 'scored' && s.score !== undefined)
+                const allRated = learningMode && scoredSegs.length > 0 && scoredSegs.every(s => learningRatings[s.id]?.revealed)
+                return (
+                  <PillarCard
+                    key={pillar.pillar}
+                    pillar={pillar}
+                    delay={i * 0.08}
+                    onClick={() => setSelectedPillar(pillar.pillar)}
+                    learningMode={learningMode}
+                    pillarRevealed={allRated}
+                  />
+                )
+              })}
             </motion.div>
           ) : selectedFactorId ? (
             /* Qual Factor deep-dive (Layer 3) */
@@ -643,14 +666,32 @@ export function StockAnalysis() {
                 if (!pillar) return null
 
                 // Risk pillar: embed Red Flag Scanner instead of empty segments list
+                // Build set of revealed segment IDs for learning mode
+                const revealedSet = new Set(
+                  Object.entries(learningRatings)
+                    .filter(([, r]) => r.revealed)
+                    .map(([id]) => id)
+                )
+
                 if (selectedPillar === 'risk') {
                   return (
                     <div className="space-y-4">
                       <PillarDrillDown
                         pillar={pillar}
                         onBack={() => setSelectedPillar(null)}
+                        learningMode={learningMode}
+                        revealedSegments={revealedSet}
+                        learningRatings={learningRatings}
+                        resolvedMetrics={verdictV2.resolvedMetrics || undefined}
+                        onLearningRate={(segId, segName, band, systemScore) => {
+                          const acc = getAccuracy(band, systemScore)
+                          setLearningRatings(prev => ({
+                            ...prev,
+                            [segId]: { segmentId: segId, segmentName: segName, userBand: band, systemScore, revealed: true, accuracy: acc.result },
+                          }))
+                        }}
                       />
-                      <RedFlagScanner verdict={verdict} verdictV2={verdictV2} news={news} />
+                      {!learningMode && <RedFlagScanner verdict={verdict} verdictV2={verdictV2} news={news} />}
                     </div>
                   )
                 }
@@ -660,8 +701,26 @@ export function StockAnalysis() {
                     <PillarDrillDown
                       pillar={pillar}
                       onBack={() => setSelectedPillar(null)}
+                      learningMode={learningMode}
+                      revealedSegments={revealedSet}
+                      learningRatings={learningRatings}
+                      resolvedMetrics={verdictV2.resolvedMetrics || undefined}
+                      onLearningRate={(segId, segName, band, systemScore) => {
+                        const acc = getAccuracy(band, systemScore)
+                        setLearningRatings(prev => ({
+                          ...prev,
+                          [segId]: {
+                            segmentId: segId,
+                            segmentName: segName,
+                            userBand: band,
+                            systemScore,
+                            revealed: true,
+                            accuracy: acc.result,
+                          },
+                        }))
+                      }}
                       onSegmentClick={(segmentId) => {
-                        if (learningMode) return // Don't drill down in learning mode — rate instead
+                        if (learningMode) return
                         const seg = pillar.segments.find(s => s.id === segmentId)
                         if (seg?.signalGroups && seg.signalGroups.length > 0) {
                           setSelectedFactorId(segmentId)
@@ -671,69 +730,21 @@ export function StockAnalysis() {
                       }}
                     />
 
-                    {/* Learning mode: segment rating cards */}
-                    {learningMode && (
-                      <div className="space-y-3">
-                        <p className="text-[10px] text-primary-400 uppercase font-semibold px-1">
-                          🎓 Rate each segment — see the raw metrics, then guess the score
-                        </p>
-                        {pillar.segments
-                          .filter(seg => seg.scoringType === 'scored' && seg.score !== undefined)
-                          .map(seg => {
-                            const rating = learningRatings[seg.id]
-                            if (rating?.revealed) {
-                              return (
-                                <RatingReveal
-                                  key={seg.id}
-                                  segment={seg}
-                                  userBand={rating.userBand}
-                                  previewMetrics={SEGMENT_PREVIEW_METRICS[seg.id] || []}
-                                  metrics={verdictV2.resolvedMetrics || {}}
-                                />
-                              )
-                            }
-                            if (rating) return null // Rated but not yet revealed (shouldn't happen in current flow)
-                            return (
-                              <SegmentRatingCard
-                                key={seg.id}
-                                segmentId={seg.id}
-                                segmentName={seg.name}
-                                metrics={verdictV2.resolvedMetrics || {}}
-                                onRate={(band: RatingBand) => {
-                                  const accuracy = getAccuracy(band, seg.score!)
-                                  setLearningRatings(prev => ({
-                                    ...prev,
-                                    [seg.id]: {
-                                      segmentId: seg.id,
-                                      segmentName: seg.name,
-                                      userBand: band,
-                                      systemScore: seg.score!,
-                                      revealed: true,
-                                      accuracy: accuracy.result,
-                                    },
-                                  }))
-                                }}
-                              />
-                            )
-                          })}
-
-                        {/* Completion check */}
-                        {(() => {
-                          const scoredSegments = pillar.segments.filter(s => s.scoringType === 'scored' && s.score !== undefined)
-                          const allRated = scoredSegments.every(s => learningRatings[s.id]?.revealed)
-                          if (allRated && scoredSegments.length > 0) {
-                            return (
-                              <LearningCompletion
-                                ratings={learningRatings}
-                                stockName={stock?.name || ticker || ''}
-                                onClose={() => setLearningMode(false)}
-                              />
-                            )
-                          }
-                          return null
-                        })()}
-                      </div>
-                    )}
+                    {/* Learning completion check */}
+                    {learningMode && (() => {
+                      const scoredSegments = pillar.segments.filter(s => s.scoringType === 'scored' && s.score !== undefined)
+                      const allRated = scoredSegments.every(s => learningRatings[s.id]?.revealed)
+                      if (allRated && scoredSegments.length > 0) {
+                        return (
+                          <LearningCompletion
+                            ratings={learningRatings}
+                            stockName={stock?.name || ticker || ''}
+                            onClose={() => setLearningMode(false)}
+                          />
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 )
               })()}
