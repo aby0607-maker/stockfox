@@ -1,17 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeftRight, Plus, X, ChevronDown, Trophy, Star, BarChart3, Brain, Shield, Loader2 } from 'lucide-react'
+import { ArrowLeftRight, Plus, X, ChevronDown, ChevronRight, Trophy, Star, BarChart3, Brain, Shield, Loader2, AlertTriangle, CheckCircle, MinusCircle, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getVerdictV2 } from '@/data/verdictsV2'
 import { getScoreBandV2 } from '@/lib/scoring'
 import { useAppStore } from '@/store/useAppStore'
-import { stocks as demoStocks } from '@/data/stocks'
 import { resolveStock, isDemoStock, generatePeerGroupDetailed } from '@/services/stockService'
 import { getCompanyBySymbol } from '@/services/cmots'
 import { buildVerdictForStock } from '@/services/verdictService'
 import { StaggerContainer, StaggerItem } from '@/components/motion'
-import type { Stock, StockVerdictV2, VerdictPillar } from '@/types'
+import type { Stock, StockVerdictV2, VerdictPillar, SegmentVerdictV2 } from '@/types'
 
 // ── Pillar config ──────────────────────────────────────────────
 
@@ -29,6 +28,21 @@ interface ResolvedEntry {
   loading: boolean
 }
 
+// ── Score Cell (reusable) ─────────────────────────────────────
+
+function ScoreCell({ score, isWinner }: { score?: number; isWinner: boolean }) {
+  if (score === undefined) return <span className="text-neutral-600">—</span>
+  return (
+    <span className={cn(
+      'text-xs font-medium tabular-nums',
+      isWinner ? 'text-success-400' : 'text-neutral-400',
+    )}>
+      {Math.round(score)}
+      {isWinner && <Star className="inline w-2.5 h-2.5 ml-0.5 text-success-400 fill-success-400" />}
+    </span>
+  )
+}
+
 // ── Stock Selector ─────────────────────────────────────────────
 
 function StockSelector({
@@ -39,6 +53,7 @@ function StockSelector({
   canRemove,
   isWinner,
   availableOptions,
+  defaultOpen = false,
 }: {
   entry: ResolvedEntry | null
   onSelect: (symbol: string) => void
@@ -47,17 +62,22 @@ function StockSelector({
   canRemove?: boolean
   isWinner?: boolean
   availableOptions: { symbol: string; name: string; id: string }[]
+  defaultOpen?: boolean
 }) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(defaultOpen)
   const filtered = availableOptions.filter(o => !excludeIds.includes(o.id) || o.id === entry?.stock.id)
+
+  // The entire card is clickable to toggle dropdown
+  const handleCardClick = () => setIsOpen(!isOpen)
 
   return (
     <div className="relative">
       <motion.div
+        onClick={handleCardClick}
         className={cn(
-          'p-4 rounded-xl bg-dark-800/80 backdrop-blur-xl border transition-all duration-200',
+          'p-4 rounded-xl bg-dark-800/80 backdrop-blur-xl border transition-all duration-200 cursor-pointer',
           isWinner ? 'border-success-500/50 shadow-glow-green' : 'border-white/10',
-          'hover:border-primary-500/30'
+          'hover:border-primary-500/30',
         )}
         whileHover={{ scale: 1.01 }}
       >
@@ -74,26 +94,22 @@ function StockSelector({
           </div>
         )}
 
-        {/* Dropdown trigger */}
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between gap-2 text-left"
-        >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-neutral-500 uppercase tracking-wide">
             {entry?.stock.sector || 'Select Stock'}
           </span>
           <ChevronDown className={cn(
             'w-4 h-4 text-neutral-500 transition-transform',
-            isOpen && 'rotate-180'
+            isOpen && 'rotate-180',
           )} />
-        </button>
+        </div>
 
         {/* Stock info */}
         {entry ? (
           <div className="mt-3 text-center">
             <h3 className="text-lg font-semibold text-white">{entry.stock.symbol}</h3>
             <p className="text-xs text-neutral-400 truncate">{entry.stock.name}</p>
-
             {entry.loading ? (
               <div className="mt-4 flex justify-center">
                 <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
@@ -107,10 +123,7 @@ function StockSelector({
                       <span className={cn('text-2xl font-bold', band.colorClass)}>
                         {entry.verdict.overallScore}
                       </span>
-                      <span className={cn(
-                        'px-2 py-0.5 rounded text-[10px] font-semibold uppercase',
-                        band.bgClass, band.colorClass
-                      )}>
+                      <span className={cn('px-2 py-0.5 rounded text-[10px] font-semibold uppercase', band.bgClass, band.colorClass)}>
                         {entry.verdict.overallLabel}
                       </span>
                     </>
@@ -122,21 +135,16 @@ function StockSelector({
             )}
           </div>
         ) : (
-          <div className="mt-3 py-8 text-center">
-            <div className="w-12 h-12 mx-auto rounded-full bg-dark-700 flex items-center justify-center mb-2">
-              <Plus className="w-6 h-6 text-neutral-500" />
-            </div>
-            <p className="text-sm text-neutral-500">Select a stock</p>
+          <div className="mt-3 py-6 text-center">
+            <Plus className="w-6 h-6 text-neutral-500 mx-auto mb-1" />
+            <p className="text-sm text-neutral-500">Tap to select</p>
           </div>
         )}
 
         {/* Remove button */}
         {canRemove && onRemove && (
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onRemove()
-            }}
+            onClick={(e) => { e.stopPropagation(); onRemove() }}
             className="absolute top-2 right-2 p-1 rounded-full bg-dark-700 hover:bg-destructive-500/20 text-neutral-500 hover:text-destructive-400 transition-colors"
           >
             <X className="w-3 h-3" />
@@ -151,18 +159,19 @@ function StockSelector({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute z-10 mt-2 w-full max-h-60 overflow-y-auto rounded-lg bg-dark-700 border border-white/10 shadow-xl"
+            className="absolute z-20 mt-2 w-full max-h-60 overflow-y-auto rounded-lg bg-dark-700 border border-white/10 shadow-xl"
           >
             {filtered.map(opt => (
               <button
                 key={opt.id}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation()
                   onSelect(opt.symbol)
                   setIsOpen(false)
                 }}
                 className={cn(
                   'w-full px-4 py-3 text-left hover:bg-dark-600 transition-colors',
-                  entry?.stock.id === opt.id && 'bg-primary-500/10'
+                  entry?.stock.id === opt.id && 'bg-primary-500/10',
                 )}
               >
                 <div className="font-medium text-white">{opt.symbol}</div>
@@ -170,8 +179,223 @@ function StockSelector({
               </button>
             ))}
             {filtered.length === 0 && (
-              <div className="px-4 py-3 text-sm text-neutral-500">No stocks available</div>
+              <div className="px-4 py-3 text-sm text-neutral-500">No peers available</div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Signal state icon ────────────────────────────────────────
+
+function SignalIcon({ state }: { state: string }) {
+  if (state === 'strong') return <CheckCircle className="w-3 h-3 text-success-400 flex-shrink-0" />
+  if (state === 'flag' || state === 'suppressed') return <AlertTriangle className="w-3 h-3 text-destructive-400 flex-shrink-0" />
+  if (state === 'monitor') return <Info className="w-3 h-3 text-warning-400 flex-shrink-0" />
+  return <MinusCircle className="w-3 h-3 text-neutral-600 flex-shrink-0" />
+}
+
+// ── Segment Detail Row (deep drill-down) ─────────────────────
+
+function SegmentDetailRow({
+  seg,
+  pillarKey,
+  verdicts,
+  stockIds,
+  isExpanded,
+  onToggle,
+}: {
+  seg: SegmentVerdictV2
+  pillarKey: VerdictPillar
+  verdicts: (StockVerdictV2 | undefined)[]
+  stockIds: string[]
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const segScores = verdicts.map(v => {
+    const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+    return pillar?.segments.find(s => s.id === seg.id)?.score
+  })
+  const segMax = Math.max(...segScores.filter((s): s is number => s !== undefined))
+  const segWinner = segScores.findIndex(s => s === segMax)
+
+  // Check if this segment has drill-down content
+  const hasSignals = verdicts.some(v => {
+    const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+    const s = pillar?.segments.find(s2 => s2.id === seg.id)
+    return (s?.signalGroups && s.signalGroups.length > 0) || (s?.redFlags && s.redFlags.length > 0)
+  })
+
+  return (
+    <div>
+      {/* Segment score row */}
+      <button
+        onClick={hasSignals ? onToggle : undefined}
+        className={cn(
+          'w-full flex items-center gap-4 py-2 px-1',
+          hasSignals && 'hover:bg-dark-700/30 cursor-pointer',
+        )}
+      >
+        <div className="flex-1 flex items-center gap-2">
+          <div className={cn(
+            'w-1.5 h-1.5 rounded-full flex-shrink-0',
+            seg.isSuppressed ? 'bg-destructive-500' :
+            seg.status === 'positive' ? 'bg-success-500' :
+            seg.status === 'negative' ? 'bg-destructive-500' :
+            'bg-neutral-500',
+          )} />
+          <span className="text-xs text-neutral-400">{seg.name}</span>
+          {seg.scoringType === 'context' && (
+            <span className="text-[9px] text-neutral-600 uppercase">ctx</span>
+          )}
+          {hasSignals && (
+            <ChevronRight className={cn(
+              'w-3 h-3 text-neutral-600 transition-transform',
+              isExpanded && 'rotate-90',
+            )} />
+          )}
+        </div>
+        {segScores.map((score, i) => (
+          <div key={stockIds[i] || i} className="w-16 text-center">
+            <ScoreCell score={score} isWinner={i === segWinner && score !== undefined} />
+          </div>
+        ))}
+        <div className="w-4" />
+      </button>
+
+      {/* Signal drill-down */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="pl-5 pr-1 pb-2 space-y-2">
+              {/* Interpretations side-by-side */}
+              <div className="flex gap-2">
+                {verdicts.map((v, i) => {
+                  const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+                  const s = pillar?.segments.find(s2 => s2.id === seg.id)
+                  return (
+                    <div key={stockIds[i] || i} className="flex-1 text-[10px] text-neutral-500 bg-dark-900/50 rounded p-2">
+                      <span className="text-neutral-400 font-medium">{v?.ticker || stockIds[i]}:</span>{' '}
+                      {s?.interpretation || '—'}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Signal groups — show signals from each stock side by side */}
+              {(() => {
+                // Collect all signal group IDs across all verdicts
+                const allGroups = new Map<string, string>()
+                for (const v of verdicts) {
+                  const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+                  const s = pillar?.segments.find(s2 => s2.id === seg.id)
+                  for (const g of s?.signalGroups || []) {
+                    if (!allGroups.has(g.id)) allGroups.set(g.id, g.name)
+                  }
+                }
+
+                return [...allGroups.entries()].map(([groupId, groupName]) => (
+                  <div key={groupId}>
+                    <div className="text-[9px] text-neutral-600 uppercase font-semibold mb-1">{groupName}</div>
+                    {/* Collect all signal IDs across all stocks for this group */}
+                    {(() => {
+                      const allSignalIds = new Map<string, string>()
+                      for (const v of verdicts) {
+                        const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+                        const s = pillar?.segments.find(s2 => s2.id === seg.id)
+                        const g = s?.signalGroups?.find(g2 => g2.id === groupId)
+                        for (const sig of g?.signals || []) {
+                          if (!allSignalIds.has(sig.id)) allSignalIds.set(sig.id, sig.name)
+                        }
+                      }
+
+                      return [...allSignalIds.entries()].map(([sigId, sigName]) => {
+                        const sigScores = verdicts.map(v => {
+                          const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+                          const s = pillar?.segments.find(s2 => s2.id === seg.id)
+                          const g = s?.signalGroups?.find(g2 => g2.id === groupId)
+                          return g?.signals.find(sig => sig.id === sigId)
+                        })
+                        const numericScores = sigScores.map(s => s?.score).filter((s): s is number => s !== undefined)
+                        const sigMax = numericScores.length > 0 ? Math.max(...numericScores) : -1
+                        const sigWinner = sigScores.findIndex(s => s?.score === sigMax)
+
+                        return (
+                          <div key={sigId} className="flex items-center gap-4 py-0.5">
+                            <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                              <SignalIcon state={sigScores.find(s => s)?.state || 'not_applicable'} />
+                              <span className="text-[10px] text-neutral-500 truncate">{sigName}</span>
+                            </div>
+                            {sigScores.map((sig, i) => (
+                              <div key={stockIds[i] || i} className="w-16 text-center">
+                                {sig ? (
+                                  sig.score !== undefined ? (
+                                    <ScoreCell score={sig.score} isWinner={i === sigWinner} />
+                                  ) : (
+                                    <span className={cn(
+                                      'text-[10px]',
+                                      sig.state === 'strong' ? 'text-success-400' :
+                                      sig.state === 'flag' ? 'text-destructive-400' :
+                                      sig.state === 'not_applicable' ? 'text-neutral-600' :
+                                      'text-neutral-500',
+                                    )}>
+                                      {sig.gatePassed !== undefined
+                                        ? (sig.gatePassed ? 'PASS' : 'FAIL')
+                                        : sig.state === 'not_applicable' ? 'N/A' : sig.state?.toUpperCase()}
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-neutral-600">—</span>
+                                )}
+                              </div>
+                            ))}
+                            <div className="w-4" />
+                          </div>
+                        )
+                      })
+                    })()}
+                  </div>
+                ))
+              })()}
+
+              {/* Red flags summary */}
+              {verdicts.some(v => {
+                const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+                const s = pillar?.segments.find(s2 => s2.id === seg.id)
+                return s?.redFlags && s.redFlags.length > 0
+              }) && (
+                <div>
+                  <div className="text-[9px] text-destructive-400 uppercase font-semibold mb-1">Red Flags</div>
+                  <div className="flex gap-2">
+                    {verdicts.map((v, i) => {
+                      const pillar = v?.pillars.find(p => p.pillar === pillarKey)
+                      const s = pillar?.segments.find(s2 => s2.id === seg.id)
+                      const flags = s?.redFlags || []
+                      return (
+                        <div key={stockIds[i] || i} className="flex-1 space-y-0.5">
+                          {flags.length > 0 ? flags.map((rf, fi) => (
+                            <div key={fi} className="flex items-start gap-1">
+                              <AlertTriangle className="w-2.5 h-2.5 text-destructive-400 mt-0.5 flex-shrink-0" />
+                              <span className="text-[10px] text-destructive-300">{rf.title}</span>
+                            </div>
+                          )) : (
+                            <span className="text-[10px] text-neutral-600">None</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -196,16 +420,27 @@ function PillarRow({
 }) {
   const config = PILLAR_CONFIG[pillarKey]
   const Icon = config.icon
+  const [expandedSegment, setExpandedSegment] = useState<string | null>(null)
 
-  const pillarData = verdicts.map(v =>
-    v?.pillars.find(p => p.pillar === pillarKey)
-  )
+  const pillarData = verdicts.map(v => v?.pillars.find(p => p.pillar === pillarKey))
   const scores = pillarData.map(p => p?.score)
   const maxScore = Math.max(...scores.filter((s): s is number => s !== undefined))
   const winnerIndex = scores.findIndex(s => s === maxScore)
 
-  // Get segments/factors for expanded view
-  const segments = pillarData.find(p => p)?.segments || []
+  // Union of all segments across all verdicts for this pillar
+  const allSegments = (() => {
+    const seen = new Set<string>()
+    const result: SegmentVerdictV2[] = []
+    for (const p of pillarData) {
+      for (const s of p?.segments || []) {
+        if (!seen.has(s.id)) {
+          seen.add(s.id)
+          result.push(s)
+        }
+      }
+    }
+    return result
+  })()
 
   return (
     <div className="border-b border-white/5 last:border-0">
@@ -218,35 +453,27 @@ function PillarRow({
           <Icon className="w-4 h-4 text-primary-400" />
           <span className="text-sm font-semibold text-white">{config.label}</span>
         </div>
-
-        {/* Score cells */}
         {scores.map((score, i) => (
           <div key={stockIds[i] || i} className="w-16 text-center">
             {score !== undefined ? (
               <span className={cn(
                 'text-sm font-bold tabular-nums',
-                i === winnerIndex ? 'text-success-400' : 'text-neutral-300'
+                i === winnerIndex ? 'text-success-400' : 'text-neutral-300',
               )}>
                 {Math.round(score)}
-                {i === winnerIndex && (
-                  <Star className="inline w-3 h-3 ml-0.5 text-success-400 fill-success-400" />
-                )}
+                {i === winnerIndex && <Star className="inline w-3 h-3 ml-0.5 text-success-400 fill-success-400" />}
               </span>
             ) : (
               <span className="text-neutral-600">—</span>
             )}
           </div>
         ))}
-
-        <ChevronDown className={cn(
-          'w-4 h-4 text-neutral-500 transition-transform',
-          isExpanded && 'rotate-180'
-        )} />
+        <ChevronDown className={cn('w-4 h-4 text-neutral-500 transition-transform', isExpanded && 'rotate-180')} />
       </button>
 
-      {/* Expanded: segment/factor rows */}
+      {/* Expanded: segment rows with deep drill-down */}
       <AnimatePresence>
-        {isExpanded && segments.length > 0 && (
+        {isExpanded && allSegments.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -255,49 +482,17 @@ function PillarRow({
             className="overflow-hidden bg-dark-800/50"
           >
             <div className="px-4 py-2 space-y-0.5">
-              {segments.map(seg => {
-                const segScores = verdicts.map(v => {
-                  const pillar = v?.pillars.find(p => p.pillar === pillarKey)
-                  return pillar?.segments.find(s => s.id === seg.id)?.score
-                })
-                const segMax = Math.max(...segScores.filter((s): s is number => s !== undefined))
-                const segWinner = segScores.findIndex(s => s === segMax)
-
-                return (
-                  <div key={seg.id} className="flex items-center gap-4 py-1.5">
-                    <div className="flex-1 flex items-center gap-2">
-                      <div className={cn(
-                        'w-1.5 h-1.5 rounded-full flex-shrink-0',
-                        seg.isSuppressed ? 'bg-destructive-500' :
-                        seg.status === 'positive' ? 'bg-success-500' :
-                        seg.status === 'negative' ? 'bg-destructive-500' :
-                        'bg-neutral-500'
-                      )} />
-                      <span className="text-xs text-neutral-400">{seg.name}</span>
-                      {seg.scoringType === 'context' && (
-                        <span className="text-[9px] text-neutral-600 uppercase">ctx</span>
-                      )}
-                    </div>
-                    {segScores.map((score, i) => (
-                      <div key={stockIds[i] || i} className="w-16 text-center">
-                        {score !== undefined ? (
-                          <span className={cn(
-                            'text-xs font-medium tabular-nums',
-                            i === segWinner ? 'text-success-400' : 'text-neutral-400'
-                          )}>
-                            {Math.round(score)}
-                          </span>
-                        ) : seg.scoringType === 'context' ? (
-                          <span className="text-[10px] text-neutral-600">—</span>
-                        ) : (
-                          <span className="text-neutral-600">—</span>
-                        )}
-                      </div>
-                    ))}
-                    <div className="w-4" />
-                  </div>
-                )
-              })}
+              {allSegments.map(seg => (
+                <SegmentDetailRow
+                  key={seg.id}
+                  seg={seg}
+                  pillarKey={pillarKey}
+                  verdicts={verdicts}
+                  stockIds={stockIds}
+                  isExpanded={expandedSegment === seg.id}
+                  onToggle={() => setExpandedSegment(expandedSegment === seg.id ? null : seg.id)}
+                />
+              ))}
             </div>
           </motion.div>
         )}
@@ -313,16 +508,15 @@ export function Compare() {
   const [searchParams] = useSearchParams()
   const addSymbol = searchParams.get('add')
 
-  // State: resolved stocks + verdicts keyed by symbol
   const [entries, setEntries] = useState<Record<string, ResolvedEntry>>({})
   const [selectedSymbols, setSelectedSymbols] = useState<(string | null)[]>([null, null])
   const [expandedPillar, setExpandedPillar] = useState<string | null>(null)
   const [peerOptions, setPeerOptions] = useState<{ symbol: string; name: string; id: string }[]>([])
+  const [autoOpenIndex, setAutoOpenIndex] = useState<number | null>(null)
   const initDone = useRef(false)
 
-  // Resolve a stock + build verdict, cache in entries
   const resolveAndBuild = useCallback(async (symbol: string) => {
-    if (entries[symbol.toUpperCase()]?.verdict) return // Already resolved
+    if (entries[symbol.toUpperCase()]?.verdict) return
 
     setEntries(prev => ({
       ...prev,
@@ -336,13 +530,9 @@ export function Compare() {
       const stock = await resolveStock(symbol)
       if (!stock) return
 
-      // Set stock immediately (shows in selector while verdict loads)
-      setEntries(prev => ({
-        ...prev,
-        [symbol.toUpperCase()]: { stock, loading: true },
-      }))
+      setEntries(prev => ({ ...prev, [symbol.toUpperCase()]: { stock, loading: true } }))
 
-      // Build peer options: try CMOTS company master first, fall back to stock.peerGroup
+      // Build peer options
       let foundPeers = false
       try {
         const company = await getCompanyBySymbol(symbol)
@@ -352,45 +542,27 @@ export function Compare() {
             foundPeers = true
             setPeerOptions(prev => {
               const existing = new Set(prev.map(p => p.symbol))
-              const newPeers = detailedPeers
-                .filter(p => !existing.has(p.symbol))
-                .map(p => ({ symbol: p.symbol, name: p.name, id: p.symbol.toLowerCase() }))
-              return [...prev, ...newPeers]
+              return [...prev, ...detailedPeers.filter(p => !existing.has(p.symbol)).map(p => ({ symbol: p.symbol, name: p.name, id: p.symbol.toLowerCase() }))]
             })
           }
         }
-      } catch {
-        // CMOTS peer lookup failed
-      }
+      } catch { /* CMOTS peer lookup failed */ }
 
-      // Fallback: use the stock's own peerGroup array (demo stocks have this hardcoded)
       if (!foundPeers && stock.peerGroup.length > 0) {
         setPeerOptions(prev => {
           const existing = new Set(prev.map(p => p.symbol))
-          const newPeers = stock.peerGroup
-            .map(name => ({ symbol: name.toUpperCase(), name, id: name.toLowerCase() }))
-            .filter(p => !existing.has(p.symbol))
-          return [...prev, ...newPeers]
+          return [...prev, ...stock.peerGroup.filter(n => !existing.has(n.toUpperCase())).map(name => ({ symbol: name.toUpperCase(), name, id: name.toLowerCase() }))]
         })
       }
 
-      // Get verdict (demo or live)
       let verdict: StockVerdictV2 | undefined
-      if (isDemoStock(symbol)) {
-        verdict = getVerdictV2(symbol, currentProfileId) ?? undefined
-      }
+      if (isDemoStock(symbol)) verdict = getVerdictV2(symbol, currentProfileId) ?? undefined
       if (!verdict) {
-        try {
-          verdict = await buildVerdictForStock(stock, currentProfileId)
-        } catch (err) {
-          console.warn('[Compare] Failed to build verdict for', symbol, err)
-        }
+        try { verdict = await buildVerdictForStock(stock, currentProfileId) }
+        catch (err) { console.warn('[Compare] Failed to build verdict for', symbol, err) }
       }
 
-      setEntries(prev => ({
-        ...prev,
-        [symbol.toUpperCase()]: { stock, verdict, loading: false },
-      }))
+      setEntries(prev => ({ ...prev, [symbol.toUpperCase()]: { stock, verdict, loading: false } }))
     } catch (err) {
       console.warn('[Compare] Failed to resolve', symbol, err)
       setEntries(prev => {
@@ -400,32 +572,30 @@ export function Compare() {
     }
   }, [entries, currentProfileId])
 
-  // Initialize: if ?add= param, resolve that stock; otherwise default to demo stocks
   useEffect(() => {
     if (initDone.current) return
     initDone.current = true
-
     if (addSymbol) {
       setSelectedSymbols([addSymbol.toUpperCase(), null])
       resolveAndBuild(addSymbol)
     } else {
-      // Default: demo stocks
       setSelectedSymbols(['ZOMATO', 'AXISBANK'])
       resolveAndBuild('ZOMATO')
       resolveAndBuild('AXISBANK')
     }
   }, [addSymbol, resolveAndBuild])
 
-  // When a stock is selected from dropdown, resolve it
   const handleSelectStock = (index: number, symbol: string) => {
     const newSymbols = [...selectedSymbols]
     newSymbols[index] = symbol.toUpperCase()
     setSelectedSymbols(newSymbols)
+    setAutoOpenIndex(null)
     resolveAndBuild(symbol)
   }
 
   const handleAddStock = () => {
     if (selectedSymbols.length < 3) {
+      setAutoOpenIndex(selectedSymbols.length)
       setSelectedSymbols([...selectedSymbols, null])
     }
   }
@@ -433,35 +603,18 @@ export function Compare() {
   const handleRemoveStock = (index: number) => {
     if (selectedSymbols.length > 2) {
       setSelectedSymbols(selectedSymbols.filter((_, i) => i !== index))
+      setAutoOpenIndex(null)
     }
   }
 
-  // Build dropdown options: demo stocks + peers + already-selected stocks
+  // Dropdown options: only peer stocks (no unrelated demo stocks)
   const selectedSet = new Set(selectedSymbols.filter(Boolean).map(s => s!.toUpperCase()))
-  const selectedStockOptions = [...selectedSet].map(sym => {
-    const e = entries[sym]
-    return e ? { symbol: e.stock.symbol, name: e.stock.name, id: e.stock.id } : null
-  }).filter((o): o is NonNullable<typeof o> => o !== null)
 
-  const demoOptions = demoStocks.map(s => ({ symbol: s.symbol, name: s.name, id: s.id }))
-  const seenSymbols = new Set([
-    ...selectedStockOptions.map(o => o.symbol.toUpperCase()),
-    ...demoOptions.map(o => o.symbol.toUpperCase()),
-  ])
+  const availableOptions = peerOptions.filter(p => !selectedSet.has(p.symbol.toUpperCase()))
 
-  const availableOptions = [
-    ...selectedStockOptions,
-    ...demoOptions.filter(d => !selectedSet.has(d.symbol.toUpperCase())),
-    ...peerOptions.filter(p => !seenSymbols.has(p.symbol.toUpperCase())),
-  ]
-
-  // Resolved entries for selected stocks
-  const selectedEntries = selectedSymbols.map(sym =>
-    sym ? entries[sym] || null : null
-  )
+  const selectedEntries = selectedSymbols.map(sym => sym ? entries[sym] || null : null)
   const verdictsV2 = selectedEntries.map(e => e?.verdict)
 
-  // Find winner
   const winnerIndex = (() => {
     const scores = verdictsV2.map(v => v?.overallScore ?? 0)
     const maxScore = Math.max(...scores)
@@ -474,10 +627,7 @@ export function Compare() {
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3 mb-1">
           <div className="p-2 rounded-lg bg-primary-500/20">
             <ArrowLeftRight className="w-5 h-5 text-primary-400" />
@@ -496,18 +646,16 @@ export function Compare() {
             <StockSelector
               entry={selectedEntries[index]}
               onSelect={(symbol) => handleSelectStock(index, symbol)}
-              excludeIds={selectedSymbols
-                .filter((s, i): s is string => s !== null && i !== index)
-                .map(s => s.toLowerCase())}
+              excludeIds={selectedSymbols.filter((s, i): s is string => s !== null && i !== index).map(s => s.toLowerCase())}
               onRemove={() => handleRemoveStock(index)}
               canRemove={selectedSymbols.length > 2}
               isWinner={index === winnerIndex && verdictsV2[index] !== undefined}
               availableOptions={availableOptions}
+              defaultOpen={index === autoOpenIndex}
             />
           </StaggerItem>
         ))}
 
-        {/* Add stock button */}
         {selectedSymbols.length < 3 && (
           <motion.button
             onClick={handleAddStock}
@@ -515,7 +663,7 @@ export function Compare() {
               'p-4 rounded-xl border-2 border-dashed border-white/10',
               'flex flex-col items-center justify-center gap-2',
               'hover:border-primary-500/30 hover:bg-dark-800/50 transition-all',
-              'min-h-[180px]'
+              'min-h-[180px]',
             )}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -538,16 +686,10 @@ export function Compare() {
           <div className="px-4 py-3 border-b border-white/5 flex items-center gap-4">
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-white">Pillar Analysis</h3>
-              <p className="text-xs text-neutral-500">Expand to see segments & factors</p>
+              <p className="text-xs text-neutral-500">Expand pillars, then tap segments for signal details</p>
             </div>
             {stockSymbols.map((symbol, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'w-16 text-center text-xs font-semibold',
-                  i === winnerIndex ? 'text-success-400' : 'text-neutral-300'
-                )}
-              >
+              <div key={i} className={cn('w-16 text-center text-xs font-semibold', i === winnerIndex ? 'text-success-400' : 'text-neutral-300')}>
                 {symbol || '—'}
               </div>
             ))}
@@ -562,18 +704,11 @@ export function Compare() {
             {verdictsV2.map((v, i) => (
               <div key={selectedSymbols[i] || i} className="w-16 text-center">
                 {v ? (
-                  <span className={cn(
-                    'text-sm font-bold tabular-nums',
-                    i === winnerIndex ? 'text-success-400' : 'text-neutral-300'
-                  )}>
+                  <span className={cn('text-sm font-bold tabular-nums', i === winnerIndex ? 'text-success-400' : 'text-neutral-300')}>
                     {v.overallScore}
-                    {i === winnerIndex && (
-                      <Star className="inline w-3 h-3 ml-0.5 text-success-400 fill-success-400" />
-                    )}
+                    {i === winnerIndex && <Star className="inline w-3 h-3 ml-0.5 text-success-400 fill-success-400" />}
                   </span>
-                ) : (
-                  <span className="text-neutral-600">—</span>
-                )}
+                ) : <span className="text-neutral-600">—</span>}
               </div>
             ))}
             <div className="w-4" />
@@ -588,9 +723,7 @@ export function Compare() {
                   verdicts={verdictsV2}
                   stockIds={selectedSymbols.filter((s): s is string => s !== null)}
                   isExpanded={expandedPillar === pillarKey}
-                  onToggle={() => setExpandedPillar(
-                    expandedPillar === pillarKey ? null : pillarKey
-                  )}
+                  onToggle={() => setExpandedPillar(expandedPillar === pillarKey ? null : pillarKey)}
                 />
               </StaggerItem>
             ))}
@@ -612,21 +745,13 @@ export function Compare() {
               if (!v) return null
               const entry = selectedEntries[i]
               const band = getScoreBandV2(v.overallScore)
-
               return (
                 <div key={i} className="flex items-start gap-3">
-                  <div className={cn(
-                    'w-2 h-2 mt-1.5 rounded-full flex-shrink-0',
-                    i === winnerIndex ? 'bg-success-400' : 'bg-neutral-600'
-                  )} />
+                  <div className={cn('w-2 h-2 mt-1.5 rounded-full flex-shrink-0', i === winnerIndex ? 'bg-success-400' : 'bg-neutral-600')} />
                   <div>
                     <span className="font-medium text-white">{entry?.stock.symbol}: </span>
-                    <span className={cn('text-xs font-semibold mr-1', band.colorClass)}>
-                      {v.overallLabel}
-                    </span>
-                    <span className="text-sm text-neutral-400">
-                      {v.overallSummary}
-                    </span>
+                    <span className={cn('text-xs font-semibold mr-1', band.colorClass)}>{v.overallLabel}</span>
+                    <span className="text-sm text-neutral-400">{v.overallSummary}</span>
                   </div>
                 </div>
               )
