@@ -41,7 +41,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { path } = req.query
-  const cmotPath = Array.isArray(path) ? `/${path.join('/')}` : `/${path}`
+  const cmotPath = Array.isArray(path) ? `/${path.join('/')}` : (path ? `/${path}` : '')
+
+  console.log(`[CMOTS Proxy] path param:`, path, `→ cmotPath:`, cmotPath)
 
   if (cmotPath.includes('..') || cmotPath.includes('//')) {
     return res.status(400).json({ error: 'Invalid path' })
