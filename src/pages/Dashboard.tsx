@@ -4,26 +4,27 @@ import { ArrowRight, TrendingUp, Bell, Plus, Search, Flame, Sparkles, ChevronRig
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
-import { stocks, getAlertsForProfile, getVerdictForStock } from '@/data'
+import { stocks, getAlertsForProfile } from '@/data'
+import { getVerdictV2 } from '@/data/verdictsV2'
 import { VerdictBadge, FreeTierBanner } from '@/components/ui'
 import { StaggerContainer, StaggerItem } from '@/components/motion'
 import { DemoModeToggle, SpotlightTour } from '@/components/demo'
 import { getSpotlightsForLocation } from '@/data/featureSpotlights'
-import type { Stock, Alert, StockVerdict, WatchlistItem, DashboardDiscoveryStock } from '@/types'
+import type { Stock, Alert, StockVerdictV2, WatchlistItem, DashboardDiscoveryStock } from '@/types'
 
-// Get score color based on score (local version with 6.5 threshold)
+// Get score color based on V2 score (0-100 scale)
 function getScoreColor(score: number): string {
-  if (score >= 8) return 'text-success-400'
-  if (score >= 6.5) return 'text-teal-400'
-  if (score >= 5) return 'text-warning-400'
+  if (score >= 80) return 'text-success-400'
+  if (score >= 65) return 'text-teal-400'
+  if (score >= 50) return 'text-warning-400'
   return 'text-destructive-400'
 }
 
-// Get score label for context
+// Get score label for context (0-100 scale)
 function getScoreLabel(score: number): { label: string; color: string } {
-  if (score >= 8) return { label: 'Strong', color: 'text-success-400' }
-  if (score >= 6.5) return { label: 'Good', color: 'text-teal-400' }
-  if (score >= 5) return { label: 'Fair', color: 'text-warning-400' }
+  if (score >= 80) return { label: 'Strong', color: 'text-success-400' }
+  if (score >= 65) return { label: 'Good', color: 'text-teal-400' }
+  if (score >= 50) return { label: 'Fair', color: 'text-warning-400' }
   return { label: 'Weak', color: 'text-destructive-400' }
 }
 
@@ -66,19 +67,19 @@ export function Dashboard() {
     if (!currentProfile) return
 
     const timer = setTimeout(() => {
-      // Get stocks with their verdicts for this profile
+      // Get stocks with their V2 verdicts for this profile
       const watchlistData = stocks.map(stock => {
-        const verdict = getVerdictForStock(stock.symbol, currentProfile.id)
+        const v2 = getVerdictV2(stock.symbol, currentProfile.id)
         return {
           ...stock,
-          score: verdict?.overallScore || 7.0,
-          verdict: verdict?.verdict || 'HOLD',
-          sectorRank: verdict?.sectorRank || 3,
-          sectorTotal: verdict?.sectorTotal || 8,
-          sectorAvgScore: verdict?.sectorAvgScore || 6.5,
-          verdictPeerGroup: verdict?.peerGroup || stock.sector,
-          quickInsight: getDefaultInsight(stock, verdict || null),
-          topSignal: verdict?.topSignals?.[0]?.title,
+          score: v2?.overallScore ?? 70,
+          verdict: v2?.overallLabel ?? 'HOLD',
+          sectorRank: v2?.peerRank ?? 3,
+          sectorTotal: v2?.peerTotal ?? 8,
+          sectorAvgScore: 65,
+          verdictPeerGroup: v2?.sector || stock.sector,
+          quickInsight: getDefaultInsightV2(stock, v2 ?? null),
+          topSignal: v2?.topSignals?.[0]?.title || v2?.verdictRationale,
         }
       })
       setWatchlist(watchlistData)
@@ -87,17 +88,17 @@ export function Dashboard() {
       const profileAlerts = getAlertsForProfile(currentProfile.id)
       setAlerts(profileAlerts.slice(0, 3))
 
-      // Mock trending stocks with sector ranks
+      // Mock trending stocks with sector ranks (V2 scale: 0-100)
       setTrendingStocks([
-        { symbol: 'SWIGGY', name: 'Swiggy', shortName: 'Swiggy', score: 7.8, verdict: 'BUY', change: 4.2, reason: 'IPO momentum', sectorRank: 2, sectorTotal: 6 },
-        { symbol: 'PAYTM', name: 'One97', shortName: 'Paytm', score: 6.2, verdict: 'HOLD', change: -1.8, reason: 'Profitability turn', sectorRank: 4, sectorTotal: 6 },
-        { symbol: 'NYKAA', name: 'FSN E-Commerce', shortName: 'Nykaa', score: 5.8, verdict: 'HOLD', change: 2.1, reason: 'Beauty strong', sectorRank: 5, sectorTotal: 6 },
+        { symbol: 'SWIGGY', name: 'Swiggy', shortName: 'Swiggy', score: 78, verdict: 'BUY', change: 4.2, reason: 'IPO momentum', sectorRank: 2, sectorTotal: 6 },
+        { symbol: 'PAYTM', name: 'One97', shortName: 'Paytm', score: 62, verdict: 'HOLD', change: -1.8, reason: 'Profitability turn', sectorRank: 4, sectorTotal: 6 },
+        { symbol: 'NYKAA', name: 'FSN E-Commerce', shortName: 'Nykaa', score: 58, verdict: 'HOLD', change: 2.1, reason: 'Beauty strong', sectorRank: 5, sectorTotal: 6 },
       ])
 
-      // Mock similar stocks
+      // Mock similar stocks (V2 scale: 0-100)
       setSimilarStocks([
-        { symbol: 'DMART', name: 'Avenue Supermarts', shortName: 'DMart', score: 8.1, verdict: 'BUY', change: 1.5, reason: 'Growth pick', sectorRank: 1, sectorTotal: 5 },
-        { symbol: 'INFY', name: 'Infosys', shortName: 'Infosys', score: 7.2, verdict: 'BUY', change: 0.8, reason: 'IT like TCS', sectorRank: 2, sectorTotal: 8 },
+        { symbol: 'DMART', name: 'Avenue Supermarts', shortName: 'DMart', score: 81, verdict: 'BUY', change: 1.5, reason: 'Growth pick', sectorRank: 1, sectorTotal: 5 },
+        { symbol: 'INFY', name: 'Infosys', shortName: 'Infosys', score: 72, verdict: 'BUY', change: 0.8, reason: 'IT like TCS', sectorRank: 2, sectorTotal: 8 },
       ])
 
       setIsLoading(false)
@@ -196,12 +197,12 @@ export function Dashboard() {
 
                     {/* Score Section - Enhanced */}
                     <div className="flex items-center gap-4 mb-3">
-                      {/* Score with /10 */}
+                      {/* Score with /100 */}
                       <div className="flex items-baseline gap-1">
                         <span className={cn('text-2xl font-bold', getScoreColor(stock.score))}>
-                          {stock.score.toFixed(1)}
+                          {stock.score}
                         </span>
-                        <span className="text-sm text-neutral-500">/10</span>
+                        <span className="text-sm text-neutral-500">/100</span>
                       </div>
 
                       {/* Vertical divider */}
@@ -228,7 +229,7 @@ export function Dashboard() {
                           'text-xs font-medium',
                           vsSector > 0 ? 'text-success-400' : vsSector < 0 ? 'text-destructive-400' : 'text-neutral-400'
                         )}>
-                          {vsSector >= 0 ? '+' : ''}{vsSector.toFixed(1)}
+                          {vsSector >= 0 ? '+' : ''}{vsSector}
                         </span>
                         <span className="text-xs text-neutral-500">vs sector</span>
                       </div>
@@ -316,12 +317,12 @@ export function Dashboard() {
                     {/* Score Circle */}
                     <div className={cn(
                       'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0',
-                      stock.score >= 8 ? 'bg-success-500/20 text-success-400' :
-                      stock.score >= 6.5 ? 'bg-teal-500/20 text-teal-400' :
-                      stock.score >= 5 ? 'bg-warning-500/20 text-warning-400' :
+                      stock.score >= 80 ? 'bg-success-500/20 text-success-400' :
+                      stock.score >= 65 ? 'bg-teal-500/20 text-teal-400' :
+                      stock.score >= 50 ? 'bg-warning-500/20 text-warning-400' :
                       'bg-destructive-500/20 text-destructive-400'
                     )}>
-                      {stock.score.toFixed(1)}
+                      {stock.score}
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -381,12 +382,12 @@ export function Dashboard() {
                     {/* Score Circle */}
                     <div className={cn(
                       'w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0',
-                      stock.score >= 8 ? 'bg-success-500/20 text-success-400' :
-                      stock.score >= 6.5 ? 'bg-teal-500/20 text-teal-400' :
-                      stock.score >= 5 ? 'bg-warning-500/20 text-warning-400' :
+                      stock.score >= 80 ? 'bg-success-500/20 text-success-400' :
+                      stock.score >= 65 ? 'bg-teal-500/20 text-teal-400' :
+                      stock.score >= 50 ? 'bg-warning-500/20 text-warning-400' :
                       'bg-destructive-500/20 text-destructive-400'
                     )}>
-                      {stock.score.toFixed(1)}
+                      {stock.score}
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -500,10 +501,13 @@ export function Dashboard() {
   )
 }
 
-// Helper to get default insight based on stock data
-function getDefaultInsight(stock: Stock, verdict: StockVerdict | null): string {
+// Helper to get default insight based on stock data (V2)
+function getDefaultInsightV2(stock: Stock, verdict: StockVerdictV2 | null): string {
   if (verdict?.topSignals?.[0]?.title) {
     return verdict.topSignals[0].title
+  }
+  if (verdict?.verdictRationale) {
+    return verdict.verdictRationale
   }
   if (stock.changePercent > 2) {
     return 'Strong momentum today'

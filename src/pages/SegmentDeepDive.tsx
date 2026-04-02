@@ -4,8 +4,10 @@ import { ArrowLeft, Info, TrendingUp, TrendingDown, Minus, Trophy, Target, BarCh
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
 import { cn } from '@/lib/utils'
-import { getStockBySymbol, getVerdictForStock } from '@/data'
+import { getStockBySymbol } from '@/data'
 import { getVerdictV2 } from '@/data/verdictsV2'
+import { buildVerdictForStock } from '@/services/verdictService'
+import { resolveStock } from '@/services/stockService'
 import { ScoreRing } from '@/components/charts'
 import { EnhancedMetricCard } from '@/components/analysis'
 import { SignalGroupCard } from '@/components/scoring/SignalGroupCard'
@@ -227,38 +229,51 @@ export function SegmentDeepDive() {
   useEffect(() => {
     if (!ticker || !segmentId || !currentProfile) return
 
+    let cancelled = false
     setIsLoading(true)
+    setSegment(null)
+    setSegmentV2(null)
 
-    const timer = setTimeout(() => {
-      const stock = getStockBySymbol(ticker)
-      const verdict = getVerdictForStock(ticker, currentProfile.id)
+    async function loadSegment() {
+      // 1. Try demo stock (sync, instant)
+      const demoStock = getStockBySymbol(ticker!)
+      const demoVerdict = getVerdictV2(ticker!, currentProfile!.id)
 
-      if (stock && verdict) {
-        setStockName(stock.name)
-        const foundSegment = verdict.segments.find(s => s.id === segmentId)
-        setSegment(foundSegment || null)
-      }
-
-      // Also try to find V2 segment data
-      const verdictV2 = getVerdictV2(ticker, currentProfile.id)
-      if (verdictV2) {
-        for (const pillar of verdictV2.pillars) {
+      if (demoVerdict) {
+        if (cancelled) return
+        setStockName(demoStock?.name || demoVerdict.stockName)
+        for (const pillar of demoVerdict.pillars) {
           const found = pillar.segments.find(s => s.id === segmentId)
-          if (found) {
-            setSegmentV2(found)
-            // If V1 segment not found, create a compatible object from V2
-            if (!segment && stock) {
-              setStockName(stock.name)
-            }
-            break
-          }
+          if (found) { setSegmentV2(found); break }
         }
+        setIsLoading(false)
+        return
       }
 
-      setIsLoading(false)
-    }, 300)
+      // 2. Non-demo stock — resolve via CMOTS and build V2 verdict
+      try {
+        const resolved = await resolveStock(ticker!)
+        if (cancelled || !resolved) {
+          if (!cancelled) setIsLoading(false)
+          return
+        }
+        const liveVerdict = await buildVerdictForStock(resolved, currentProfile!.id)
+        if (cancelled) return
 
-    return () => clearTimeout(timer)
+        setStockName(resolved.name)
+        for (const pillar of liveVerdict.pillars) {
+          const found = pillar.segments.find(s => s.id === segmentId)
+          if (found) { setSegmentV2(found); break }
+        }
+      } catch (err) {
+        console.warn('[SegmentDeepDive] Failed to load segment for', ticker, err)
+      }
+
+      if (!cancelled) setIsLoading(false)
+    }
+
+    loadSegment()
+    return () => { cancelled = true }
   }, [ticker, segmentId, currentProfile])
 
   // Handle back navigation - go to stock page with segments section visible
