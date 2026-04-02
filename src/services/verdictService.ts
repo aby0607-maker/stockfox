@@ -18,6 +18,7 @@ import type { Stock, StockVerdict, StockVerdictV2, PillarVerdict, SegmentVerdict
 import { getScoreBandEnum, getOverallVerdict } from '@/lib/scoring'
 import { getProfileWeightsV2 } from '@/data/profiles'
 import { computeQuantSegments } from './quantScoringService'
+import { computeQualFactors } from './qualScoringService'
 
 const CACHE_PREFIX = 'verdict:'
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
@@ -140,37 +141,6 @@ function buildPillarVerdictV2(
   }
 }
 
-function buildPlaceholderQual(): SegmentVerdictV2[] {
-  const defs = [
-    { id: 'management_governance', name: 'Management & Governance', weight: 20 },
-    { id: 'business_quality', name: 'Business Quality', weight: 25 },
-    { id: 'capital_discipline', name: 'Capital Discipline', weight: 20 },
-    { id: 'earnings_quality', name: 'Earnings Quality', weight: 20 },
-    { id: 'execution_quality', name: 'Execution Quality', weight: 15 },
-  ]
-
-  return defs.map(def => ({
-    id: def.id,
-    name: def.name,
-    pillar: 'qual' as const,
-    scoringType: 'scored' as const,
-    score: 50,
-    scoreBand: 'mixed' as const,
-    label: 'LIMITED DATA',
-    weight: def.weight,
-    status: 'neutral' as const,
-    interpretation: 'Qualitative analysis requires data sources beyond CMOTS. Signals will be computed as additional data becomes available.',
-    confidenceIndicator: {
-      signalsComputed: 0,
-      signalsTotal: 15,
-      state: 'cmots_gap' as const,
-      tooltip: 'Qual signals require annual report and editorial data not yet available via API',
-      dataRange: 'N/A',
-    },
-    signalGroups: [],
-  }))
-}
-
 /**
  * Build a full V2 verdict for any stock from live CMOTS data.
  * Quant pillar uses live scoring; Qual uses placeholders; Risk computed from red flags.
@@ -179,10 +149,12 @@ export async function buildVerdictForStock(
   stock: Stock,
   profileId: string,
 ): Promise<StockVerdictV2> {
-  const quantSegments = await computeQuantSegments(stock.symbol)
+  // Fetch quant + qual in parallel (both hit CMOTS cache)
+  const [quantSegments, qualFactors] = await Promise.all([
+    computeQuantSegments(stock.symbol),
+    computeQualFactors(stock.symbol),
+  ])
   const quantPillar = buildPillarVerdictV2('quant', 'Quant Score', quantSegments)
-
-  const qualFactors = buildPlaceholderQual()
   const qualPillar = buildPillarVerdictV2('qual', 'Qual Score', qualFactors)
 
   const allRedFlags = [...quantSegments, ...qualFactors]

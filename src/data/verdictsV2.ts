@@ -721,6 +721,15 @@ export function getVerdictV2(stockId: string, profileId?: string): StockVerdictV
 }
 
 /**
+ * Get qual factors for a demo stock (fallback for qualScoringService).
+ * Returns null for non-demo stocks.
+ */
+export function getQualFactorsFallback(stockId: string): SegmentVerdictV2[] | null {
+  const base = STOCK_BASES.find(s => s.stockId === stockId.toLowerCase())
+  return base ? [...base.qual] : null
+}
+
+/**
  * Get all V2 verdicts (optionally filtered by profile)
  */
 export function getAllVerdictsV2(profileId?: string): StockVerdictV2[] {
