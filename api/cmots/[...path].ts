@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const isAllowed = ALLOWED_PREFIXES.some(prefix => cmotPath.startsWith(prefix))
   if (!isAllowed) {
-    return res.status(403).json({ error: 'Endpoint not allowed' })
+    return res.status(403).json({ error: 'Endpoint not allowed', cmotPath, rawPath: req.query.path })
   }
 
   const targetUrl = `${CMOTS_BASE}${cmotPath}`
