@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { getVerdictV2 } from '@/data/verdictsV2'
 import { getScoreBandV2 } from '@/lib/scoring'
 import { useAppStore } from '@/store/useAppStore'
+import { stocks as demoStocks } from '@/data/stocks'
 import { resolveStock, isDemoStock, generatePeerGroupDetailed } from '@/services/stockService'
 import { getCompanyBySymbol } from '@/services/cmots'
 import { buildVerdictForStock } from '@/services/verdictService'
@@ -341,12 +342,14 @@ export function Compare() {
         [symbol.toUpperCase()]: { stock, loading: true },
       }))
 
-      // Fetch detailed peer group (with proper NSE symbols) from company master
+      // Build peer options: try CMOTS company master first, fall back to stock.peerGroup
+      let foundPeers = false
       try {
         const company = await getCompanyBySymbol(symbol)
         if (company) {
           const detailedPeers = await generatePeerGroupDetailed(company)
           if (detailedPeers.length > 0) {
+            foundPeers = true
             setPeerOptions(prev => {
               const existing = new Set(prev.map(p => p.symbol))
               const newPeers = detailedPeers
@@ -357,7 +360,18 @@ export function Compare() {
           }
         }
       } catch {
-        // Peer lookup failed — proceed without
+        // CMOTS peer lookup failed
+      }
+
+      // Fallback: use the stock's own peerGroup array (demo stocks have this hardcoded)
+      if (!foundPeers && stock.peerGroup.length > 0) {
+        setPeerOptions(prev => {
+          const existing = new Set(prev.map(p => p.symbol))
+          const newPeers = stock.peerGroup
+            .map(name => ({ symbol: name.toUpperCase(), name, id: name.toLowerCase() }))
+            .filter(p => !existing.has(p.symbol))
+          return [...prev, ...newPeers]
+        })
       }
 
       // Get verdict (demo or live)
@@ -422,17 +436,23 @@ export function Compare() {
     }
   }
 
-  // Build dropdown options from peer group of already-selected stocks
-  // Include already-selected stocks so they show as selected in their own dropdown
+  // Build dropdown options: demo stocks + peers + already-selected stocks
   const selectedSet = new Set(selectedSymbols.filter(Boolean).map(s => s!.toUpperCase()))
   const selectedStockOptions = [...selectedSet].map(sym => {
     const e = entries[sym]
     return e ? { symbol: e.stock.symbol, name: e.stock.name, id: e.stock.id } : null
   }).filter((o): o is NonNullable<typeof o> => o !== null)
 
+  const demoOptions = demoStocks.map(s => ({ symbol: s.symbol, name: s.name, id: s.id }))
+  const seenSymbols = new Set([
+    ...selectedStockOptions.map(o => o.symbol.toUpperCase()),
+    ...demoOptions.map(o => o.symbol.toUpperCase()),
+  ])
+
   const availableOptions = [
     ...selectedStockOptions,
-    ...peerOptions.filter(p => !selectedSet.has(p.symbol.toUpperCase())),
+    ...demoOptions.filter(d => !selectedSet.has(d.symbol.toUpperCase())),
+    ...peerOptions.filter(p => !seenSymbols.has(p.symbol.toUpperCase())),
   ]
 
   // Resolved entries for selected stocks
