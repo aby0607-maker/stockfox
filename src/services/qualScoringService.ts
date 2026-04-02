@@ -1295,15 +1295,10 @@ function assembleQualFactor(
 // ─── Public API ─────────────────────────────────
 
 /**
- * Compute qual factors for any stock.
- * Demo stocks use full mock data; others compute from CMOTS + Screener.
+ * Compute qual factors for any stock via live multi-source APIs.
+ * Falls back to mock data for demo stocks only if all API sources fail.
  */
 export async function computeQualFactors(symbol: string): Promise<SegmentVerdictV2[]> {
-  // Demo stocks: use existing rich mock data
-  const demoKey = symbol.toLowerCase()
-  const fallback = getQualFactorsFallback(demoKey)
-  if (fallback) return fallback
-
   // Fetch all data sources in parallel (CMOTS + Screener + Finnhub + BSE + Trendlyne)
   const [bundle, screener, consensus, insiderTxns, relatedParty, corpActions, governance] = await Promise.all([
     getAllFundamentals(symbol),
@@ -1315,6 +1310,15 @@ export async function computeQualFactors(symbol: string): Promise<SegmentVerdict
     getGovernanceData(symbol),
   ])
   const { ttm, finData, pnl, cashFlow, balanceSheet, quarterly, shareholding } = bundle
+
+  // If no CMOTS data at all, fall back to mock for demo stocks
+  if (!ttm && finData.length === 0 && pnl.length === 0) {
+    const fallback = getQualFactorsFallback(symbol.toLowerCase())
+    if (fallback) {
+      console.info(`[Qual] CMOTS unavailable for ${symbol}, using mock fallback`)
+      return fallback
+    }
+  }
 
   if (screener) {
     console.info(`[Qual] Screener data available for ${symbol} — enriching signals`)

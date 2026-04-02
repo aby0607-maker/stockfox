@@ -156,6 +156,44 @@ function mapCMOTSToMetricIds(
     metrics['promoter_holding_change_1y'] = null
   }
 
+  // ── Financial Health: CFO vs Net Income ──
+  const cfoVal = getLatestStatementValue(cashFlow, CF_ROW_OCF)
+  const patVal = getLatestStatementValue(pnl, PNL_ROW_PAT)
+  metrics['v2_cfo_vs_pat'] = cfoVal != null && patVal != null && patVal !== 0
+    ? (cfoVal / patVal) * 100 : null
+
+  // ── Financial Health: Debt Serviceability (OCF / Total Debt) ──
+  if (balanceSheet.length > 0 && cashFlow.length > 0) {
+    const ltRow = findStatementRow(balanceSheet, BS_ROW_LT_BORROWINGS)
+    const stRow = findStatementRow(balanceSheet, BS_ROW_ST_BORROWINGS)
+    const ltCols = ltRow ? getYearColumns(ltRow) : []
+    const stCols = stRow ? getYearColumns(stRow) : []
+    const totalDebt = (ltCols.length > 0 && ltRow ? (getStatementValue(ltRow, ltCols[0]) ?? 0) : 0)
+      + (stCols.length > 0 && stRow ? (getStatementValue(stRow, stCols[0]) ?? 0) : 0)
+    metrics['v2_debt_serviceability'] = cfoVal != null && totalDebt > 0
+      ? (cfoVal / totalDebt) * 100 : null
+  } else {
+    metrics['v2_debt_serviceability'] = null
+  }
+
+  // ── Financial Health: Shares Outstanding Change ──
+  metrics['v2_shares_change'] = computeSharesChange(balanceSheet)
+
+  // ── Financial Health: FCF CAGR ──
+  metrics['v2_fcf_cagr'] = computeFCFCAGR(finData)
+
+  // ── Profitability: EPS Stability (inverse CoV — lower σ = more stable) ──
+  metrics['v2_eps_stability'] = computeEPSStability(pnl)
+
+  // ── Growth: Revenue Consistency (% of years with positive growth) ──
+  metrics['v2_revenue_consistency'] = computeRevenueConsistency(pnl)
+
+  // ── Growth: FCF-backed growth (FCF CAGR / Revenue CAGR) ──
+  const revGrowth = metrics['v2_revenue_growth']
+  const fcfGrowthVal = metrics['v2_fcf_cagr']
+  metrics['v2_fcf_backed_growth'] = revGrowth != null && fcfGrowthVal != null && revGrowth > 0
+    ? (fcfGrowthVal / revGrowth) * 100 : null
+
   // ── Cash Flow Quality: OCF / EBITDA ──
   const ocf = getLatestStatementValue(cashFlow, CF_ROW_OCF)
   const ebitdaVal = getLatestStatementValue(pnl, PNL_ROW_EBITDA)
@@ -572,6 +610,61 @@ function computeROETrend(
   const latest = roeValues[0] // Most recent year first
   const oldest = roeValues[roeValues.length - 1]
   return (latest - oldest) / roeValues.length
+}
+
+// ─── Financial Health Helpers ────────────────────
+
+function computeSharesChange(balanceSheet: CMOTSStatementRow[]): number | null {
+  const row = findStatementRow(balanceSheet, BS_ROW_SHARES_OUTSTANDING)
+  if (!row) return null
+  const cols = getYearColumns(row)
+  if (cols.length < 2) return null
+  const latest = getStatementValue(row, cols[0])
+  const oldest = getStatementValue(row, cols[cols.length - 1])
+  if (latest == null || oldest == null || oldest === 0) return null
+  return ((latest - oldest) / oldest) * 100 // Positive = dilution
+}
+
+function computeFCFCAGR(finData: CMOTSFinancialRecord[]): number | null {
+  if (finData.length < 3) return null
+  // FCF per share across years
+  const values = finData.map(f => f.freecashflowpershare).filter((v): v is number => v != null && v > 0)
+  if (values.length < 2) return null
+  return computeCAGR(values[0], values[values.length - 1], values.length - 1)
+}
+
+function computeEPSStability(pnl: CMOTSStatementRow[]): number | null {
+  const row = findStatementRow(pnl, PNL_ROW_EPS)
+  if (!row) return null
+  const cols = getYearColumns(row)
+  if (cols.length < 3) return null
+  const values: number[] = []
+  for (const col of cols) {
+    const v = getStatementValue(row, col)
+    if (v != null) values.push(v)
+  }
+  if (values.length < 3) return null
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  if (mean === 0) return null
+  const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length
+  const cov = Math.sqrt(variance) / Math.abs(mean)
+  // Return stability score: 100 = perfectly stable, lower = more volatile
+  // CoV < 0.1 → 95, CoV 0.1-0.3 → 70-90, CoV > 0.5 → below 50
+  return Math.max(0, Math.min(100, 100 - cov * 100))
+}
+
+function computeRevenueConsistency(pnl: CMOTSStatementRow[]): number | null {
+  const row = findStatementRow(pnl, PNL_ROW_REVENUE)
+  if (!row) return null
+  const cols = getYearColumns(row)
+  if (cols.length < 3) return null
+  let positiveYears = 0
+  for (let i = 0; i < cols.length - 1; i++) {
+    const current = getStatementValue(row, cols[i])
+    const prev = getStatementValue(row, cols[i + 1])
+    if (current != null && prev != null && current > prev) positiveYears++
+  }
+  return (positiveYears / (cols.length - 1)) * 100 // % of years with growth
 }
 
 // ─── Performance Helpers ────────────────────────

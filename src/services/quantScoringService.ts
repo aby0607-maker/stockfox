@@ -94,7 +94,7 @@ function buildFinancialHealth(m: Record<string, number | null>): SegmentVerdictV
   const groups: SignalGroup[] = []
   const redFlags: RedFlagV2[] = []
   let computed = 0
-  const total = 14
+  const total = 20
 
   // ── Hard Gates ──
   const debtEbitda = m['v2_debt_ebitda']
@@ -105,6 +105,10 @@ function buildFinancialHealth(m: Record<string, number | null>): SegmentVerdictV
   const accruals = m['v2_accruals_ratio']
   const assetTurnover = m['v2_asset_turnover']
   const fcfYield = m['v2_fcf_yield']
+  const cfoVsPat = m['v2_cfo_vs_pat']
+  const debtServiceability = m['v2_debt_serviceability']
+  const sharesChange = m['v2_shares_change']
+  const fcfCagr = m['v2_fcf_cagr']
 
   const g1Passed = debtEbitda == null || debtEbitda < 5
   const g3Passed = true // Pledge gate — default pass (pledge data not reliably available)
@@ -130,11 +134,19 @@ function buildFinancialHealth(m: Record<string, number | null>): SegmentVerdictV
 
   // ── B1: Cash Flow Quality ──
   const ocfScore = scoreMetric(ocfEbitda, { excellent: 80, good: 50, fair: 30 })
-  computed++
+  const cfoPatScore = scoreMetric(cfoVsPat, { excellent: 120, good: 80, fair: 50 })
+  const debtSvcScore = debtServiceability != null ? scoreMetric(debtServiceability, { excellent: 40, good: 25, fair: 15 }) : 50
+  const b1Scores = [ocfScore, cfoPatScore, debtSvcScore]
+  const b1Score = Math.round(b1Scores.reduce((a, b) => a + b, 0) / b1Scores.length)
+  computed += 3
 
   groups.push({
-    id: 'B1', name: 'Cash Flow Quality', role: 'scored', weight: 0.25, score: ocfScore, signals: [
+    id: 'B1', name: 'Cash Flow Quality', role: 'scored', weight: 0.25, score: b1Score, signals: [
       sig('B1a', 'OCF/EBITDA', 'B1', 'score_only', ocfScore, stateFromScore(ocfScore), `Cash conversion is ${fmt(ocfEbitda)} of EBITDA.`),
+      sig('B1b', 'CFO vs Net Income', 'B1', 'score_only', cfoPatScore, stateFromScore(cfoPatScore),
+        cfoVsPat != null ? `Operating cash flow is ${fmt(cfoVsPat)} of net income — ${cfoVsPat >= 100 ? 'cash backs profits' : 'profits exceed cash generation'}.` : 'CFO/PAT data not available.'),
+      sig('B1c', 'Debt Serviceability', 'B1', 'score_only', debtSvcScore, stateFromScore(debtSvcScore),
+        debtServiceability != null ? `OCF covers ${fmt(debtServiceability)} of total debt annually.` : 'Debt serviceability data not available.'),
     ],
   })
 
@@ -185,15 +197,28 @@ function buildFinancialHealth(m: Record<string, number | null>): SegmentVerdictV
   })
 
   // ── B5: Capital Allocation ──
-  const fcfScore = fcfYield != null ? scoreMetric(fcfYield, { excellent: 5, good: 3, fair: 1 }) : 50
-  computed++
+  const fcfYieldScore = fcfYield != null ? scoreMetric(fcfYield, { excellent: 5, good: 3, fair: 1 }) : 50
+  // Shares flat or declining is good (no dilution); positive = dilution = bad
+  const sharesScore = sharesChange != null ? scoreMetricLower(sharesChange, { excellent: -2, good: 2, fair: 10 }) : 50
+  const fcfCagrScore = fcfCagr != null ? scoreMetric(fcfCagr, { excellent: 15, good: 8, fair: 0 }) : 50
+  const b5Scores = [fcfYieldScore, sharesScore, fcfCagrScore]
+  const b5Score = Math.round(b5Scores.reduce((a, b) => a + b, 0) / b5Scores.length)
+  computed += 3
 
   groups.push({
-    id: 'B5', name: 'Capital Allocation', role: 'scored', weight: 0.15, score: fcfScore, signals: [
-      sig('B5a', 'FCF Yield', 'B5', 'score_only', fcfScore, stateFromScore(fcfScore),
+    id: 'B5', name: 'Capital Allocation', role: 'scored', weight: 0.15, score: b5Score, signals: [
+      sig('B5a', 'FCF Yield', 'B5', 'score_only', fcfYieldScore, stateFromScore(fcfYieldScore),
         fcfYield != null
           ? `Free cash flow yield is ${fmt(fcfYield)} — ${fcfYield >= 3 ? 'generating meaningful free cash' : fcfYield > 0 ? 'moderate cash generation' : 'cash flow negative or minimal'}.`
           : 'FCF yield data not available.'),
+      sig('B5b', 'Shares Outstanding', 'B5', 'score_only', sharesScore, stateFromScore(sharesScore),
+        sharesChange != null
+          ? `Shares ${sharesChange > 2 ? 'increased' : sharesChange < -2 ? 'decreased' : 'remained stable'} by ${fmt(Math.abs(sharesChange))} over 5 years — ${sharesChange <= 2 ? 'no meaningful dilution' : 'equity dilution detected'}.`
+          : 'Share count data not available.'),
+      sig('B5c', 'FCF CAGR', 'B5', 'score_only', fcfCagrScore, stateFromScore(fcfCagrScore),
+        fcfCagr != null
+          ? `Free cash flow has grown at ${fmt(fcfCagr)} CAGR.`
+          : 'FCF growth data not available.'),
     ],
   })
 
@@ -216,7 +241,7 @@ function buildFinancialHealth(m: Record<string, number | null>): SegmentVerdictV
 
   // ── Final Score ──
   const clusterScore = Math.round(
-    ocfScore * 0.25 + b2Score * 0.25 + accrualScore * 0.20 + b4Score * 0.15 + fcfScore * 0.15
+    b1Score * 0.25 + b2Score * 0.25 + accrualScore * 0.20 + b4Score * 0.15 + b5Score * 0.15
   )
   const modPenalty = (highDE ? -3 : 0) + (lowIC ? -3 : 0)
   const gatesPassed = g1Passed && g3Passed && g4Passed && g5Passed
@@ -294,7 +319,27 @@ function buildProfitability(m: Record<string, number | null>): SegmentVerdictV2 
     ],
   })
 
-  const finalScore = Math.round(anchorAvg * 0.65 + modAvg * 0.35)
+  // Context: Earnings Stability
+  const epsStability = m['v2_eps_stability']
+  let stabilityScore = 50
+  if (epsStability != null) {
+    if (epsStability >= 80) stabilityScore = 90
+    else if (epsStability >= 60) stabilityScore = 72
+    else if (epsStability >= 40) stabilityScore = 50
+    else stabilityScore = 30
+    computed++
+  }
+
+  groups.push({
+    id: 'context', name: 'Risk-Adjustment', role: 'context', weight: 0.15, score: stabilityScore, signals: [
+      sig('C1', 'Earnings Stability', 'context', 'score_only', stabilityScore, stateFromScore(stabilityScore),
+        epsStability != null
+          ? `EPS stability score is ${epsStability.toFixed(0)}/100 — ${epsStability >= 70 ? 'consistent earnings' : epsStability >= 40 ? 'moderate variability' : 'volatile earnings pattern'}.`
+          : 'Earnings stability data not available.'),
+    ],
+  })
+
+  const finalScore = Math.round(anchorAvg * 0.55 + modAvg * 0.30 + stabilityScore * 0.15)
 
   return {
     id: 'profitability', name: 'Profitability', pillar: 'quant',
@@ -324,6 +369,26 @@ function buildGrowth(m: Record<string, number | null>): SegmentVerdictV2 {
     ],
   }]
 
+  // Growth Quality group
+  const revConsistency = m['v2_revenue_consistency']
+  const fcfBacked = m['v2_fcf_backed_growth']
+  const consistencyScore = revConsistency != null ? scoreMetric(revConsistency, { excellent: 80, good: 60, fair: 40 }) : 50
+  const fcfBackedScore = fcfBacked != null ? scoreMetric(fcfBacked, { excellent: 80, good: 50, fair: 20 }) : 50
+  const qualityAvg = Math.round((consistencyScore + fcfBackedScore) / 2)
+
+  groups.push({
+    id: 'quality', name: 'Growth Quality', role: 'scored', weight: 0.30, score: qualityAvg, signals: [
+      sig('B1', 'Revenue Consistency', 'quality', 'score_only', consistencyScore, stateFromScore(consistencyScore),
+        revConsistency != null
+          ? `Revenue grew in ${revConsistency.toFixed(0)}% of years — ${revConsistency >= 80 ? 'highly consistent grower' : revConsistency >= 50 ? 'moderately consistent' : 'inconsistent growth'}.`
+          : 'Revenue consistency data not available.'),
+      sig('B2', 'FCF-Backed Growth', 'quality', 'score_only', fcfBackedScore, stateFromScore(fcfBackedScore),
+        fcfBacked != null
+          ? `Free cash flow growth is ${fmt(fcfBacked)} of revenue growth — ${fcfBacked >= 80 ? 'growth is cash-backed' : fcfBacked >= 30 ? 'partially cash-backed' : 'growth not yet converting to FCF'}.`
+          : 'FCF-backed growth data not available.'),
+    ],
+  })
+
   // Quarterly momentum modifiers
   const revMultiplier = m['v2_revenue_multiplier']
   const ebitdaMultiplier = m['v2_ebitda_multiplier']
@@ -338,13 +403,15 @@ function buildGrowth(m: Record<string, number | null>): SegmentVerdictV2 {
     ],
   })
 
+  const growthFinal = Math.round(avgScore * 0.70 + qualityAvg * 0.30)
+
   return {
     id: 'growth', name: 'Growth', pillar: 'quant',
-    scoringType: 'scored', score: avgScore, scoreBand: getScoreBandEnum(avgScore),
-    label: getScoreBandEnum(avgScore).toUpperCase(), weight: 25,
-    status: avgScore >= 60 ? 'positive' : avgScore >= 40 ? 'neutral' : 'negative',
-    interpretation: `Growth scores ${avgScore}/100 — Revenue ${fmt(revGrowth)}, EBITDA ${fmt(ebitdaGrowth)}, Earnings ${fmt(earningsGrowth)} CAGR.`,
-    confidenceIndicator: confidence(5, 6), signalGroups: groups,
+    scoringType: 'scored', score: growthFinal, scoreBand: getScoreBandEnum(growthFinal),
+    label: getScoreBandEnum(growthFinal).toUpperCase(), weight: 25,
+    status: growthFinal >= 60 ? 'positive' : growthFinal >= 40 ? 'neutral' : 'negative',
+    interpretation: `Growth scores ${growthFinal}/100 — Revenue ${fmt(revGrowth)}, EBITDA ${fmt(ebitdaGrowth)}, Earnings ${fmt(earningsGrowth)} CAGR.`,
+    confidenceIndicator: confidence(7, 8), signalGroups: groups,
   }
 }
 
@@ -660,27 +727,28 @@ function buildInstitutional(m: Record<string, number | null>): SegmentVerdictV2 
 // ─── Public API ─────────────────────────────────
 
 /**
- * Compute quant segments for any stock.
- * Demo stocks use mock data; all others resolve via CMOTS.
+ * Compute quant segments for any stock via live CMOTS data.
+ * Falls back to mock data for demo stocks only if CMOTS resolution fails.
  */
 export async function computeQuantSegments(symbol: string): Promise<SegmentVerdictV2[]> {
-  // Demo stocks: use existing mock data
+  // Always try live CMOTS resolution first — demo and non-demo alike
+  const resolved = await resolveMetricValues(symbol)
+  if (resolved) {
+    return buildSegmentsFromMetrics(resolved.data)
+  }
+
+  // Fallback: demo stocks use mock data if CMOTS unavailable
   const demoMap: Record<string, 'zomato' | 'axisbank' | 'tcs'> = {
     zomato: 'zomato', axisbank: 'axisbank', tcs: 'tcs',
   }
   const demoKey = demoMap[symbol.toLowerCase()]
   if (demoKey) {
+    console.info(`[QuantScoring] CMOTS unavailable for ${symbol}, using mock fallback`)
     return buildQuantSegmentsV2(demoKey)
   }
 
-  // Resolve metrics from CMOTS
-  const resolved = await resolveMetricValues(symbol)
-  if (!resolved) {
-    console.warn(`[QuantScoring] No metrics resolved for ${symbol}, returning empty`)
-    return buildEmptySegments()
-  }
-
-  return buildSegmentsFromMetrics(resolved.data)
+  console.warn(`[QuantScoring] No metrics resolved for ${symbol}, returning empty`)
+  return buildEmptySegments()
 }
 
 /** Build all 7 segments from resolved metric data */
