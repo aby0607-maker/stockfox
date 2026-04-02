@@ -608,6 +608,7 @@ export interface StockVerdictV2 {
   learningPrompt?: string
   learningHighlights?: LearningHighlight[]
   scannerValues?: Record<string, string>  // Dynamic scanner display values from CMOTS metrics
+  resolvedMetrics?: Record<string, number | null>  // Raw metric values for learning mode
 }
 
 // V2 Profile weight structure

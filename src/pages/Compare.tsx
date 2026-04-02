@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeftRight, Plus, X, ChevronDown, ChevronRight, Trophy, Star, BarChart3, Brain, Shield, Loader2, AlertTriangle, CheckCircle, MinusCircle, Info } from 'lucide-react'
+import { ArrowLeftRight, Plus, X, ChevronDown, ChevronRight, Trophy, Star, BarChart3, Brain, Shield, Loader2, AlertTriangle, CheckCircle, MinusCircle, Info, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getVerdictV2 } from '@/data/verdictsV2'
 import { getScoreBandV2 } from '@/lib/scoring'
@@ -731,34 +731,150 @@ export function Compare() {
         </motion.div>
       )}
 
-      {/* ── Verdict Summary ── */}
-      {verdictsV2.filter(v => v).length >= 2 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="rounded-xl bg-dark-800/80 backdrop-blur-xl border border-white/10 p-4"
-        >
-          <h3 className="text-sm font-semibold text-white mb-3">Verdict Summary</h3>
-          <div className="space-y-3">
-            {verdictsV2.map((v, i) => {
-              if (!v) return null
-              const entry = selectedEntries[i]
+      {/* ── Verdict Summary (score-led, sorted, prominent winner) ── */}
+      {verdictsV2.filter(v => v).length >= 2 && (() => {
+        // Sort stocks by score descending — winner naturally on top
+        const ranked = verdictsV2
+          .map((v, i) => ({ verdict: v, entry: selectedEntries[i], originalIndex: i }))
+          .filter((r): r is typeof r & { verdict: StockVerdictV2 } => r.verdict !== undefined)
+          .sort((a, b) => (b.verdict.overallScore) - (a.verdict.overallScore))
+
+        const profile = useAppStore.getState().currentProfile
+
+        const thesisLabels: Record<string, string> = {
+          growth: 'Growth', value: 'Value', comprehensive: 'Comprehensive',
+          balanced: 'Balanced', learning: 'Learning', compounding: 'Compounding',
+          remote: 'Remote Investing', income: 'Income', preservation: 'Capital Preservation',
+          momentum: 'Momentum',
+        }
+        const riskLabels: Record<string, string> = {
+          'very-conservative': 'Very Conservative', conservative: 'Conservative',
+          moderate: 'Moderate', aggressive: 'Aggressive',
+        }
+        const horizonLabels: Record<string, string> = {
+          short: '1-2Y', medium: '2-3Y', long: '3-5Y', 'very-long': '5+ years',
+        }
+
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-3"
+          >
+            <h3 className="text-sm font-semibold text-white">Verdict Summary</h3>
+
+            {ranked.map((r, rank) => {
+              const { verdict: v, entry } = r
               const band = getScoreBandV2(v.overallScore)
+              const isWinner = rank === 0
+              const strengths = v.topSignals?.slice(0, 3) || []
+              const concerns = v.topConcerns?.slice(0, 2) || []
+              const pillarLine = v.pillars.map(p =>
+                `${p.pillar === 'quant' ? 'Quant' : p.pillar === 'qual' ? 'Qual' : 'Risk'} ${p.score}`
+              ).join(' · ')
+
               return (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={cn('w-2 h-2 mt-1.5 rounded-full flex-shrink-0', i === winnerIndex ? 'bg-success-400' : 'bg-neutral-600')} />
-                  <div>
-                    <span className="font-medium text-white">{entry?.stock.symbol}: </span>
-                    <span className={cn('text-xs font-semibold mr-1', band.colorClass)}>{v.overallLabel}</span>
-                    <span className="text-sm text-neutral-400">{v.overallSummary}</span>
+                <div
+                  key={r.originalIndex}
+                  className={cn(
+                    'rounded-xl bg-dark-800/80 backdrop-blur-xl border overflow-hidden',
+                    isWinner ? 'border-success-500/40' : 'border-white/5',
+                  )}
+                >
+                  {/* Winner banner */}
+                  {isWinner && (
+                    <div className="bg-gradient-to-r from-success-500/20 via-success-500/10 to-transparent px-4 py-2 flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-success-400" />
+                      <span className="text-xs font-bold text-success-400 uppercase tracking-wide">Top Pick</span>
+                      <span className="text-[10px] text-success-400/60 ml-1">Highest Overall Score</span>
+                    </div>
+                  )}
+
+                  <div className="p-4">
+                    {/* Score header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className={cn('text-xl font-bold tabular-nums', band.colorClass)}>
+                          {v.overallScore}
+                        </span>
+                        <span className="text-[10px] text-neutral-500">/100</span>
+                        <span className="text-sm font-semibold text-white ml-1">{entry?.stock.symbol}</span>
+                      </div>
+                      <span className="text-xs text-neutral-500">{entry?.stock.sector}</span>
+                    </div>
+
+                    {/* Score bar */}
+                    <div className="h-1.5 bg-dark-600 rounded-full mb-2 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${v.overallScore}%` }}
+                        transition={{ duration: 0.6, delay: 0.1 * rank }}
+                        className={cn('h-full rounded-full', band.bgClass)}
+                      />
+                    </div>
+
+                    {/* Pillar breakdown */}
+                    <div className="text-[10px] text-neutral-500 mb-3">{pillarLine}</div>
+
+                    {/* Key strengths */}
+                    {strengths.length > 0 && (
+                      <div className="mb-2">
+                        <div className="text-[10px] text-neutral-600 uppercase font-semibold mb-1">Key Strengths</div>
+                        <div className="space-y-1">
+                          {strengths.map((s, si) => (
+                            <div key={si} className="flex items-start gap-1.5">
+                              <CheckCircle className="w-3 h-3 text-success-400 mt-0.5 flex-shrink-0" />
+                              <span className="text-xs text-neutral-300">
+                                <span className="font-medium text-white">{s.title}</span>
+                                {s.description && (
+                                  <span className="text-neutral-500"> — {s.description.length > 60 ? s.description.slice(0, 60) + '…' : s.description}</span>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Watch areas */}
+                    {concerns.length > 0 && (
+                      <div>
+                        <div className="text-[10px] text-neutral-600 uppercase font-semibold mb-1">Watch Areas</div>
+                        <div className="space-y-1">
+                          {concerns.map((c, ci) => (
+                            <div key={ci} className="flex items-start gap-1.5">
+                              <AlertTriangle className="w-3 h-3 text-warning-400 mt-0.5 flex-shrink-0" />
+                              <span className="text-xs text-neutral-400">{c.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             })}
-          </div>
-        </motion.div>
-      )}
+
+            {/* Personalization teaser */}
+            {profile && (
+              <div className="rounded-xl bg-primary-500/5 border border-primary-500/20 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lock className="w-3.5 h-3.5 text-primary-400" />
+                  <span className="text-xs font-semibold text-primary-400">Personalized Pick — Coming Soon</span>
+                </div>
+                <p className="text-xs text-neutral-400">
+                  Based on your{' '}
+                  <span className="text-white font-medium">{thesisLabels[profile.investmentThesis] || profile.investmentThesis}</span> thesis
+                  {' + '}<span className="text-white font-medium">{riskLabels[profile.riskTolerance] || profile.riskTolerance}</span> risk
+                  {' + '}<span className="text-white font-medium">{horizonLabels[profile.timeHorizon] || profile.timeHorizon}</span> horizon,
+                  StockFox will recommend which stock fits YOUR portfolio best.
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )
+      })()}
     </div>
   )
 }

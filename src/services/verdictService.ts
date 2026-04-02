@@ -168,5 +168,6 @@ export async function buildVerdictForStock(
     positionSizing: 'See detailed analysis',
     entryGuidance: 'See detailed analysis',
     scannerValues,
+    resolvedMetrics: resolved?.data,
   }
 }
