@@ -43,15 +43,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { path } = req.query
   const cmotPath = Array.isArray(path) ? `/${path.join('/')}` : (path ? `/${path}` : '')
 
-  console.log(`[CMOTS Proxy] path param:`, path, `→ cmotPath:`, cmotPath)
-
   if (cmotPath.includes('..') || cmotPath.includes('//')) {
     return res.status(400).json({ error: 'Invalid path' })
   }
 
   const isAllowed = ALLOWED_PREFIXES.some(prefix => cmotPath.startsWith(prefix))
   if (!isAllowed) {
-    return res.status(403).json({ error: 'Endpoint not allowed', cmotPath, rawPath: req.query.path })
+    return res.status(403).json({ error: 'Endpoint not allowed' })
   }
 
   const targetUrl = `${CMOTS_BASE}${cmotPath}`

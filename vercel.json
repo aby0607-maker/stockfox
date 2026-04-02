@@ -1,7 +1,51 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/stock/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/compare",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/discover",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/portfolio",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/journal",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/alerts",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/advisors",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/backtest",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/chat/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/segment/:path*",
       "destination": "/index.html"
     }
   ]
