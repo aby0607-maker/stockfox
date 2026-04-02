@@ -39,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'DhanHQ API not configured' })
   }
 
-  const { path } = req.query
+  const rawPath = req.query["...path"] ?? req.query.path; const path = rawPath
   const dhanPath = Array.isArray(path) ? `/${path.join('/')}` : `/${path}`
 
   if (dhanPath.includes('..') || dhanPath.includes('//')) {

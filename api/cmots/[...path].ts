@@ -40,8 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'API not configured' })
   }
 
-  const { path } = req.query
-  const cmotPath = Array.isArray(path) ? `/${path.join('/')}` : (path ? `/${path}` : '')
+  // Vercel passes catch-all [...path] as req.query['...path'], not req.query.path
+  const rawPath = req.query['...path'] ?? req.query.path
+  const cmotPath = Array.isArray(rawPath) ? `/${rawPath.join('/')}` : (rawPath ? `/${rawPath}` : '')
 
   if (cmotPath.includes('..') || cmotPath.includes('//')) {
     return res.status(400).json({ error: 'Invalid path' })
@@ -49,10 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const isAllowed = ALLOWED_PREFIXES.some(prefix => cmotPath.startsWith(prefix))
   if (!isAllowed) {
-    return res.status(403).json({
-      error: 'Endpoint not allowed',
-      debug: { cmotPath, rawPath: req.query.path, url: req.url, queryKeys: Object.keys(req.query) },
-    })
+    return res.status(403).json({ error: 'Endpoint not allowed' })
   }
 
   const targetUrl = `${CMOTS_BASE}${cmotPath}`

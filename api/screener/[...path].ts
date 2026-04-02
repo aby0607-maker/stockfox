@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { path } = req.query
+  const rawPath = req.query["...path"] ?? req.query.path; const path = rawPath
   const screenerPath = Array.isArray(path) ? `/${path.join('/')}` : `/${path}`
 
   if (screenerPath.includes('..') || screenerPath.includes('//')) {

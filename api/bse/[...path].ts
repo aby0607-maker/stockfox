@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { path, ...queryParams } = req.query
+  const rawPath = req.query["...path"] ?? req.query.path; const { ...queryParams } = req.query; const path = rawPath
   const bsePath = Array.isArray(path) ? `/${path.join('/')}` : `/${path}`
 
   if (!ALLOWED_PREFIXES.some(p => bsePath.startsWith(p))) {
