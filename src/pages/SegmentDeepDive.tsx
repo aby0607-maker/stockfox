@@ -8,6 +8,7 @@ import { getVerdictV2 } from '@/data/verdictsV2'
 import { buildVerdictForStock } from '@/services/verdictService'
 import { resolveStock } from '@/services/stockService'
 import { SignalGroupCard } from '@/components/scoring/SignalGroupCard'
+import { ScoreBreakdown } from '@/components/scoring/ScoreBreakdown'
 import { Skeleton, Tooltip, AutoTooltipText } from '@/components/ui'
 import { SEGMENT_TOOLTIPS } from '@/data/signalTooltips'
 import { DemoModeToggle } from '@/components/demo'
@@ -218,6 +219,13 @@ export function SegmentDeepDive() {
               )}
             </div>
           </div>
+
+          {/* Score Breakdown — "Show Your Work" */}
+          {segmentV2.scoreJustification && segmentV2.score != null && (
+            <div className="mt-3">
+              <ScoreBreakdown justification={segmentV2.scoreJustification} score={segmentV2.score} />
+            </div>
+          )}
 
           {/* Suppression warning */}
           {segmentV2.isSuppressed && (

@@ -2,6 +2,7 @@ import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { getOverallVerdict, getScoreGlowV2 } from '@/lib/scoring'
+import { OverallScoreBreakdown } from './ScoreBreakdown'
 import type { StockVerdictV2 } from '@/types'
 
 interface OverallVerdictCardProps {
@@ -114,6 +115,19 @@ export function OverallVerdictCard({ verdict, profileName }: OverallVerdictCardP
             )}
           </div>
         </div>
+
+        {/* Overall Score Breakdown — pillar weights */}
+        {verdict.scoreBreakdown && (
+          <OverallScoreBreakdown
+            scoreBreakdown={verdict.scoreBreakdown}
+            pillarScores={{
+              quant: verdict.pillars.find(p => p.pillar === 'quant')?.score ?? 0,
+              qual: verdict.pillars.find(p => p.pillar === 'qual')?.score ?? 0,
+              risk: verdict.pillars.find(p => p.pillar === 'risk')?.score ?? 0,
+            }}
+            overallScore={verdict.overallScore}
+          />
+        )}
       </div>
     </motion.div>
   )

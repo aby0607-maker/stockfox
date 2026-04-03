@@ -608,6 +608,11 @@ export interface StockVerdictV2 {
   learningPrompt?: string
   learningHighlights?: LearningHighlight[]
   scannerValues?: Record<string, string>  // Dynamic scanner display values from CMOTS metrics
+  scoreBreakdown?: {
+    pillarWeights: { quant: number; qual: number; risk: number }
+    pillarContributions: { quant: number; qual: number; risk: number }
+    profileName: string
+  }
   resolvedMetrics?: Record<string, number | null>  // Raw metric values for learning mode
 }
 

@@ -169,5 +169,14 @@ export async function buildVerdictForStock(
     entryGuidance: 'See detailed analysis',
     scannerValues,
     resolvedMetrics: resolved?.data,
+    scoreBreakdown: {
+      pillarWeights: { quant: pw.quant, qual: pw.qual, risk: pw.risk },
+      pillarContributions: {
+        quant: Math.round(quantPillar.score * pw.quant / totalWeight * 10) / 10,
+        qual: Math.round(qualPillar.score * pw.qual / totalWeight * 10) / 10,
+        risk: Math.round(riskPillar.score * pw.risk / totalWeight * 10) / 10,
+      },
+      profileName: profileId,
+    },
   }
 }
