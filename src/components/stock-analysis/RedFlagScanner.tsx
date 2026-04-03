@@ -44,12 +44,12 @@ export function RedFlagScanner({ verdict, verdictV2, news }: RedFlagScannerProps
   const hasHigh = triggeredBySeverity.high.length > 0
   const hasAnyIssue = framework.triggeredCount > 0
 
-  // Severity category config
+  // Severity category config — counts from actual framework, not hardcoded
   const categories = [
-    { key: 'critical', label: 'Critical', emoji: '🔴', colorClass: 'destructive', count: 8, description: 'Blocking issues - immediate action required' },
-    { key: 'high', label: 'High', emoji: '🟠', colorClass: 'warning', count: 12, description: 'Significant concerns - caution advised' },
-    { key: 'medium', label: 'Medium', emoji: '🟡', colorClass: 'yellow', count: 10, description: 'Monitor closely - potential risks' },
-    { key: 'monitor', label: 'Monitor', emoji: '⚪', colorClass: 'neutral', count: 5, description: 'Informational - awareness items' },
+    { key: 'critical', label: 'Critical', emoji: '🔴', colorClass: 'destructive', count: bySeverity.critical.length, description: 'Blocking issues - immediate action required' },
+    { key: 'high', label: 'High', emoji: '🟠', colorClass: 'warning', count: bySeverity.high.length, description: 'Significant concerns - caution advised' },
+    { key: 'medium', label: 'Medium', emoji: '🟡', colorClass: 'yellow', count: bySeverity.medium.length, description: 'Monitor closely - potential risks' },
+    { key: 'monitor', label: 'Monitor', emoji: '⚪', colorClass: 'neutral', count: bySeverity.monitor.length, description: 'Informational - awareness items' },
   ]
 
   return (
