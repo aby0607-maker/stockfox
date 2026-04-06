@@ -15,12 +15,19 @@ import type { Stock, StockVerdictV2 } from '@/types'
 
 // ─── Data fetching ──────────────────────────────
 
+interface CorporateActionItem {
+  type: 'dividend' | 'bonus' | 'split' | 'rights' | 'buyback' | 'other'
+  date: string
+  purpose: string
+}
+
 interface InfoData {
   ttm: Record<string, number | null>
   shareholding: { Promoters: number; FII: number; DII: number; Public: number; MutualFund?: number } | null
   priceHistory: { time: string; value: number }[]
   quarterlyRevenue: { quarter: string; revenue: number; pat: number }[]
   peers: { symbol: string; name: string; pe?: number; mcap?: number; roe?: number }[]
+  corporateActions: CorporateActionItem[]
 }
 
 async function fetchInfoData(symbol: string): Promise<InfoData> {
@@ -28,6 +35,7 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
   const { getYahooHistoricalPrices } = await import('@/services/yahoo')
   const { generatePeerGroupDetailed } = await import('@/services/stockService')
   const { getCompanyBySymbol } = await import('@/services/cmots')
+  const { getCorporateActions } = await import('@/services/bse')
 
   const coCode = await (async () => {
     const { getCoCode } = await import('@/services/cmots')
@@ -35,7 +43,7 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
   })()
 
   // Fetch all in parallel
-  const [ttmRaw, shRaw, priceRaw, _qrRaw, company] = await Promise.all([
+  const [ttmRaw, shRaw, priceRaw, _qrRaw, company, corpActions] = await Promise.all([
     getTTMData(symbol, coCode ?? undefined),
     getShareholdingHistory(symbol, coCode ?? undefined),
     (() => {
@@ -45,6 +53,7 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
     })(),
     getQuarterlyResults(symbol, coCode ?? undefined),
     getCompanyBySymbol(symbol),
+    getCorporateActions(symbol),
   ])
 
   // TTM metrics
@@ -69,16 +78,20 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
     ttm['peg'] = t.pegratio as number ?? null
   }
 
-  // Shareholding
+  // Shareholding — CMOTS uses ForeignInstitution, MutualFund, OtherDomesticInstitution, Retail, Others
   let shareholding = null
   if (shRaw && shRaw.length > 0) {
-    const latest = shRaw[0] as unknown as Record<string, unknown>
+    const latest = shRaw[0]
+    const fii = latest.ForeignInstitution || 0
+    const mf = latest.MutualFund || 0
+    const odi = latest.OtherDomesticInstitution || 0
+    const dii = mf + odi  // DII = Mutual Funds + Other Domestic Institutions
     shareholding = {
-      Promoters: (latest.Promoters as number) || 0,
-      FII: (latest.FII as number) || 0,
-      DII: (latest.DII as number) || 0,
-      Public: (latest.Public as number) || 0,
-      MutualFund: (latest.MutualFund as number) || undefined,
+      Promoters: latest.Promoters || 0,
+      FII: fii,
+      DII: dii,
+      Public: (latest.Retail || 0) + (latest.Others || 0),
+      MutualFund: mf || undefined,
     }
   }
 
@@ -90,8 +103,25 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
 
   // Quarterly results
   const quarterlyRevenue: { quarter: string; revenue: number; pat: number }[] = []
-  // QR data is row-based — we need to extract revenue and PAT rows
-  // This is complex; for now return empty and we'll populate later
+
+  // Corporate Actions from BSE
+  const corporateActions: CorporateActionItem[] = []
+  if (corpActions?.actions) {
+    for (const action of corpActions.actions) {
+      const purpose = action.purpose.toLowerCase()
+      const type: CorporateActionItem['type'] =
+        purpose.includes('bonus') ? 'bonus' :
+        purpose.includes('split') ? 'split' :
+        purpose.includes('rights') ? 'rights' :
+        purpose.includes('buyback') || purpose.includes('buy back') ? 'buyback' :
+        purpose.includes('dividend') ? 'dividend' : 'other'
+      corporateActions.push({
+        type,
+        date: action.ex_date,
+        purpose: action.purpose,
+      })
+    }
+  }
 
   // Peers
   let peers: InfoData['peers'] = []
@@ -105,7 +135,7 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
     } catch { /* peer lookup failed */ }
   }
 
-  return { ttm, shareholding, priceHistory, quarterlyRevenue, peers }
+  return { ttm, shareholding, priceHistory, quarterlyRevenue, peers, corporateActions }
 }
 
 // ─── Components ─────────────────────────────────
@@ -381,13 +411,37 @@ export function InfoTab({ stock }: InfoTabProps) {
         transition={{ delay: 0.25 }}
         className="rounded-2xl bg-dark-800 border border-white/5 p-4"
       >
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-3">
           <Calendar className="w-4 h-4 text-primary-400" />
           <h3 className="text-sm font-semibold text-white">Corporate Actions & Events</h3>
         </div>
-        <p className="text-xs text-neutral-500">
-          Dividend history, bonus issues, and splits are shown in the Scorecard → News & Events section.
-        </p>
+        {data.corporateActions.length > 0 ? (
+          <div className="space-y-2">
+            {data.corporateActions.slice(0, 8).map((action, i) => {
+              const icon = action.type === 'dividend' ? '💰' :
+                action.type === 'bonus' ? '🎁' :
+                action.type === 'split' ? '✂️' :
+                action.type === 'buyback' ? '🔄' :
+                action.type === 'rights' ? '📄' : '📋'
+              const color = action.type === 'dividend' ? 'text-success-400' :
+                action.type === 'bonus' ? 'text-primary-400' :
+                action.type === 'split' ? 'text-warning-400' :
+                action.type === 'buyback' ? 'text-cyan-400' : 'text-neutral-400'
+
+              return (
+                <div key={i} className="flex items-start gap-3 py-2 border-b border-white/5 last:border-0">
+                  <span className="text-sm flex-shrink-0">{icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-xs font-medium', color)}>{action.purpose}</p>
+                    <p className="text-[10px] text-neutral-500 mt-0.5">Ex-date: {action.date}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-neutral-500">No corporate actions found in last 5 years.</p>
+        )}
       </motion.div>
     </div>
   )
