@@ -248,7 +248,7 @@ function SegmentDetailRow({
           )} />
           <span className="text-xs text-neutral-400">{seg.name}</span>
           {seg.scoringType === 'context' && (
-            <span className="text-[9px] text-neutral-600 uppercase">ctx</span>
+            <span className="text-[9px] text-neutral-600 uppercase" title="Informational — not weighted into pillar score">info</span>
           )}
           {hasSignals && (
             <ChevronRight className={cn(

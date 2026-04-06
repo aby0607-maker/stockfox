@@ -903,16 +903,20 @@ export function buildQuantSegmentsV2(stock: 'zomato' | 'axisbank' | 'tcs'): Segm
     // Segment 6 — Performance (Context Only)
     {
       id: 'performance', name: 'Performance', pillar: 'quant', scoringType: 'context',
-      status: s.performance.score === 0 ? (stock === 'zomato' ? 'positive' : 'neutral') : 'neutral',
+      score: stock === 'zomato' ? 72 : stock === 'tcs' ? 55 : 65,
+      scoreBand: stock === 'zomato' ? 'good' as const : 'mixed' as const,
+      status: stock === 'zomato' ? 'positive' : 'neutral',
       interpretation: s.performance.interpretation,
       quickInsight: s.performance.quickInsight,
       signalGroups: perf.groups,
       metrics: [],
     },
-    // Segment 7 — Institutional & Market Signals (Context Only)
+    // Segment 7 — Institutional & Market Signals (informational score, not weighted)
     {
-      id: 'institutional_signals', name: 'Institutional / Market Signals', pillar: 'quant', scoringType: 'context',
-      status: s.institutional.score === 0 ? 'positive' : 'neutral',
+      id: 'institutional_signals', name: 'Institutional Signals', pillar: 'quant', scoringType: 'context',
+      score: stock === 'tcs' ? 78 : stock === 'axisbank' ? 72 : 65,
+      scoreBand: stock === 'tcs' ? 'good' as const : 'good' as const,
+      status: 'positive',
       interpretation: s.institutional.interpretation,
       quickInsight: s.institutional.quickInsight,
       signalGroups: inst.groups,

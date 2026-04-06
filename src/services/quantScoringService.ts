@@ -660,6 +660,7 @@ function buildPerformance(m: Record<string, number | null>): SegmentVerdictV2 {
   const groups: SignalGroup[] = []
   const redFlags: RedFlagV2[] = []
   let computed = 0
+  const scores: number[] = []
 
   // ── Red flag checks ──
   if (ret1y != null && ret1y < -30) {
@@ -672,18 +673,20 @@ function buildPerformance(m: Record<string, number | null>): SegmentVerdictV2 {
     redFlags.push({ signalId: 'PERF_VOL', severity: 'soft', title: 'Extreme Volatility', description: `Annualized volatility is ${fmt(vol)} — very high price swings`, source: 'Perf-VOL' })
   }
 
-  // ── Returns ──
+  // ── Returns (scored) ──
   const retSignals: QualSignal[] = []
   if (ret1y != null) {
-    retSignals.push(sig('R1', '1-Year Return', 'returns', 'score_only', undefined,
+    const s = ret1y > 30 ? 90 : ret1y > 15 ? 75 : ret1y > 0 ? 60 : ret1y > -15 ? 40 : 25
+    retSignals.push(sig('R1', '1-Year Return', 'returns', 'score_only', s,
       ret1y > 0 ? 'strong' : 'flag', `1-year return is ${fmt(ret1y)}.`))
-    computed++
+    scores.push(s); computed++
   }
   if (ret3y != null) {
     const ann3y = (Math.pow(1 + ret3y / 100, 1 / 3) - 1) * 100
-    retSignals.push(sig('R2', '3-Year Return', 'returns', 'score_only', undefined,
+    const s = ann3y > 20 ? 90 : ann3y > 12 ? 75 : ann3y > 0 ? 55 : ann3y > -10 ? 35 : 20
+    retSignals.push(sig('R2', '3-Year Return', 'returns', 'score_only', s,
       ret3y > 0 ? 'strong' : 'flag', `3-year total return is ${fmt(ret3y)} (${fmt(ann3y)} annualized).`))
-    computed++
+    scores.push(s); computed++
   }
   if (ret5y != null) {
     const ann5y = (Math.pow(1 + ret5y / 100, 1 / 5) - 1) * 100
@@ -697,19 +700,21 @@ function buildPerformance(m: Record<string, number | null>): SegmentVerdictV2 {
 
   groups.push({ id: 'returns', name: 'Price Returns', role: 'context', signals: retSignals })
 
-  // ── Risk Metrics ──
+  // ── Risk Metrics (scored) ──
   const riskSignals: QualSignal[] = []
   if (maxDD != null) {
-    riskSignals.push(sig('K1', 'Max Drawdown (1Y)', 'risk', 'score_only', undefined,
+    const s = maxDD > -10 ? 85 : maxDD > -20 ? 70 : maxDD > -30 ? 50 : maxDD > -40 ? 35 : 20
+    riskSignals.push(sig('K1', 'Max Drawdown (1Y)', 'risk', 'score_only', s,
       maxDD > -20 ? 'strong' : maxDD > -40 ? 'monitor' : 'flag',
       `Maximum drawdown over the past year was ${fmt(maxDD)} — ${maxDD > -15 ? 'low risk' : maxDD > -30 ? 'moderate pullback' : 'significant decline'}.`))
-    computed++
+    scores.push(s); computed++
   }
   if (vol != null) {
-    riskSignals.push(sig('K2', 'Annualized Volatility', 'risk', 'score_only', undefined,
+    const s = vol < 20 ? 85 : vol < 30 ? 70 : vol < 40 ? 50 : 30
+    riskSignals.push(sig('K2', 'Annualized Volatility', 'risk', 'score_only', s,
       vol < 25 ? 'strong' : vol < 40 ? 'monitor' : 'flag',
       `Annualized volatility is ${fmt(vol)} — ${vol < 20 ? 'low volatility' : vol < 35 ? 'moderate' : 'highly volatile'}.`))
-    computed++
+    scores.push(s); computed++
   }
   if (riskSignals.length === 0) {
     riskSignals.push(sig('K1', 'Max Drawdown', 'risk', 'score_only', undefined, 'not_applicable', 'Risk metrics not available.'))
@@ -718,14 +723,29 @@ function buildPerformance(m: Record<string, number | null>): SegmentVerdictV2 {
   groups.push({ id: 'risk', name: 'Risk Metrics', role: 'context', signals: riskSignals })
 
   const totalSignals = Math.max(computed, 1)
-  const interp = ret1y != null
-    ? `1Y ${fmt(ret1y)}${ret3y != null ? `, 3Y ${fmt(ret3y)}` : ''}${maxDD != null ? `, max drawdown ${fmt(maxDD)}` : ''}.`
-    : 'Performance data not yet available.'
+
+  // Compute segment score (informational — NOT weighted into Quant pillar)
+  const segScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : undefined
+  const band = segScore != null ? (segScore >= 70 ? 'good' as const : segScore >= 45 ? 'mixed' as const : 'poor' as const) : undefined
+
+  // Build rich summary
+  let summary = ''
+  if (ret1y != null) {
+    const returnVerdict = ret1y > 15 ? 'Strong performer' : ret1y > 0 ? 'Positive returns' : ret1y > -15 ? 'Underperforming' : 'Significant decline'
+    summary = `${returnVerdict} — 1Y return ${fmt(ret1y)}`
+    if (ret3y != null) { const a3 = (Math.pow(1 + ret3y / 100, 1/3) - 1) * 100; summary += `, 3Y CAGR ${fmt(a3)}` }
+    summary += '.'
+    if (maxDD != null) summary += ` Max drawdown ${fmt(maxDD)}.`
+    if (vol != null) summary += ` Volatility ${fmt(vol)} (${vol < 25 ? 'low' : vol < 40 ? 'moderate' : 'high'}).`
+  } else {
+    summary = 'Performance data not yet available.'
+  }
 
   return {
     id: 'performance', name: 'Performance', pillar: 'quant',
-    scoringType: 'context', status: 'neutral',
-    interpretation: interp,
+    scoringType: 'context', status: segScore != null && segScore >= 60 ? 'positive' : segScore != null && segScore < 45 ? 'negative' : 'neutral',
+    score: segScore, scoreBand: band,
+    interpretation: summary,
     confidenceIndicator: confidence(computed, totalSignals), signalGroups: groups, redFlags,
   }
 }
@@ -742,6 +762,7 @@ function buildInstitutional(m: Record<string, number | null>): SegmentVerdictV2 
   const groups: SignalGroup[] = []
   const redFlags: RedFlagV2[] = []
   let computed = 0
+  const scores: number[] = []
 
   // ── Red flag checks ──
   if (promoter != null && promoter < 25) {
@@ -751,50 +772,56 @@ function buildInstitutional(m: Record<string, number | null>): SegmentVerdictV2 
     redFlags.push({ signalId: 'INST_PROM_DROP', severity: 'soft', title: 'Significant Promoter Stake Decline', description: `Promoter stake fell ${fmt(Math.abs(promoterChange1y))} in 1 year`, source: 'Inst-PDROP' })
   }
 
-  // ── Institutional Flow ──
+  // ── Institutional Flow (scored) ──
   const instSignals: QualSignal[] = []
   if (fii != null) {
-    instSignals.push(sig('I1', 'FII Holding', 'institutional', 'score_only', undefined,
+    const s = fii > 20 ? 85 : fii > 10 ? 70 : fii > 5 ? 55 : fii > 1 ? 40 : 30
+    instSignals.push(sig('I1', 'FII Holding', 'institutional', 'score_only', s,
       fii > 10 ? 'strong' : fii > 3 ? 'monitor' : 'not_applicable',
       `Foreign institutional investors hold ${fmt(fii)}${fiiChange != null ? ` (${fiiChange > 0 ? '+' : ''}${fmt(fiiChange)} QoQ)` : ''}.`))
-    computed++
+    scores.push(s); computed++
   }
   if (dii != null) {
-    instSignals.push(sig('I2', 'DII Holding', 'institutional', 'score_only', undefined,
+    const s = dii > 20 ? 80 : dii > 10 ? 65 : dii > 5 ? 50 : 35
+    instSignals.push(sig('I2', 'DII Holding', 'institutional', 'score_only', s,
       dii > 10 ? 'strong' : 'monitor',
       `Domestic institutional investors hold ${fmt(dii)}.`))
-    computed++
+    scores.push(s); computed++
   }
   if (mf != null) {
-    instSignals.push(sig('I3', 'Mutual Fund Holding', 'institutional', 'score_only', undefined,
+    const s = mf > 10 ? 80 : mf > 5 ? 65 : mf > 2 ? 50 : 35
+    instSignals.push(sig('I3', 'Mutual Fund Holding', 'institutional', 'score_only', s,
       mf > 5 ? 'strong' : mf > 1 ? 'monitor' : 'not_applicable',
       `Mutual funds hold ${fmt(mf)} of the company.`))
-    computed++
+    scores.push(s); computed++
   }
   if (instSignals.length === 0) {
     instSignals.push(sig('I1', 'FII Holding', 'institutional', 'score_only', undefined, 'not_applicable', 'Institutional holding data not available.'))
   }
   groups.push({ id: 'institutional', name: 'Institutional Flow', role: 'context', signals: instSignals })
 
-  // ── Promoter Conviction ──
+  // ── Promoter Conviction (scored) ──
   const promSignals: QualSignal[] = []
   if (promoter != null) {
-    promSignals.push(sig('P1', 'Promoter Holding', 'promoter', 'score_only', undefined,
+    const s = promoter > 60 ? 85 : promoter > 50 ? 75 : promoter > 35 ? 60 : promoter > 25 ? 45 : 30
+    promSignals.push(sig('P1', 'Promoter Holding', 'promoter', 'score_only', s,
       promoter > 50 ? 'strong' : promoter > 30 ? 'monitor' : 'flag',
       `Promoter holds ${fmt(promoter)} of the company.`))
-    computed++
+    scores.push(s); computed++
   }
   if (promoterChange != null) {
-    promSignals.push(sig('P2', 'Promoter Change (QoQ)', 'promoter', 'score_only', undefined,
+    const s = promoterChange > 1 ? 85 : promoterChange >= 0 ? 70 : promoterChange > -2 ? 50 : 30
+    promSignals.push(sig('P2', 'Promoter Change (QoQ)', 'promoter', 'score_only', s,
       promoterChange >= 0 ? 'strong' : promoterChange > -2 ? 'monitor' : 'flag',
       `Promoter holding changed ${promoterChange >= 0 ? '+' : ''}${fmt(promoterChange)} quarter-over-quarter.`))
-    computed++
+    scores.push(s); computed++
   }
   if (promoterChange1y != null) {
-    promSignals.push(sig('P3', 'Promoter Change (1Y)', 'promoter', 'score_only', undefined,
+    const s = promoterChange1y > 2 ? 85 : promoterChange1y >= 0 ? 70 : promoterChange1y > -3 ? 50 : 25
+    promSignals.push(sig('P3', 'Promoter Change (1Y)', 'promoter', 'score_only', s,
       promoterChange1y >= 0 ? 'strong' : promoterChange1y > -3 ? 'monitor' : 'flag',
       `Promoter holding has ${promoterChange1y >= 0 ? 'increased' : 'decreased'} by ${fmt(Math.abs(promoterChange1y))} over the past year.`))
-    computed++
+    scores.push(s); computed++
   }
   if (promSignals.length === 0) {
     promSignals.push(sig('P1', 'Promoter Holding', 'promoter', 'score_only', undefined, 'not_applicable', 'Promoter holding data not available.'))
@@ -803,12 +830,34 @@ function buildInstitutional(m: Record<string, number | null>): SegmentVerdictV2 
 
   const totalSignals = Math.max(computed, 1)
 
+  // Compute segment score (informational — NOT weighted into Quant pillar)
+  const segScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : undefined
+  const band = segScore != null ? (segScore >= 70 ? 'good' as const : segScore >= 45 ? 'mixed' as const : 'poor' as const) : undefined
+
+  // Build rich summary
+  let summary = ''
+  if (promoter != null) {
+    const promVerdict = promoter > 50 ? 'Strong promoter conviction' : promoter > 35 ? 'Moderate promoter skin-in-game' : 'Low promoter holding'
+    summary = `${promVerdict} at ${fmt(promoter)}.`
+    if (promoterChange != null || promoterChange1y != null) {
+      const change = promoterChange1y ?? promoterChange
+      summary += change != null && change >= 0 ? ' Stake stable/increasing.' : ' Stake declining.'
+    }
+    if (fii != null && dii != null) {
+      const totalInst = fii + dii
+      summary += ` Institutional ownership ${fmt(totalInst)} (FII ${fmt(fii)}, DII ${fmt(dii)}).`
+      if (fiiChange != null && fiiChange > 0) summary += ' FII buying.'
+      else if (fiiChange != null && fiiChange < -1) summary += ' FII selling.'
+    }
+  } else {
+    summary = 'Ownership data not yet available.'
+  }
+
   return {
-    id: 'institutional', name: 'Institutional Signals', pillar: 'quant',
-    scoringType: 'context', status: 'neutral',
-    interpretation: promoter != null
-      ? `Promoter ${fmt(promoter)}, FII ${fmt(fii)}, DII ${fmt(dii)}${mf != null ? `, MF ${fmt(mf)}` : ''}.`
-      : 'Ownership data not yet available.',
+    id: 'institutional_signals', name: 'Institutional Signals', pillar: 'quant',
+    scoringType: 'context', status: segScore != null && segScore >= 60 ? 'positive' : segScore != null && segScore < 45 ? 'negative' : 'neutral',
+    score: segScore, scoreBand: band,
+    interpretation: summary,
     confidenceIndicator: confidence(computed, totalSignals), signalGroups: groups, redFlags,
   }
 }
