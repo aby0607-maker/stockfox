@@ -289,27 +289,50 @@ async function main() {
     await new Promise(r => setTimeout(r, 100))
   }
 
-  // Step 6: Compute peer rankings — by sector (cap-agnostic)
-  // All stocks in the same sector compete regardless of market cap
-  console.log('\n🏆 Computing peer rankings (sector-based, cap-agnostic)...')
+  // Step 6: Compute peer rankings — by industry (CMOTS industry field)
+  // Industry is more granular than sector: "Banks - Private Sector" vs "Banks"
+  // Falls back to sector if industry has fewer than 3 stocks
+  console.log('\n🏆 Computing peer rankings (industry-based)...')
   const allStocks = [...results.values()]
+
+  // Build industry groups
+  const byIndustry = new Map()
   const bySector = new Map()
   for (const stock of allStocks) {
+    const industry = stock.industry || stock.sector || 'Unknown'
     const sector = stock.sector || 'Unknown'
+    if (!byIndustry.has(industry)) byIndustry.set(industry, [])
+    byIndustry.get(industry).push(stock)
     if (!bySector.has(sector)) bySector.set(sector, [])
     bySector.get(sector).push(stock)
   }
-  let rankedSectors = 0
-  for (const [sector, stocks] of bySector) {
-    stocks.sort((a, b) => b.score - a.score)
-    stocks.forEach((stock, i) => {
-      stock.peerRank = i + 1
-      stock.peerTotal = stocks.length
+  // Sort each group by score
+  for (const [, stocks] of byIndustry) stocks.sort((a, b) => b.score - a.score)
+  for (const [, stocks] of bySector) stocks.sort((a, b) => b.score - a.score)
+
+  let rankedIndustries = 0
+  for (const stock of allStocks) {
+    const industry = stock.industry || stock.sector || 'Unknown'
+    const industryPeers = byIndustry.get(industry) || [stock]
+
+    if (industryPeers.length >= 3) {
+      // Good peer group — use industry
+      const rank = industryPeers.findIndex(s => s.symbol === stock.symbol) + 1
+      stock.peerRank = rank
+      stock.peerTotal = industryPeers.length
+      stock.peerCategory = industry
+    } else {
+      // Too few industry peers — fall back to sector
+      const sector = stock.sector || 'Unknown'
+      const sectorPeers = bySector.get(sector) || [stock]
+      const rank = sectorPeers.findIndex(s => s.symbol === stock.symbol) + 1
+      stock.peerRank = rank
+      stock.peerTotal = sectorPeers.length
       stock.peerCategory = sector
-    })
-    rankedSectors++
+    }
   }
-  console.log(`   ✓ Ranked stocks across ${rankedSectors} sectors`)
+  rankedIndustries = byIndustry.size
+  console.log(`   ✓ Ranked across ${rankedIndustries} industries (fallback to ${bySector.size} sectors)`)
 
   // Step 7: Build output
   const output = {
@@ -322,7 +345,8 @@ async function main() {
       midCap: allStocks.filter(s => s.mcapType === 'Mid Cap').length,
       smallCap: allStocks.filter(s => s.mcapType !== 'Large Cap' && s.mcapType !== 'Mid Cap').length,
     },
-    sectorCount: rankedSectors,
+    industryCount: rankedIndustries,
+    sectorCount: bySector.size,
     stocks: allStocks,
   }
 
