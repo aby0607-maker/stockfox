@@ -83,17 +83,27 @@ function parseCsv(csv: string): Map<string, SurveillanceStatus> {
     const smsVal = idx.sms >= 0 ? parseInt(row[idx.sms]) || 0 : 0
     const defaultVal = idx.default >= 0 ? parseInt(row[idx.default]) || 0 : 0
 
+    // NSE encoding: 100 = clear sentinel for ASM/GSM. 0 = clear for SMS/Default.
     // ASM: 100 = clear, 1-4 = stages (lower = worse)
     const asmStage = ltAsmVal < 100 ? ltAsmVal : (stAsmVal < 100 ? stAsmVal : 0)
+
+    // GSM: 0 = clear, 1-6 = stages. Values >= 100 are sentinel "clear" values.
+    const gsmActive = gsmVal >= 1 && gsmVal < 10  // Only stages 1-6 are real GSM
+
+    // SMS: Only value 1 = actively on watchlist. 0 or large values = clear.
+    const smsActive = smsVal === 1
+
+    // Default: Only value 1 = in default. 0 or large values = clear.
+    const defaultActive = defaultVal === 1
 
     map.set(symbol, {
       symbol,
       isASM: asmStage > 0 && asmStage < 100,
       asmStage,
-      isGSM: gsmVal >= 1,
-      gsmStage: gsmVal,
-      isSMSAlert: smsVal >= 1,
-      isDefault: defaultVal >= 1,
+      isGSM: gsmActive,
+      gsmStage: gsmActive ? gsmVal : 0,
+      isSMSAlert: smsActive,
+      isDefault: defaultActive,
     })
   }
 

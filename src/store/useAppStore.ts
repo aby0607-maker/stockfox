@@ -98,7 +98,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set: (fn: ((state: AppState) => Partial<AppState>) | Partial<AppState>) => void, get: () => AppState) => ({
       // Initial state
       currentProfileId: 'ankit',
       currentProfile: profiles.find(p => p.id === 'ankit') || null,
@@ -145,11 +145,11 @@ export const useAppStore = create<AppState>()(
 
       // Actions - UI
       toggleSidebar: () => {
-        set(state => ({ isSidebarOpen: !state.isSidebarOpen }))
+        set((state: AppState) => ({ isSidebarOpen: !state.isSidebarOpen }))
       },
 
       toggleSearch: () => {
-        set(state => ({ isSearchOpen: !state.isSearchOpen }))
+        set((state: AppState) => ({ isSearchOpen: !state.isSearchOpen }))
       },
 
       setAnalysisMode: (mode: AnalysisMode) => {
@@ -157,7 +157,7 @@ export const useAppStore = create<AppState>()(
       },
 
       toggleAnalysisMode: () => {
-        set(state => ({
+        set((state: AppState) => ({
           analysisMode: state.analysisMode === 'dfy' ? 'diy' : 'dfy'
         }))
       },
@@ -167,12 +167,12 @@ export const useAppStore = create<AppState>()(
       },
 
       toggleDemoMode: () => {
-        set(state => ({ demoMode: !state.demoMode }))
+        set((state: AppState) => ({ demoMode: !state.demoMode }))
       },
 
       // Actions - Alerts
       markAlertAsRead: (alertId: string) => {
-        set(state => ({
+        set((state: AppState) => ({
           alerts: state.alerts.map(alert =>
             alert.id === alertId ? { ...alert, isRead: true } : alert
           ),
@@ -181,14 +181,14 @@ export const useAppStore = create<AppState>()(
       },
 
       markAllAlertsAsRead: () => {
-        set(state => ({
-          alerts: state.alerts.map(alert => ({ ...alert, isRead: true })),
+        set((state: AppState) => ({
+          alerts: state.alerts.map((a: Alert) => ({ ...a, isRead: true })),
           unreadAlertCount: 0,
         }))
       },
 
       addAlert: (alert: Alert) => {
-        set(state => ({
+        set((state: AppState) => ({
           alerts: [alert, ...state.alerts],
           unreadAlertCount: state.unreadAlertCount + 1,
         }))
@@ -196,7 +196,7 @@ export const useAppStore = create<AppState>()(
 
       // Actions - Watchlist & Favorites
       addToWatchlist: (symbol: string) => {
-        set(state => ({
+        set((state: AppState) => ({
           watchlist: state.watchlist.includes(symbol.toUpperCase())
             ? state.watchlist
             : [...state.watchlist, symbol.toUpperCase()],
@@ -204,16 +204,16 @@ export const useAppStore = create<AppState>()(
       },
 
       removeFromWatchlist: (symbol: string) => {
-        set(state => ({
-          watchlist: state.watchlist.filter(s => s !== symbol.toUpperCase()),
+        set((state: AppState) => ({
+          watchlist: state.watchlist.filter((s: string) => s !== symbol.toUpperCase()),
         }))
       },
 
       toggleFavorite: (symbol: string) => {
         const upperSymbol = symbol.toUpperCase()
-        set(state => ({
+        set((state: AppState) => ({
           favorites: state.favorites.includes(upperSymbol)
-            ? state.favorites.filter(s => s !== upperSymbol)
+            ? state.favorites.filter((s: string) => s !== upperSymbol)
             : [...state.favorites, upperSymbol],
         }))
       },
@@ -228,10 +228,10 @@ export const useAppStore = create<AppState>()(
 
       // Actions - Recent Analyses
       addRecentAnalysis: (analysis: RecentAnalysis) => {
-        set(state => {
+        set((state: AppState) => {
           // Remove existing entry for same stock if present
           const filtered = state.recentAnalyses.filter(
-            a => a.stockSymbol !== analysis.stockSymbol
+            (a: RecentAnalysis) => a.stockSymbol !== analysis.stockSymbol
           )
           // Add new entry at the beginning, keep max 10
           return {
@@ -246,24 +246,24 @@ export const useAppStore = create<AppState>()(
 
       // Actions - Loading
       setLoading: (key: LoadingKey, value: boolean) => {
-        set(state => ({
+        set((state: AppState) => ({
           loading: { ...state.loading, [key]: value },
         }))
       },
 
       // Actions - Errors
       addError: (key: string, message: string) => {
-        set(state => ({
+        set((state: AppState) => ({
           errors: [
-            ...state.errors.filter(e => e.key !== key),
+            ...state.errors.filter((e: { key: string }) => e.key !== key),
             { key, message, timestamp: Date.now() },
           ],
         }))
       },
 
       clearError: (key: string) => {
-        set(state => ({
-          errors: state.errors.filter(e => e.key !== key),
+        set((state: AppState) => ({
+          errors: state.errors.filter((e: { key: string }) => e.key !== key),
         }))
       },
 
@@ -273,7 +273,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'stockfox-storage',
-      partialize: state => ({
+      partialize: (state: AppState) => ({
         currentProfileId: state.currentProfileId,
         analysisMode: state.analysisMode,
         demoMode: state.demoMode,

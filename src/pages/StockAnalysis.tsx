@@ -10,6 +10,7 @@ import { buildVerdictForStock } from '@/services/verdictService'
 import { buildNewsItems, buildUpcomingEvents } from '@/services/newsBuilder'
 import { LearningProgress } from '@/components/learning/LearningProgress'
 import { ScoringMethodologyModal } from '@/components/scoring/ScoringMethodologyModal'
+import { AnalysisLoader, createLoadingSteps, updateStep, type LoadingStep } from '@/components/scoring/AnalysisLoader'
 import { LearningCompletion } from '@/components/learning/LearningCompletion'
 import { getAccuracy } from '@/data/learningMetrics'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
@@ -21,9 +22,7 @@ import { getVerdictV2 } from '@/data/verdictsV2'
 import type { Stock, StockVerdict, StockVerdictV2, VerdictPillar, Signal } from '@/types'
 
 // Skeleton components for loading state
-function SkeletonBlock({ className }: { className?: string }) {
-  return <div className={cn('bg-dark-600 rounded animate-pulse', className)} />
-}
+// SkeletonBlock removed — replaced by AnalysisLoader
 
 // ============== PROS/CONS COMPONENT ==============
 function ProsCons({ signals, concerns }: { signals: Signal[]; concerns: Signal[] }) {
@@ -96,6 +95,7 @@ export function StockAnalysis() {
   const { ticker } = useParams<{ ticker: string }>()
   const { currentProfile, demoMode, toggleDemoMode } = useAppStore()
   const [isLoading, setIsLoading] = useState(true)
+  const [loadingSteps, setLoadingSteps] = useState<LoadingStep[]>(createLoadingSteps())
   const [stock, setStock] = useState<Stock | null>(null)
   const [verdict, setVerdict] = useState<StockVerdict | null>(null)
   const [verdictV2, setVerdictV2] = useState<StockVerdictV2 | null>(null)
@@ -166,29 +166,61 @@ export function StockAnalysis() {
         setSelectedFactorId(null)
         return
       } else {
-        // Non-demo: resolve via CMOTS API + live scoring
+        // Non-demo: resolve via CMOTS API + live scoring with progress narration
+        setLoadingSteps(createLoadingSteps())
+
+        // Step 1: Resolve stock from BSE/NSE
+        setLoadingSteps(s => updateStep(s, 'resolve', 'loading'))
         const resolved = await resolveStock(symbol)
         if (cancelled || !resolved) {
           if (!cancelled) {
             setStock(null)
             setVerdict(null)
             setVerdictV2(null)
+            setLoadingSteps(s => updateStep(s, 'resolve', 'error', 'Stock not found'))
           }
           setIsLoading(false)
           return
         }
+        setLoadingSteps(s => updateStep(s, 'resolve', 'done', `${resolved.name} found on ${resolved.sector}`))
+        setStock(resolved)
 
-        // Build V2 verdict from live CMOTS data
+        // Steps 2-5: Build V2 verdict (fundamentals → quant → qual → risk → personalize)
+        setLoadingSteps(s => updateStep(s, 'fundamentals', 'loading'))
         let liveVerdict: StockVerdictV2 | null = null
         try {
-          liveVerdict = await buildVerdictForStock(resolved, profileId)
+          // The verdict pipeline internally fetches fundamentals, scores quant/qual/risk
+          // We update steps as estimates since buildVerdictForStock is a single Promise
+          const verdictPromise = buildVerdictForStock(resolved, profileId)
+
+          // Simulate step progression while verdict builds (~8-15s)
+          const stepTimers = [
+            setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'fundamentals', 'done'), 'quant', 'loading')) }, 2000),
+            setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'quant', 'done'), 'qual', 'loading')) }, 5000),
+            setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'qual', 'done'), 'risk', 'loading')) }, 8000),
+            setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'risk', 'done'), 'personalize', 'loading')) }, 10000),
+          ]
+
+          liveVerdict = await verdictPromise
+
+          // Clear timers and mark all scoring steps as done
+          stepTimers.forEach(clearTimeout)
+          setLoadingSteps(s => {
+            let updated = s
+            for (const id of ['fundamentals', 'quant', 'qual', 'risk', 'personalize']) {
+              updated = updateStep(updated, id, 'done')
+            }
+            return updated
+          })
         } catch (err) {
           console.warn('Failed to build verdict for', symbol, err)
+          setLoadingSteps(s => updateStep(s, 'quant', 'error', 'Scoring failed'))
         }
 
         if (cancelled) return
 
-        // Fetch news + events from BSE data (cache hits after qual scoring)
+        // Step 7: News & events
+        setLoadingSteps(s => updateStep(s, 'news', 'loading'))
         let newsItems: NewsItem[] = []
         let events: UpcomingEvent[] = []
         try {
@@ -199,6 +231,7 @@ export function StockAnalysis() {
         } catch {
           // News/events unavailable — proceed without
         }
+        setLoadingSteps(s => updateStep(s, 'news', 'done'))
 
         if (cancelled) return
 
@@ -224,19 +257,12 @@ export function StockAnalysis() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-4 max-w-2xl mx-auto">
+      <div className="space-y-4 max-w-2xl mx-auto pb-24">
         <div className="flex items-center gap-2 text-sm text-neutral-400">
           <ArrowLeft className="w-4 h-4" />
           Back
         </div>
-        <div className="rounded-2xl bg-dark-800 border border-white/5 p-6">
-          <SkeletonBlock className="w-48 h-8 mb-2" />
-          <SkeletonBlock className="w-32 h-4 mb-6" />
-          <div className="flex justify-center">
-            <SkeletonBlock className="w-32 h-32 rounded-full" />
-          </div>
-        </div>
-        <SkeletonBlock className="w-full h-32 rounded-2xl" />
+        <AnalysisLoader steps={loadingSteps} stockName={stock?.name || ticker} />
       </div>
     )
   }
