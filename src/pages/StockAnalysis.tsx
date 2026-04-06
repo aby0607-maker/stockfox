@@ -121,9 +121,12 @@ export function StockAnalysis() {
   }>>({})
 
 
-  // Demo mode spotlight state
+  // Spotlight tour — show on first visit OR when demo mode is active
   const spotlights = getSpotlightsForLocation('stock-analysis')
-  const showDemoSpotlights = demoMode
+  const [hasSeenTour, setHasSeenTour] = useState(() => {
+    try { return localStorage.getItem('sf_tour_stock_analysis') === 'seen' } catch { return false }
+  })
+  const showSpotlights = demoMode || (!hasSeenTour && verdictV2 != null)
 
   useEffect(() => {
     if (!ticker || !currentProfile) return
@@ -837,11 +840,15 @@ export function StockAnalysis() {
         </div>
       </motion.div>
 
-      {/* ============== DEMO MODE SPOTLIGHT TOUR ============== */}
+      {/* ============== FEATURE TOUR (first visit + demo mode) ============== */}
       <SpotlightTour
         spotlights={spotlights}
-        isActive={showDemoSpotlights}
-        onEnd={toggleDemoMode}
+        isActive={showSpotlights}
+        onEnd={() => {
+          if (demoMode) toggleDemoMode()
+          setHasSeenTour(true)
+          try { localStorage.setItem('sf_tour_stock_analysis', 'seen') } catch {}
+        }}
       />
     </div>
   )

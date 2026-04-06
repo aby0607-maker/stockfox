@@ -15,6 +15,8 @@ import { computeQualFactors } from './qualScoringService'
 import { computeRiskFromScanner, buildScannerValuesFromMetrics } from './redFlagScannerService'
 import { resolveMetricValues } from './metricResolver'
 import { buildNewsEvents } from './newsBuilder'
+import { getSurveillanceStatus, surveillanceToScannerValues, getSurveillanceRedFlags } from './nse'
+import { getBSEScannerSignals, bseScannerToValues, bseScannerRedFlags } from './bse'
 
 // ============================================================
 // V2 VERDICT ASSEMBLY — Live data for any stock
@@ -297,20 +299,36 @@ export async function buildVerdictForStock(
   stock: Stock,
   profileId: string,
 ): Promise<StockVerdictV2> {
-  // Fetch quant + qual + raw metrics + news in parallel (all hit CMOTS cache)
-  const [quantSegments, qualFactors, resolved, newsEvents] = await Promise.all([
+  // Fetch quant + qual + raw metrics + news + surveillance + BSE scanner in parallel
+  const [quantSegments, qualFactors, resolved, newsEvents, surveillance, bseSignals] = await Promise.all([
     computeQuantSegments(stock.symbol),
     computeQualFactors(stock.symbol),
     resolveMetricValues(stock.symbol),
     buildNewsEvents(stock.symbol, stock.name),
+    getSurveillanceStatus(stock.symbol),
+    getBSEScannerSignals(stock.symbol),
   ])
   // Apply profile-specific segment weights (Layer 2 personalization)
   const profileWeights = getProfileWeightsV2(profileId)
   const quantPillar = buildPillarVerdictV2('quant', 'Quant Score', quantSegments, profileWeights.quantWeights)
   const qualPillar = buildPillarVerdictV2('qual', 'Qual Score', qualFactors, profileWeights.qualWeights)
 
-  // Build dynamic scanner display values from raw CMOTS metrics
-  const scannerValues = resolved ? buildScannerValuesFromMetrics(resolved.data) : undefined
+  // Build dynamic scanner display values from CMOTS + NSE surveillance + BSE signals
+  const cmotsScannerValues = resolved ? buildScannerValuesFromMetrics(resolved.data) : {}
+  const survScannerValues = surveillanceToScannerValues(surveillance)
+  const bseScannerValues = bseScannerToValues(bseSignals)
+  const scannerValues = { ...cmotsScannerValues, ...survScannerValues, ...bseScannerValues }
+
+  // Inject surveillance + BSE red flags into qual factors so they flow through to the scanner
+  const externalFlags = [
+    ...getSurveillanceRedFlags(surveillance).map(f => ({ ...f, source: 'NSE Surveillance' })),
+    ...bseScannerRedFlags(bseSignals).map(f => ({ ...f, source: 'BSE Filings' })),
+  ]
+  if (externalFlags.length > 0 && qualFactors[0]) {
+    qualFactors[0].redFlags = [...(qualFactors[0].redFlags || []), ...externalFlags.map(f => ({
+      signalId: f.id, title: f.title, description: f.description, severity: f.severity, source: f.source,
+    }))]
+  }
 
   // ── Risk Pillar: derived from 35-parameter Red Flag Scanner ──
   const riskResult = computeRiskFromScanner(quantSegments, qualFactors, null, scannerValues)

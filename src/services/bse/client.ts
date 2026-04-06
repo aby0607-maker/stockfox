@@ -329,3 +329,126 @@ export async function getCorporateActions(symbol: string): Promise<BSECorporateA
     return null
   }
 }
+
+// ─── Scanner-Enrichment Queries ──────────────────────────────
+
+export interface BSEScannerSignals {
+  hasCreditDowngrade: boolean
+  creditRatingText: string | null
+  hasManagementChange: boolean
+  managementChangeText: string | null
+  hasAuditorChange: boolean
+  auditorChangeText: string | null
+}
+
+/**
+ * Fetch scanner-relevant signals from BSE announcements.
+ * Queries Board Meeting + Company Update categories and parses headlines
+ * for credit rating, management, and auditor change keywords.
+ */
+export async function getBSEScannerSignals(symbol: string): Promise<BSEScannerSignals> {
+  const cacheKey = `bse\0scanner\0${symbol}`
+  const cached = cache.get<BSEScannerSignals>(cacheKey)
+  if (cached !== undefined) return cached
+
+  const result: BSEScannerSignals = {
+    hasCreditDowngrade: false, creditRatingText: null,
+    hasManagementChange: false, managementChangeText: null,
+    hasAuditorChange: false, auditorChangeText: null,
+  }
+
+  const scripCode = await getBseScripCode(symbol)
+  if (!scripCode) {
+    cache.set(cacheKey, result, { ttl: 24 * 60 * 60 * 1000 })
+    return result
+  }
+
+  const now = new Date()
+  const oneYearAgo = getDateNYearsAgo(1)
+  const dateFrom = formatDateDDMMYYYY(oneYearAgo)
+  const dateTo = formatDateDDMMYYYY(now)
+
+  // Fetch Board Meeting + Company Update announcements in parallel
+  const [boardMeetings, companyUpdates] = await Promise.all([
+    bseFetch<BSEAnnouncement[]>('/AnnGetData/w', {
+      strCat: 'Board Meeting', strPrevDate: dateFrom, strToDate: dateTo,
+      strScrip: scripCode, strSearch: 'scrip', strType: 'C',
+    }),
+    bseFetch<BSEAnnouncement[]>('/AnnGetData/w', {
+      strCat: 'Company Update', strPrevDate: dateFrom, strToDate: dateTo,
+      strScrip: scripCode, strSearch: 'scrip', strType: 'C',
+    }),
+  ])
+
+  // Parse Board Meeting headlines for management changes
+  if (boardMeetings && Array.isArray(boardMeetings)) {
+    for (const ann of boardMeetings.slice(0, 20)) {
+      const text = `${ann.HEADLINE || ''} ${ann.NEWSSUB || ''}`.toLowerCase()
+      if (text.match(/\b(resign|cessation|appointment|exit)\b.*\b(cfo|ceo|managing director|md|whole.?time director|chief)\b/) ||
+          text.match(/\b(cfo|ceo|managing director|md|chief)\b.*\b(resign|cessation|appointment|exit)\b/)) {
+        result.hasManagementChange = true
+        result.managementChangeText = ann.HEADLINE || ann.NEWSSUB || 'Management change detected'
+        break
+      }
+    }
+  }
+
+  // Parse Company Update headlines for credit rating + auditor
+  if (companyUpdates && Array.isArray(companyUpdates)) {
+    for (const ann of companyUpdates.slice(0, 30)) {
+      const text = `${ann.HEADLINE || ''} ${ann.NEWSSUB || ''}`.toLowerCase()
+
+      // Credit rating
+      if (!result.hasCreditDowngrade && text.match(/\b(credit rating|crisil|icra|care rating|india rating|fitch|moody|downgrad)/)) {
+        result.hasCreditDowngrade = text.includes('downgrad')
+        result.creditRatingText = ann.HEADLINE || ann.NEWSSUB || 'Credit rating activity'
+      }
+
+      // Auditor change
+      if (!result.hasAuditorChange && text.match(/\b(statutory auditor|auditor.*appoint|auditor.*resign|change.*auditor|auditor.*change)/)) {
+        result.hasAuditorChange = true
+        result.auditorChangeText = ann.HEADLINE || ann.NEWSSUB || 'Auditor change detected'
+      }
+    }
+  }
+
+  cache.set(cacheKey, result, { ttl: 24 * 60 * 60 * 1000 })
+  return result
+}
+
+/**
+ * Convert BSE scanner signals into scanner display values + red flags.
+ */
+export function bseScannerToValues(signals: BSEScannerSignals): Record<string, string> {
+  const values: Record<string, string> = {}
+
+  values['rf-credit-downgrade'] = signals.hasCreditDowngrade
+    ? signals.creditRatingText || 'Downgrade detected'
+    : signals.creditRatingText || 'Stable'
+
+  values['rf-mgmt-churn'] = signals.hasManagementChange
+    ? signals.managementChangeText || 'Change detected'
+    : 'Stable'
+
+  values['rf-auditor-change'] = signals.hasAuditorChange
+    ? signals.auditorChangeText || 'Change detected'
+    : 'No change'
+
+  return values
+}
+
+export function bseScannerRedFlags(signals: BSEScannerSignals): { id: string; title: string; description: string; severity: 'hard' | 'soft' }[] {
+  const flags: { id: string; title: string; description: string; severity: 'hard' | 'soft' }[] = []
+
+  if (signals.hasCreditDowngrade) {
+    flags.push({ id: 'BSE_CREDIT', title: 'Credit Rating Downgrade', description: signals.creditRatingText || 'Credit rating downgraded', severity: 'soft' })
+  }
+  if (signals.hasManagementChange) {
+    flags.push({ id: 'BSE_MGMT', title: 'Key Management Change', description: signals.managementChangeText || 'CFO/CEO change detected', severity: 'soft' })
+  }
+  if (signals.hasAuditorChange) {
+    flags.push({ id: 'BSE_AUDITOR', title: 'Auditor Change', description: signals.auditorChangeText || 'Statutory auditor changed', severity: 'soft' })
+  }
+
+  return flags
+}

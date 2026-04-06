@@ -48,6 +48,17 @@ const V2_TO_SCANNER_MAP: Record<string, string> = {
   // Note: INST_PROM_LOW (low holding) is intentionally unmapped — it flows as an additional flag.
   // rf-pledge is about pledging (borrowing against shares), not holding level.
   'INST_PROM_DROP': 'rf-promoter-exit', // Promoter decline
+
+  // NSE Surveillance flags (from REG_IND CSV)
+  'SURV_ASM': 'rf-asm',              // ASM list
+  'SURV_GSM': 'rf-gsm',              // GSM list
+  'SURV_SMS': 'rf-sms',              // Pump & dump SMS alert
+  'SURV_DEFAULT': 'rf-default',      // Default/ICA flag
+
+  // BSE Scanner signals (from Board Meeting + Company Update announcements)
+  'BSE_CREDIT': 'rf-credit-downgrade',  // Credit rating downgrade
+  'BSE_MGMT': 'rf-mgmt-churn',          // Key management change
+  'BSE_AUDITOR': 'rf-auditor-change',    // Auditor change
 }
 
 // ─── 35-Parameter Framework Definition ──────────────────────

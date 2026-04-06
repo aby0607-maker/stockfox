@@ -92,6 +92,15 @@ export default defineConfig(({ mode }) => {
           })
         },
       },
+      '/api/nse-archives': {
+        target: 'https://nsearchives.nseindia.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/nse-archives/, ''),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; StockFox/1.0)',
+          'Referer': 'https://www.nseindia.com/',
+        },
+      },
     },
   },
   build: {
