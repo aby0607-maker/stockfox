@@ -101,6 +101,14 @@ export default defineConfig(({ mode }) => {
           'Referer': 'https://www.nseindia.com/',
         },
       },
+      '/api/yahoo': {
+        target: 'https://query2.finance.yahoo.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/yahoo/, ''),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; StockFox/1.0)',
+        },
+      },
     },
   },
   build: {

@@ -70,7 +70,7 @@ function delayedToOHLCV(dp: CMOTSDelayedPrice): CMOTSOHLCVRecord {
 
 // ─── Historical Price Data ───
 
-/** Get historical prices for a stock by co_code (string) or NSE symbol */
+/** Get historical prices — tries CMOTS first, falls back to Yahoo Finance */
 export async function getHistoricalPrices(
   symbol: string,
   from: string,
@@ -78,18 +78,34 @@ export async function getHistoricalPrices(
   exchange: 'bse' | 'nse' = 'bse',
   resolvedCoCode?: number,
 ): Promise<CMOTSOHLCVRecord[]> {
+  // Try CMOTS first
   const coCode = resolvedCoCode ?? await getCoCode(symbol)
-  if (!coCode) {
-    console.warn(`[PriceData] Price history unavailable for ${symbol}: could not resolve co_code`)
-    return []
+  if (coCode) {
+    const records = await cmotsFetch<CMOTSOHLCVRecord>({
+      endpoint: `/AdjustedPriceChart/${exchange}/${coCode}/${from}/${to}`,
+      cacheTTL: CACHE_TTL,
+    })
+    if (records.length > 0) {
+      records.sort((a, b) => a.Tradedate.localeCompare(b.Tradedate))
+      return records
+    }
   }
 
-  const records = await cmotsFetch<CMOTSOHLCVRecord>({
-    endpoint: `/AdjustedPriceChart/${exchange}/${coCode}/${from}/${to}`,
-    cacheTTL: CACHE_TTL,
-  })
-  records.sort((a, b) => a.Tradedate.localeCompare(b.Tradedate))
-  return records
+  // Fallback: Yahoo Finance (uses NSE symbol)
+  try {
+    const { getYahooHistoricalPrices } = await import('@/services/yahoo')
+    const nseSymbol = symbol.toUpperCase()
+    const yahooRecords = await getYahooHistoricalPrices(nseSymbol, from, to)
+    if (yahooRecords.length > 0) {
+      console.info(`[PriceData] Yahoo Finance fallback for ${symbol}: ${yahooRecords.length} records`)
+      return yahooRecords
+    }
+  } catch (err) {
+    console.warn(`[PriceData] Yahoo fallback failed for ${symbol}:`, err instanceof Error ? err.message : err)
+  }
+
+  console.warn(`[PriceData] No price history available for ${symbol} (CMOTS + Yahoo both failed)`)
+  return []
 }
 
 /** Get latest price for a stock (fetches last 7 days, returns most recent) */
