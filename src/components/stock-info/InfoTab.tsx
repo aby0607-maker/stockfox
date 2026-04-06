@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { AnalysisLoader, updateStep, type LoadingStep } from '@/components/scoring/AnalysisLoader'
 import type { Stock, StockVerdictV2, CMOTSShareholding } from '@/types'
+import type { SectorMomentum } from '@/services/yahoo/sectorRotation'
+import type { ESGScoreData } from '@/services/yahoo/esgScore'
+import type { ValuationEstimate } from '@/services/valuationService'
 
 // ─── Data types ────────────────────────────────
 
@@ -75,6 +78,10 @@ interface InfoData {
   price52W: PriceContext52W | null
   quarterlyFinancials: QuarterlyFinancial[]
   dividendHistory: { date: string; amount: string; purpose: string }[]
+  // Phase 2
+  sectorRotation: { stockSector: string | null; sectors: SectorMomentum[] } | null
+  valuation: ValuationEstimate | null
+  esg: ESGScoreData | null
 }
 
 // ─── Data fetching ──────────────────────────────
@@ -295,9 +302,50 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
     } catch { /* sector context failed */ }
   }
 
+  // ── Phase 2: Sector Rotation, Valuation, ESG ──
+
+  // Sector Rotation (non-blocking — don't delay page load)
+  let sectorRotation: InfoData['sectorRotation'] = null
+  try {
+    const { getSectorRotation, mapSectorToIndex } = await import('@/services/yahoo/sectorRotation')
+    const rotationData = await getSectorRotation()
+    const stockSector = company ? mapSectorToIndex(company.sectorname) : null
+    sectorRotation = { stockSector, sectors: rotationData.sectors }
+  } catch { /* sector rotation failed — non-critical */ }
+
+  // Valuation (Graham + DCF — computed from existing data, no API call)
+  let valuation: InfoData['valuation'] = null
+  try {
+    const { computeValuation, extractFCFFromCashFlow } = await import('@/services/valuationService')
+    const { getCashFlow } = await import('@/services/cmots')
+    const cashFlowRows = await getCashFlow(symbol, coCode ?? undefined)
+    const fcfHistory = extractFCFFromCashFlow(cashFlowRows as any[]).map(f => f.fcf)
+    const currentPrice = priceRaw.length > 0 ? priceRaw[priceRaw.length - 1].Dayclose : 0
+
+    valuation = computeValuation({
+      eps: ttm['eps'],
+      bookValuePerShare: ttm['pb'] != null && ttm['pb'] > 0 && currentPrice > 0 ? currentPrice / ttm['pb'] : null,
+      currentPrice,
+      pe: ttm['pe'],
+      pb: ttm['pb'],
+      roe: ttm['roe'],
+      growthRate: null, // Would need 5Y revenue CAGR — use null for now
+      fcfHistory,
+      sharesOutstanding: ttm['mcap'] != null && currentPrice > 0 ? (ttm['mcap']! * 10000000) / currentPrice : null,
+    })
+  } catch { /* valuation computation failed */ }
+
+  // ESG Score
+  let esg: InfoData['esg'] = null
+  try {
+    const { getESGScore } = await import('@/services/yahoo/esgScore')
+    esg = await getESGScore(symbol)
+  } catch { /* ESG fetch failed */ }
+
   return {
     ttm, shareholding, priceHistory, peers, corporateActions, mcapRank,
     promoter, sectorContext, price52W, quarterlyFinancials, dividendHistory,
+    sectorRotation, valuation, esg,
   }
 }
 
@@ -488,6 +536,7 @@ export function InfoTab({ stock }: InfoTabProps) {
     { id: 'shareholding', label: 'Analyzing ownership & promoters', detail: 'CMOTS + BSE insider filings', status: 'pending' },
     { id: 'sector', label: 'Computing sector benchmarks', detail: 'Sector averages from CMOTS', status: 'pending' },
     { id: 'peers', label: 'Building peer comparison', detail: 'Industry matching + TTM data', status: 'pending' },
+    { id: 'advanced', label: 'Running advanced analysis', detail: 'Valuation models, ESG, sector rotation', status: 'pending' },
   ])
 
   useEffect(() => {
@@ -501,6 +550,7 @@ export function InfoTab({ stock }: InfoTabProps) {
         setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'chart', 'done'), 'shareholding', 'loading')) }, 4000)
         setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'shareholding', 'done'), 'sector', 'loading')) }, 6000)
         setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'sector', 'done'), 'peers', 'loading')) }, 8000)
+        setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'peers', 'done'), 'advanced', 'loading')) }, 10000)
 
         const result = await fetchInfoData(stock.symbol)
         if (!cancelled) {
@@ -808,7 +858,154 @@ export function InfoTab({ stock }: InfoTabProps) {
         </Section>
       )}
 
-      {/* ═══ 11. Corporate Actions ═══ */}
+      {/* ═══ 11. Valuation Matrix (Graham/DCF) ═══ */}
+      {data.valuation && (data.valuation.grahamNumber != null || data.valuation.dcfFairValue != null) && (
+        <Section icon={<span className="text-sm">📐</span>} title="Valuation Matrix" delay={0.27}>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              {/* Graham Number */}
+              {data.valuation.grahamNumber != null && (
+                <div className={cn('p-3 rounded-xl border bg-dark-700/40',
+                  data.valuation.grahamMargin != null && data.valuation.grahamMargin > 0 ? 'border-emerald-500/15' : 'border-red-500/15')}>
+                  <span className="text-[10px] text-neutral-400 block">Graham Number</span>
+                  <span className="text-lg font-bold text-white">₹{data.valuation.grahamNumber.toFixed(0)}</span>
+                  {data.valuation.grahamMargin != null && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className={cn('w-1.5 h-1.5 rounded-full', data.valuation.grahamMargin > 0 ? 'bg-emerald-400' : 'bg-red-400')} />
+                      <span className={cn('text-[10px] font-medium', data.valuation.grahamMargin > 0 ? 'text-emerald-400' : 'text-red-400')}>
+                        {data.valuation.grahamMargin > 0 ? `${data.valuation.grahamMargin.toFixed(0)}% undervalued` : `${Math.abs(data.valuation.grahamMargin).toFixed(0)}% overvalued`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* DCF Fair Value */}
+              {data.valuation.dcfFairValue != null && (
+                <div className={cn('p-3 rounded-xl border bg-dark-700/40',
+                  data.valuation.dcfMargin != null && data.valuation.dcfMargin > 0 ? 'border-emerald-500/15' : 'border-red-500/15')}>
+                  <span className="text-[10px] text-neutral-400 block">DCF Fair Value</span>
+                  <span className="text-lg font-bold text-white">₹{data.valuation.dcfFairValue.toFixed(0)}</span>
+                  {data.valuation.dcfMargin != null && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className={cn('w-1.5 h-1.5 rounded-full', data.valuation.dcfMargin > 0 ? 'bg-emerald-400' : 'bg-red-400')} />
+                      <span className={cn('text-[10px] font-medium', data.valuation.dcfMargin > 0 ? 'text-emerald-400' : 'text-red-400')}>
+                        {data.valuation.dcfMargin > 0 ? `${data.valuation.dcfMargin.toFixed(0)}% upside` : `${Math.abs(data.valuation.dcfMargin).toFixed(0)}% downside`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Earnings Yield + Verdict */}
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-dark-700/30">
+              {data.valuation.earningsYield != null && (
+                <span className="text-[10px] text-neutral-400">Earnings Yield: <span className="text-white font-medium">{data.valuation.earningsYield.toFixed(1)}%</span></span>
+              )}
+              {data.valuation.verdict && (
+                <span className={cn('ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full',
+                  data.valuation.verdict === 'undervalued' ? 'bg-emerald-500/15 text-emerald-400' :
+                  data.valuation.verdict === 'overvalued' ? 'bg-red-500/15 text-red-400' :
+                  'bg-amber-500/15 text-amber-400')}>
+                  {data.valuation.verdict === 'undervalued' ? '🟢 Undervalued' :
+                   data.valuation.verdict === 'overvalued' ? '🔴 Overvalued' : '🟡 Fairly Valued'}
+                </span>
+              )}
+            </div>
+            <p className="text-[9px] text-neutral-600">Graham: sqrt(22.5 × EPS × BVPS). DCF: 5Y FCF projection at 12% WACC. For reference only.</p>
+          </div>
+        </Section>
+      )}
+
+      {/* ═══ 12. ESG Score ═══ */}
+      {data.esg && data.esg.totalEsg != null && (
+        <Section icon={<span className="text-sm">🌱</span>} title="ESG Risk Score" delay={0.29}>
+          <div className="space-y-3">
+            {/* Overall risk gauge */}
+            <div className="flex items-center gap-4">
+              <div className={cn('w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold border-2',
+                data.esg.riskCategory === 'negligible' || data.esg.riskCategory === 'low' ? 'border-emerald-500/50 text-emerald-400' :
+                data.esg.riskCategory === 'medium' ? 'border-amber-500/50 text-amber-400' :
+                'border-red-500/50 text-red-400')}>
+                {data.esg.totalEsg?.toFixed(1)}
+              </div>
+              <div>
+                <span className={cn('text-sm font-semibold capitalize',
+                  data.esg.riskCategory === 'negligible' || data.esg.riskCategory === 'low' ? 'text-emerald-400' :
+                  data.esg.riskCategory === 'medium' ? 'text-amber-400' : 'text-red-400')}>
+                  {data.esg.riskCategory} risk
+                </span>
+                {data.esg.peerGroup && <p className="text-[10px] text-neutral-500 mt-0.5">Peer group: {data.esg.peerGroup}</p>}
+                {data.esg.percentile != null && <p className="text-[10px] text-neutral-500">Percentile: {data.esg.percentile.toFixed(0)}th</p>}
+              </div>
+            </div>
+            {/* E, S, G breakdown */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Environment', value: data.esg.environmentScore, icon: '🌍' },
+                { label: 'Social', value: data.esg.socialScore, icon: '👥' },
+                { label: 'Governance', value: data.esg.governanceScore, icon: '⚖️' },
+              ].map(item => (
+                <div key={item.label} className="p-2.5 rounded-xl bg-dark-700/40 border border-white/5 text-center">
+                  <span className="text-xs block mb-1">{item.icon}</span>
+                  <span className="text-sm font-bold text-white block">{item.value?.toFixed(1) ?? '—'}</span>
+                  <span className="text-[9px] text-neutral-500">{item.label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[9px] text-neutral-600">Sustainalytics ESG Risk Rating. Lower score = lower risk. Scale: 0-50+.</p>
+          </div>
+        </Section>
+      )}
+
+      {/* ═══ 13. Sector Rotation ═══ */}
+      {data.sectorRotation && data.sectorRotation.sectors.length > 0 && (
+        <Section icon={<span className="text-sm">🔄</span>} title="Sector Rotation" delay={0.31}>
+          <p className="text-[10px] text-neutral-500 mb-2">
+            NSE sector index momentum — 3-month returns
+            {data.sectorRotation.stockSector && <span className="text-primary-400 ml-1">(Your stock: {data.sectorRotation.stockSector})</span>}
+          </p>
+          <div className="space-y-1.5">
+            {data.sectorRotation.sectors.filter(s => s.sector !== 'Market').slice(0, 10).map(sector => {
+              const isStockSector = sector.sector === data.sectorRotation?.stockSector
+              const r3M = sector.return3M
+              return (
+                <div key={sector.symbol} className={cn(
+                  'flex items-center gap-2 py-1.5 px-2 rounded-lg',
+                  isStockSector ? 'bg-primary-500/10 border border-primary-500/20' : 'hover:bg-white/2'
+                )}>
+                  <span className={cn('text-xs font-medium w-24 truncate', isStockSector ? 'text-primary-400' : 'text-white')}>{sector.sector}</span>
+                  {/* Return bar */}
+                  <div className="flex-1 h-3 bg-dark-700 rounded-full overflow-hidden relative">
+                    {r3M != null && (
+                      <div
+                        className={cn('absolute h-full rounded-full', r3M >= 0 ? 'bg-emerald-500/60' : 'bg-red-500/60')}
+                        style={{
+                          left: r3M >= 0 ? '50%' : `${Math.max(5, 50 + r3M * 2)}%`,
+                          width: `${Math.min(45, Math.abs(r3M) * 2)}%`,
+                        }}
+                      />
+                    )}
+                    <div className="absolute inset-y-0 left-1/2 w-px bg-neutral-600" />
+                  </div>
+                  <span className={cn('text-[10px] font-semibold w-12 text-right',
+                    r3M != null && r3M > 0 ? 'text-emerald-400' : r3M != null && r3M < 0 ? 'text-red-400' : 'text-neutral-500')}>
+                    {r3M != null ? `${r3M > 0 ? '+' : ''}${r3M.toFixed(1)}%` : '—'}
+                  </span>
+                  <span className={cn('text-[8px] px-1.5 py-0.5 rounded-full font-medium',
+                    sector.momentum === 'strong' ? 'bg-emerald-500/15 text-emerald-400' :
+                    sector.momentum === 'positive' ? 'bg-emerald-500/10 text-emerald-300' :
+                    sector.momentum === 'weak' ? 'bg-red-500/15 text-red-400' :
+                    'bg-neutral-500/10 text-neutral-400')}>
+                    {sector.momentum}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </Section>
+      )}
+
+      {/* ═══ 14. Corporate Actions ═══ */}
       {data.corporateActions.filter(a => a.type !== 'dividend').length > 0 && (
         <Section icon={<Calendar className="w-4 h-4 text-primary-400" />} title="Corporate Actions" delay={0.25}>
           <div className="space-y-2">
