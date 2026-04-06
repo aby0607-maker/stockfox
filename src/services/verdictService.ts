@@ -9,7 +9,7 @@
 
 import type { Stock, StockVerdictV2, PillarVerdict, SegmentVerdictV2, Signal } from '@/types'
 import { getScoreBandEnum, getOverallVerdict } from '@/lib/scoring'
-import { getProfileWeightsV2 } from '@/data/profiles'
+import { getProfileWeightsV2, profiles } from '@/data/profiles'
 import { computeQuantSegments } from './quantScoringService'
 import { computeQualFactors } from './qualScoringService'
 import { computeRiskFromScanner, buildScannerValuesFromMetrics } from './redFlagScannerService'
@@ -112,6 +112,106 @@ function synthesizeSignals(pillars: PillarVerdict[]): { topSignals: Signal[]; to
   }
 }
 
+// ─── Contextual Verdict Explainer (LLM-ready) ──────────
+
+interface VerdictContext {
+  stock: { name: string; sector: string }
+  profile: { id: string; thesis: string; displayName: string }
+  scores: { overall: number; quant: number; qual: number; risk: number }
+  topStrength: Signal | null
+  topConcern: Signal | null
+  strongestPillar: { name: string; score: number }
+  weakestPillar: { name: string; score: number }
+  profileTopSegment: { name: string; score: number } | null
+}
+
+const PROFILE_LENS: Record<string, string> = {
+  ankit: 'For comprehensive analysis',
+  sneha: 'For value-focused investing',
+  meera: 'For momentum trading',
+  kavya: 'As a learning opportunity',
+  fatima: 'For long-term compounding',
+  nikhil: 'For remote investing with governance trust',
+  priya: 'For a balanced investment view',
+}
+
+function generateVerdictExplainer(
+  stock: Stock,
+  profileId: string,
+  pillars: PillarVerdict[],
+  topSignals: Signal[],
+  topConcerns: Signal[],
+  overallScore: number,
+  profileWeightsObj: ReturnType<typeof getProfileWeightsV2>,
+): { summary: string; rationale: string; context: VerdictContext } {
+  const quant = pillars.find(p => p.pillar === 'quant')!
+  const qual = pillars.find(p => p.pillar === 'qual')!
+  const risk = pillars.find(p => p.pillar === 'risk')!
+
+  // Find strongest and weakest pillars
+  const pillarScores = [
+    { name: 'Quant', score: quant.score },
+    { name: 'Qual', score: qual.score },
+    { name: 'Risk', score: risk.score },
+  ].sort((a, b) => b.score - a.score)
+  const strongest = pillarScores[0]
+  const weakest = pillarScores[pillarScores.length - 1]
+
+  // Find the profile's highest-weighted quant segment and its score
+  const qw = profileWeightsObj.quantWeights
+  const topSegKey = Object.entries(qw).sort(([, a], [, b]) => b - a)[0]?.[0]
+  const topSegment = quant.segments.find(s => s.id === topSegKey)
+  const profileTopSegment = topSegment ? { name: topSegment.name, score: topSegment.score ?? 0 } : null
+
+  const profile = profiles.find(p => p.id === profileId)
+  const lens = PROFILE_LENS[profileId] || 'For your analysis'
+  const displayName = profile?.displayName || profileId
+
+  const ctx: VerdictContext = {
+    stock: { name: stock.name, sector: stock.sector },
+    profile: { id: profileId, thesis: profile?.investmentThesis || 'balanced', displayName },
+    scores: { overall: overallScore, quant: quant.score, qual: qual.score, risk: risk.score },
+    topStrength: topSignals[0] || null,
+    topConcern: topConcerns[0] || null,
+    strongestPillar: strongest,
+    weakestPillar: weakest,
+    profileTopSegment,
+  }
+
+  // ── Build summary (1-line contextual copy) ──
+  let summary: string
+  const strengthText = topSignals[0]?.title || strongest.name
+  const concernText = topConcerns[0]?.title || null
+
+  if (overallScore >= 70) {
+    // Strong stock
+    summary = `${strengthText} leads the analysis` +
+      (concernText ? ` — minor watch area: ${concernText.toLowerCase()}.` : ' across all pillars.')
+  } else if (overallScore >= 60) {
+    // Good stock
+    summary = `${strengthText} is a key positive` +
+      (concernText ? `, but ${concernText.toLowerCase()} needs attention.` : ', with solid fundamentals overall.')
+  } else if (overallScore >= 40) {
+    // Mixed stock
+    summary = concernText
+      ? `${concernText} weighs on the score — ${strengthText.toLowerCase()} provides some support.`
+      : `Mixed signals across pillars — ${weakest.name} at ${weakest.score}/100 is the main drag.`
+  } else {
+    // Weak stock
+    summary = concernText
+      ? `${concernText} — significant concerns identified across ${weakest.name.toLowerCase()}.`
+      : `Multiple concerns across ${weakest.name} (${weakest.score}/100) and ${pillarScores[1].name} (${pillarScores[1].score}/100).`
+  }
+
+  // ── Build rationale (2-3 line expanded) ──
+  const rationale = `${lens}: ${strongest.name} leads at ${strongest.score}/100` +
+    (profileTopSegment ? `, with your top-priority segment ${profileTopSegment.name} at ${profileTopSegment.score}/100` : '') +
+    `. ${weakest.name} at ${weakest.score}/100 is the weakest pillar.` +
+    (topConcerns.length > 0 ? ` Key concern: ${topConcerns[0].title}.` : '')
+
+  return { summary, rationale, context: ctx }
+}
+
 /**
  * Build a full V2 verdict for any stock from live CMOTS data.
  * Quant pillar uses live scoring; Qual uses placeholders; Risk computed from red flags.
@@ -156,11 +256,14 @@ export async function buildVerdictForStock(
   const allPillars = [quantPillar, qualPillar, riskPillar]
   const { topSignals, topConcerns } = synthesizeSignals(allPillars)
 
+  // Generate contextual explainer copy (personalized, LLM-ready)
+  const explainer = generateVerdictExplainer(stock, profileId, allPillars, topSignals, topConcerns, overallScore, profileWeights)
+
   return {
     overallVerdict: overall.verdict,
     overallScore,
     overallLabel: overall.label,
-    overallSummary: `${stock.name} scores ${overallScore}/100 — ${overall.label}`,
+    overallSummary: explainer.summary,
     pillars: allPillars,
     newsEvents,
     ticker: stock.symbol.toUpperCase(),
@@ -171,7 +274,7 @@ export async function buildVerdictForStock(
     profileId,
     topSignals,
     topConcerns,
-    verdictRationale: `Based on Quant (${quantPillar.score}/100) + Qual (${qualPillar.score}/100, limited data) + Risk (${riskPillar.score}/100) analysis.`,
+    verdictRationale: explainer.rationale,
     positionSizing: 'See detailed analysis',
     entryGuidance: 'See detailed analysis',
     scannerValues,
