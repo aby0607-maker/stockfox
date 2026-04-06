@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { UserProfile, Alert } from '@/types'
 
 // Import mock data (will be populated later)
-import { profiles } from '@/data/profiles'
+import { profiles, activeProfiles, ACTIVE_PROFILE_IDS } from '@/data/profiles'
 
 // Analysis mode types
 type AnalysisMode = 'dfy' | 'diy'
@@ -288,6 +288,11 @@ export const useAppStore = create<AppState>()(
         // If persisted watchlist is empty, seed with defaults
         if (!merged.watchlist || merged.watchlist.length === 0) {
           merged.watchlist = ['ETERNAL', 'AXISBANK', 'TCS']
+        }
+        // Migrate deactivated profiles to 'priya' (default active profile)
+        if (merged.currentProfileId && !ACTIVE_PROFILE_IDS.includes(merged.currentProfileId as any)) {
+          merged.currentProfileId = 'priya'
+          merged.currentProfile = activeProfiles.find(p2 => p2.id === 'priya') || null
         }
         return merged as AppState
       },

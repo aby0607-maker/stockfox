@@ -10,7 +10,12 @@ export interface ExtendedProfile extends UserProfile {
   riskLevel: number // 1-10 for visual indicator
   analysisDepth: 'simplified' | 'detailed' // Simplified = just verdicts, Detailed = full 6D/11-segment breakdown
   tagline: string // Short description for card display
+  active?: boolean // Whether this profile is available for selection (default true for backwards compat)
 }
+
+// The 4 active profiles — maximally differentiated scoring perspectives
+export const ACTIVE_PROFILE_IDS = ['priya', 'kavya', 'meera', 'sneha'] as const
+export type ActiveProfileId = typeof ACTIVE_PROFILE_IDS[number]
 
 export const profiles: ExtendedProfile[] = [
   // ===== BALANCED / AGNOSTIC (Most investors fall here) =====
@@ -674,8 +679,8 @@ export function getProfileById(id: string): ExtendedProfile | undefined {
 // Group profiles by category (balanced vs focused)
 export function getProfilesByCategory() {
   return {
-    balanced: profiles.filter(p => p.category === 'balanced'),
-    focused: profiles.filter(p => p.category === 'focused'),
+    balanced: activeProfiles.filter(p => p.category === 'balanced'),
+    focused: activeProfiles.filter(p => p.category === 'focused'),
   }
 }
 
@@ -851,4 +856,20 @@ export const PROFILE_WEIGHTS_V2: Record<string, ProfileWeightsV2> = {
  */
 export function getProfileWeightsV2(profileId: string): ProfileWeightsV2 {
   return PROFILE_WEIGHTS_V2[profileId] ?? PROFILE_WEIGHTS_V2['priya']
+}
+
+/**
+ * Active profiles only — the 4 maximally differentiated perspectives.
+ * Used by ProfileSelection, ProfileSwitcher, Dashboard, and pre-computation.
+ *
+ * Priya  = Balanced (baseline, equal weights)
+ * Kavya  = Safety-First (Risk 35%, Financial Health 35%)
+ * Meera  = Momentum (Quant 60%, Technical 45%)
+ * Sneha  = Value (Valuation 35%, Earnings Quality 30%)
+ */
+export const activeProfiles = profiles.filter(p => ACTIVE_PROFILE_IDS.includes(p.id as ActiveProfileId))
+
+/** Check if a profile ID is one of the 4 active profiles */
+export function isActiveProfile(profileId: string): boolean {
+  return ACTIVE_PROFILE_IDS.includes(profileId as ActiveProfileId)
 }

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
-import { profiles } from '@/data/profiles'
+import { activeProfiles } from '@/data/profiles'
 import { cn } from '@/lib/utils'
 
 export function ProfileSwitcher() {
@@ -66,7 +66,7 @@ export function ProfileSwitcher() {
               <p className="text-xs text-neutral-500">Switch demo profile</p>
             </div>
 
-            {profiles.map(profile => (
+            {activeProfiles.map(profile => (
               <button
                 key={profile.id}
                 onClick={() => handleSelectProfile(profile.id)}
