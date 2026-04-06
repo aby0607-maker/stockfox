@@ -170,10 +170,34 @@ export async function getAllFundamentals(symbol: string): Promise<FundamentalsBu
   })
 
   try {
-    const [ttm, finData, pnl, cashFlow, balanceSheet, quarterly, shareholding] = await Promise.race([
+    let [ttm, finData, pnl, cashFlow, balanceSheet, quarterly, shareholding] = await Promise.race([
       dataPromise,
       timeoutPromise,
     ])
+
+    // IndianAPI fallback: if CMOTS P&L/BS/CF returned empty, try IndianAPI
+    const needsFallback = pnl.length === 0 || balanceSheet.length === 0 || cashFlow.length === 0
+    if (needsFallback) {
+      try {
+        const { getIndianAPIFundamentals, mergeFundamentals } = await import('@/services/indianapi')
+        const companyName = symbol // IndianAPI uses company name/symbol
+        const indianData = await getIndianAPIFundamentals(companyName)
+        if (indianData) {
+          const merged = mergeFundamentals(
+            { ttm, finData, pnl, cashFlow, balanceSheet, quarterly, shareholding },
+            indianData,
+          )
+          if (merged.pnl.length > 0) pnl = merged.pnl
+          if (merged.cashFlow.length > 0) cashFlow = merged.cashFlow
+          if (merged.balanceSheet.length > 0) balanceSheet = merged.balanceSheet
+          if (merged.quarterly.length > 0 && quarterly.length === 0) quarterly = merged.quarterly
+          console.info(`[Fundamentals] IndianAPI fallback for ${symbol}: P&L=${merged.pnl.length}, BS=${merged.balanceSheet.length}, CF=${merged.cashFlow.length}`)
+        }
+      } catch (err) {
+        console.warn(`[Fundamentals] IndianAPI fallback failed for ${symbol}:`, err instanceof Error ? err.message : err)
+      }
+    }
+
     return { ttm, finData, pnl, cashFlow, balanceSheet, quarterly, shareholding }
   } finally {
     clearTimeout(timeoutId!)
