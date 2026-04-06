@@ -1,6 +1,46 @@
 {
   "rewrites": [
     {
+      "source": "/api/cmots/:path*",
+      "destination": "/api/cmots/[...path]"
+    },
+    {
+      "source": "/api/yahoo/:path*",
+      "destination": "/api/yahoo/[...path]"
+    },
+    {
+      "source": "/api/indianapi/:path*",
+      "destination": "/api/indianapi/[...path]"
+    },
+    {
+      "source": "/api/finnhub/:path*",
+      "destination": "/api/finnhub/[...path]"
+    },
+    {
+      "source": "/api/nse-archives/:path*",
+      "destination": "/api/nse-archives/[...path]"
+    },
+    {
+      "source": "/api/bse/:path*",
+      "destination": "/api/bse/[...path]"
+    },
+    {
+      "source": "/api/screener/:path*",
+      "destination": "/api/screener/[...path]"
+    },
+    {
+      "source": "/api/trendlyne/:path*",
+      "destination": "/api/trendlyne/[...path]"
+    },
+    {
+      "source": "/api/dhan/:path*",
+      "destination": "/api/dhan/[...path]"
+    },
+    {
+      "source": "/api/gnews/:path*",
+      "destination": "/api/gnews/[...path]"
+    },
+    {
       "source": "/stock/:path*",
       "destination": "/index.html"
     },
