@@ -7,7 +7,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-const GNEWS_BASE = 'https://news.google.com'
+const GNEWS_BASE = 'https://news.google.com/rss'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
