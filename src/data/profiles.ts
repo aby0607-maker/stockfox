@@ -730,9 +730,10 @@ import type { ProfileWeightsV2 } from '@/types'
  * Note: News & Events is unscored (separate section).
  */
 export const PROFILE_WEIGHTS_V2: Record<string, ProfileWeightsV2> = {
-  // Practical Priya — balanced, simplified, just wants a clear verdict
+  // Practical Priya — balanced investor, wants a clear verdict with safety net
+  // Risk elevated to 25% as non-expert safety guardrail
   priya: {
-    pillarWeights: { quant: 50, qual: 30, risk: 20 },
+    pillarWeights: { quant: 45, qual: 30, risk: 25 },
     quantWeights: {
       profitability: 20, growth: 20, valuation: 25,
       financial_health: 25, technical: 10,
@@ -744,39 +745,45 @@ export const PROFILE_WEIGHTS_V2: Record<string, ProfileWeightsV2> = {
     },
   },
 
-  // Analytical Ankit — comprehensive, wants full breakdown
+  // Analytical Ankit — comprehensive analyst, thorough across all dimensions
+  // Risk at 25% because thorough analysis should still penalize red flags heavily
   ankit: {
-    pillarWeights: { quant: 45, qual: 35, risk: 20 },
+    pillarWeights: { quant: 40, qual: 35, risk: 25 },
     quantWeights: {
       profitability: 20, growth: 25, valuation: 20,
       financial_health: 20, technical: 15,
     },
     qualWeights: {
       management_governance: 20, business_quality: 25,
-      capital_discipline: 20, earnings_quality: 20,
-      execution_quality: 15,
-    },
-  },
-
-  // Curious Kavya — beginner, learning-focused
-  kavya: {
-    pillarWeights: { quant: 50, qual: 30, risk: 20 },
-    quantWeights: {
-      profitability: 25, growth: 20, valuation: 20,
-      financial_health: 30, technical: 5,
-    },
-    qualWeights: {
-      management_governance: 30, business_quality: 20,
-      capital_discipline: 20, earnings_quality: 20,
+      capital_discipline: 20, earnings_quality: 25,
       execution_quality: 10,
     },
   },
 
-  // FIRE Fatima — long-term compounder
-  fatima: {
-    pillarWeights: { quant: 45, qual: 40, risk: 15 },
+  // Curious Kavya — beginner, capital protection first
+  // Risk at 35% (highest) — beginners should have strongest safety guardrail
+  // FH at 35% within Quant — balance sheet strength is rule #1
+  // Growth at 15% — beginners shouldn't chase growth stories
+  kavya: {
+    pillarWeights: { quant: 35, qual: 30, risk: 35 },
     quantWeights: {
-      profitability: 25, growth: 25, valuation: 20,
+      profitability: 20, growth: 15, valuation: 15,
+      financial_health: 35, technical: 15,
+    },
+    qualWeights: {
+      management_governance: 30, business_quality: 20,
+      capital_discipline: 20, earnings_quality: 15,
+      execution_quality: 15,
+    },
+  },
+
+  // FIRE Fatima — 20+ year compounder, governance + profitability obsessed
+  // Risk at 20% — red flags destroy decades of compounding returns
+  // Profitability at 30% — proven profit generation is THE compounding signal
+  fatima: {
+    pillarWeights: { quant: 40, qual: 40, risk: 20 },
+    quantWeights: {
+      profitability: 30, growth: 25, valuation: 15,
       financial_health: 25, technical: 5,
     },
     qualWeights: {
@@ -786,44 +793,54 @@ export const PROFILE_WEIGHTS_V2: Record<string, ProfileWeightsV2> = {
     },
   },
 
-  // NRI Nikhil — remote investor, governance-heavy
+  // NRI Nikhil — remote investor, governance trust is everything
+  // MG at 35% in Qual — can't visit AGMs or meet management, must trust governance signals
+  // Risk at 25% — remote investors need stronger risk protection
   nikhil: {
-    pillarWeights: { quant: 40, qual: 40, risk: 20 },
+    pillarWeights: { quant: 35, qual: 40, risk: 25 },
     quantWeights: {
-      profitability: 20, growth: 20, valuation: 25,
+      profitability: 20, growth: 15, valuation: 30,
       financial_health: 25, technical: 10,
     },
     qualWeights: {
-      management_governance: 30, business_quality: 20,
-      capital_discipline: 20, earnings_quality: 20,
+      management_governance: 35, business_quality: 20,
+      capital_discipline: 20, earnings_quality: 15,
       execution_quality: 10,
     },
   },
 
-  // Momentum Meera — technical-heavy, quant-focused
+  // Momentum Meera — price-action trader, technical dominates
+  // Risk at 30% — momentum traders face highest short-term risk (volatility, stop losses)
+  // Technical at 45% — nearly half her Quant signal is price trends/momentum
+  // Valuation at 5% — PE is irrelevant for momentum; she buys expensive breakouts
+  // ExQ at 40% — did company beat estimates? That drives momentum
   meera: {
-    pillarWeights: { quant: 65, qual: 15, risk: 20 },
+    pillarWeights: { quant: 60, qual: 10, risk: 30 },
     quantWeights: {
-      profitability: 10, growth: 20, valuation: 15,
-      financial_health: 15, technical: 40,
+      profitability: 10, growth: 20, valuation: 5,
+      financial_health: 20, technical: 45,
     },
     qualWeights: {
-      management_governance: 20, business_quality: 20,
-      capital_discipline: 20, earnings_quality: 20,
-      execution_quality: 20,
+      management_governance: 15, business_quality: 15,
+      capital_discipline: 15, earnings_quality: 15,
+      execution_quality: 40,
     },
   },
 
-  // Sneha — skeptical, value-focused, governance-heavy
+  // Sneha — value investor, wants cheap + quality + clean earnings
+  // Valuation at 35% — she IS a value investor, PE/PB is her primary signal
+  // Growth at 10% — she avoids growth traps (expensive + high growth)
+  // EQ at 30% — detecting earnings manipulation IS value investing
+  // Risk at 20% — cheap stocks often look risky; she needs filtering for value traps
   sneha: {
-    pillarWeights: { quant: 40, qual: 45, risk: 15 },
+    pillarWeights: { quant: 40, qual: 40, risk: 20 },
     quantWeights: {
-      profitability: 25, growth: 15, valuation: 30,
-      financial_health: 25, technical: 5,
+      profitability: 20, growth: 10, valuation: 35,
+      financial_health: 25, technical: 10,
     },
     qualWeights: {
-      management_governance: 25, business_quality: 20,
-      capital_discipline: 20, earnings_quality: 25,
+      management_governance: 20, business_quality: 20,
+      capital_discipline: 20, earnings_quality: 30,
       execution_quality: 10,
     },
   },
