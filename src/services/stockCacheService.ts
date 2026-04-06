@@ -76,15 +76,26 @@ async function loadFromCDN(): Promise<void> {
   try {
     let data: StockCacheData | null = null
 
-    // Load from static JSON (always available, committed to repo, CDN-cached)
-    // This is the primary source — Vercel Blob is a future optimization
+    // Try Vercel Blob first (edge-cached, freshest data from write-through)
+    const BLOB_URL = 'https://kpuuqdqydpcfh7a7.public.blob.vercel-storage.com/v2-stock-data/latest.json'
     try {
-      const staticRes = await fetch('/data/stock-cache.json')
-      if (staticRes.ok) {
-        const json = await staticRes.json()
+      const blobRes = await fetch(BLOB_URL)
+      if (blobRes.ok) {
+        const json = await blobRes.json()
         if (json?.stocks?.length > 0) data = json as StockCacheData
       }
-    } catch { /* static file not available */ }
+    } catch { /* Blob unavailable */ }
+
+    // Fallback to static JSON (committed to repo, always available)
+    if (!data) {
+      try {
+        const staticRes = await fetch('/data/stock-cache.json')
+        if (staticRes.ok) {
+          const json = await staticRes.json()
+          if (json?.stocks?.length > 0) data = json as StockCacheData
+        }
+      } catch { /* static file not available */ }
+    }
 
     _cache = new Map()
     if (data?.stocks) {
