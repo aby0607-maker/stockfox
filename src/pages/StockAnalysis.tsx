@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Share2, AlertTriangle, TrendingUp, TrendingDown, Sparkles, ChevronRight, Check, X, Calendar, GitCompare, UserCheck, History, ShieldCheck, PenLine, BookmarkPlus, FileText } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
@@ -13,6 +13,7 @@ import { ScoringMethodologyModal } from '@/components/scoring/ScoringMethodology
 import { AnalysisLoader, createLoadingSteps, updateStep, type LoadingStep } from '@/components/scoring/AnalysisLoader'
 import { LearningCompletion } from '@/components/learning/LearningCompletion'
 import { getAccuracy } from '@/data/learningMetrics'
+import { InfoTab } from '@/components/stock-info/InfoTab'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
 import { DemoModeToggle, SpotlightTour } from '@/components/demo'
 import { getSpotlightsForLocation } from '@/data/featureSpotlights'
@@ -92,8 +93,16 @@ function ProsCons({ signals, concerns }: { signals: Signal[]; concerns: Signal[]
 
 // ============== MAIN COMPONENT ==============
 export function StockAnalysis() {
-  const { ticker } = useParams<{ ticker: string }>()
+  const { ticker, '*': subpath } = useParams<{ ticker: string; '*': string }>()
+  const navigate = useNavigate()
   const { currentProfile, demoMode, toggleDemoMode } = useAppStore()
+
+  // Tab routing: /stock/RELIANCE = scorecard, /stock/RELIANCE/info = info
+  const activeTab = subpath === 'info' ? 'info' : 'scorecard'
+  const setActiveTab = (tab: 'scorecard' | 'info') => {
+    navigate(tab === 'info' ? `/stock/${ticker}/info` : `/stock/${ticker}`, { replace: true })
+  }
+
   const [isLoading, setIsLoading] = useState(true)
   const [loadingSteps, setLoadingSteps] = useState<LoadingStep[]>(createLoadingSteps())
   const [stock, setStock] = useState<Stock | null>(null)
@@ -463,6 +472,34 @@ export function StockAnalysis() {
         profile={currentProfile}
       />
 
+      {/* ============== STICKY TAB BAR ============== */}
+      <div className="sticky top-0 z-30 bg-dark-900/95 backdrop-blur-md border-b border-white/5 -mx-4 px-4 py-2">
+        <div className="flex gap-1">
+          {[
+            { id: 'scorecard' as const, label: 'Scorecard' },
+            { id: 'info' as const, label: 'Info' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                activeTab === tab.id
+                  ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                  : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ============== TAB CONTENT ============== */}
+      {activeTab === 'info' ? (
+        <InfoTab stock={stock} verdictV2={verdictV2} />
+      ) : (
+      <>
       {/* ============== QUICK VALIDATION CTA - Below Score Card ============== */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -875,12 +912,14 @@ export function StockAnalysis() {
         </div>
       </motion.div>
 
-      {/* ============== FEATURE TOUR (first visit + demo mode) ============== */}
+      {/* ============== FEATURE TOUR (demo mode) ============== */}
       <SpotlightTour
         spotlights={spotlights}
         isActive={showSpotlights}
         onEnd={toggleDemoMode}
       />
+      </>
+      )}
     </div>
   )
 }

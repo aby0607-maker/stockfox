@@ -54,9 +54,9 @@ export function AppRoutes() {
         {/* Dashboard - eagerly loaded for fast access */}
         <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* Stock Analysis - lazy loaded */}
+        {/* Stock Analysis - lazy loaded (supports /stock/:ticker and /stock/:ticker/info) */}
         <Route
-          path="/stock/:ticker"
+          path="/stock/:ticker/*"
           element={
             <LazyPage>
               <StockAnalysis />

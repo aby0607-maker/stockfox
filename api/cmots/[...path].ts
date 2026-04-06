@@ -18,6 +18,7 @@ const ALLOWED_ORIGINS = [
 
 const ALLOWED_PREFIXES = [
   '/companymaster',
+  '/CompanyProfile',
   '/TTMData',
   '/FinData',
   '/ProftandLoss',
@@ -26,7 +27,11 @@ const ALLOWED_PREFIXES = [
   '/QuarterlyResults',
   '/AdjustedPriceChart',
   '/Aggregate-Share-Holding',
+  '/ShareHoldingPatternDetailed',
+  '/ShareholdingMorethanOnePercent',
   '/BSEDelayedPriceFeed',
+  '/Quarterlybalancesheet',
+  '/QuarterlyProfitandLoss',
 ]
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
