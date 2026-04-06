@@ -136,25 +136,49 @@ const THESIS_COPY: Record<string, { lens: string; seeks: string; avoids: string 
   priya: { lens: 'a balanced view', seeks: 'clear buy/hold/sell signals', avoids: 'ambiguous mixed signals' },
 }
 
-/**
- * Extract the most meaningful metric insight from a segment's interpretation.
- * Returns a short phrase like "ROE 18%", "Revenue CAGR 70%+", "PE 90x".
- */
-function extractMetricInsight(seg: SegmentVerdictV2): string | null {
-  // The interpretation field often contains key metrics — extract them
-  const interp = seg.interpretation
-  if (!interp) return null
+// ─── Metric snapshot builder (from raw resolvedMetrics) ──────
 
-  // Look for patterns like "ROE 18%", "PE 90x", "Revenue CAGR 70%"
-  const metricMatch = interp.match(/(?:ROE|ROCE|OPM|NPM|PE|PB|EV|Revenue|Growth|CAGR|D\/E|OCF|FCF|Beta|RSI)\s*[-–]?\s*[\d.]+[%x]?/i)
-  if (metricMatch) return metricMatch[0].trim()
+interface MetricSnapshot {
+  roe?: string; roce?: string; opm?: string; pe?: string; pb?: string
+  debtEbitda?: string; icr?: string; revCagr?: string; return1y?: string
+  promoter?: string; rsi?: string; divYield?: string; fcfYield?: string
+}
 
-  // Fallback: use quickInsight if available (often has specific numbers)
-  if (seg.quickInsight) {
-    const qiMatch = seg.quickInsight.match(/[\d.]+[%x]/)
-    if (qiMatch) return seg.quickInsight.slice(0, 40)
+function buildMetricSnapshot(m?: Record<string, number | null>): MetricSnapshot {
+  if (!m) return {}
+  const f = (v: number | null, u: string, d = 1) => v != null ? `${v.toFixed(d)}${u}` : undefined
+  return {
+    roe: f(m['raw_roe'], '%'), roce: f(m['v2_roce'] ?? m['raw_roce'], '%'),
+    opm: f(m['raw_opm'], '%'), pe: f(m['raw_pe'], 'x'), pb: f(m['raw_pb'], 'x'),
+    debtEbitda: f(m['v2_debt_ebitda'], 'x'), icr: f(m['v2_interest_coverage'], 'x'),
+    revCagr: f(m['v2_revenue_cagr_3y'], '%'), return1y: f(m['v2_return_1y'], '%'),
+    promoter: f(m['promoter_holding'], '%'), rsi: f(m['v2_rsi'], '', 0),
+    divYield: f(m['v2_dividend_yield'], '%'), fcfYield: f(m['v2_fcf_yield'], '%'),
   }
-  return null
+}
+
+/** Build a metric-rich phrase for the strongest quant insight */
+function buildQuantInsight(snap: MetricSnapshot, bestSegId?: string): string {
+  if (bestSegId === 'profitability' && snap.roe && snap.opm) return `ROE ${snap.roe}, OPM ${snap.opm}`
+  if (bestSegId === 'financial_health' && snap.icr && snap.debtEbitda) return `ICR ${snap.icr}, Debt/EBITDA ${snap.debtEbitda}`
+  if (bestSegId === 'growth' && snap.revCagr) return `Revenue CAGR ${snap.revCagr}`
+  if (bestSegId === 'valuation' && snap.pe && snap.pb) return `PE ${snap.pe}, PB ${snap.pb}`
+  if (bestSegId === 'technical' && snap.rsi && snap.return1y) return `RSI ${snap.rsi}, 1Y Return ${snap.return1y}`
+  // Fallback: pick the best available metrics
+  const parts: string[] = []
+  if (snap.roe) parts.push(`ROE ${snap.roe}`)
+  if (snap.pe) parts.push(`PE ${snap.pe}`)
+  if (snap.revCagr) parts.push(`Rev CAGR ${snap.revCagr}`)
+  return parts.slice(0, 2).join(', ') || ''
+}
+
+/** Build a metric-rich phrase for the key concern */
+function buildConcernInsight(snap: MetricSnapshot, worstSegId?: string): string {
+  if (worstSegId === 'valuation' && snap.pe) return `PE at ${snap.pe} — premium valuation`
+  if (worstSegId === 'profitability' && snap.roce) return `ROCE at ${snap.roce} — below cost of capital`
+  if (worstSegId === 'financial_health' && snap.debtEbitda) return `Debt/EBITDA ${snap.debtEbitda}`
+  if (worstSegId === 'growth' && snap.revCagr) return `Revenue growth at ${snap.revCagr}`
+  return ''
 }
 
 function generateVerdictExplainer(
@@ -165,10 +189,12 @@ function generateVerdictExplainer(
   topConcerns: Signal[],
   overallScore: number,
   profileWeightsObj: ReturnType<typeof getProfileWeightsV2>,
+  resolvedMetrics?: Record<string, number | null>,
 ): { summary: string; rationale: string; context: VerdictContext } {
   const quant = pillars.find(p => p.pillar === 'quant')!
   const qual = pillars.find(p => p.pillar === 'qual')!
   const risk = pillars.find(p => p.pillar === 'risk')!
+  const snap = buildMetricSnapshot(resolvedMetrics)
 
   const pillarScores = [
     { name: 'Quant', pillar: 'quant', score: quant.score },
@@ -178,25 +204,27 @@ function generateVerdictExplainer(
   const strongest = pillarScores[0]
   const weakest = pillarScores[pillarScores.length - 1]
 
-  // Find the profile's top-priority quant segment
+  // Profile's top-priority quant segment
   const qw = profileWeightsObj.quantWeights
   const topSegKey = Object.entries(qw).sort(([, a], [, b]) => b - a)[0]?.[0]
   const topSegment = quant.segments.find(s => s.id === topSegKey)
   const profileTopSegment = topSegment ? { name: topSegment.name, score: topSegment.score ?? 0 } : null
 
-  // Find highest and lowest scoring SEGMENTS (not pillars) for specific insights
+  // Best and worst scored segments
   const allScoredSegs = [...quant.segments, ...qual.segments]
     .filter(s => s.scoringType === 'scored' && s.score != null)
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
   const bestSeg = allScoredSegs[0]
   const worstSeg = allScoredSegs[allScoredSegs.length - 1]
 
-  // Extract metric insights from best/worst segments
-  const bestMetric = bestSeg ? extractMetricInsight(bestSeg) : null
-  const worstMetric = worstSeg ? extractMetricInsight(worstSeg) : null
+  // Metric-rich insights from raw data
+  const quantInsight = buildQuantInsight(snap, bestSeg?.id)
+  const concernInsight = buildConcernInsight(snap, worstSeg?.id)
 
   const profile = profiles.find(p => p.id === profileId)
   const thesis = THESIS_COPY[profileId] || THESIS_COPY['priya']
+  const riskClean = risk.score >= 75
+  const riskSummary = risk.segments[0]?.interpretation?.split('—')[0]?.trim() || ''
 
   const ctx: VerdictContext = {
     stock: { name: stock.name, sector: stock.sector },
@@ -209,52 +237,51 @@ function generateVerdictExplainer(
     profileTopSegment,
   }
 
-  // ── Build summary (1-line — the "doctor's diagnosis") ──
+  // ── Build summary (1-line contextual, metric-rich) ──
   let summary: string
-  const riskClean = risk.score >= 75
-  const riskFlags = risk.segments[0]?.interpretation || ''
 
   if (overallScore >= 75) {
-    // Strong conviction
-    summary = bestSeg
-      ? `${bestSeg.name} stands out at ${bestSeg.score}/100${bestMetric ? ` (${bestMetric})` : ''} with a clean risk profile.`
-      : `Strong across all dimensions — ${strongest.name} leads at ${strongest.score}/100.`
+    summary = quantInsight
+      ? `${bestSeg?.name || 'Fundamentals'} leads at ${bestSeg?.score}/100 (${quantInsight}) with ${riskSummary || 'clean risk'}.`
+      : `Strong across pillars — ${strongest.name} at ${strongest.score}/100 with a clean risk profile.`
   } else if (overallScore >= 60) {
-    // Good with nuance
-    if (worstSeg && worstSeg.score != null && worstSeg.score < 45) {
-      summary = `${bestSeg?.name || strongest.name} scores well${bestMetric ? ` (${bestMetric})` : ''}, but ${worstSeg.name} at ${worstSeg.score}/100 needs attention` +
-        (worstMetric ? ` — ${worstMetric}.` : '.')
-    } else {
-      summary = `Solid fundamentals led by ${bestSeg?.name || strongest.name}${bestMetric ? ` (${bestMetric})` : ''}` +
-        (riskClean ? ', with a clean risk profile.' : `, though ${riskFlags.split('—')[0]?.trim() || 'some risk flags exist'}.`)
-    }
+    const strengthPart = quantInsight
+      ? `${bestSeg?.name || strongest.name} at ${bestSeg?.score}/100 (${quantInsight})`
+      : `${bestSeg?.name || strongest.name} at ${bestSeg?.score}/100`
+    const weakPart = worstSeg && worstSeg.score != null && worstSeg.score < 50
+      ? (concernInsight ? `, but ${worstSeg.name} needs work — ${concernInsight}` : `, but ${worstSeg.name} at ${worstSeg.score}/100 needs attention`)
+      : ''
+    summary = `${strengthPart}${weakPart}.`
   } else if (overallScore >= 45) {
-    // Mixed — lead with the concern
     const concern = topConcerns[0]
-    if (concern && bestSeg) {
-      summary = `${concern.title} drags the score — ${bestSeg.name} at ${bestSeg.score}/100 is the bright spot` +
-        (bestMetric ? ` (${bestMetric}).` : '.')
-    } else {
-      summary = `Mixed picture — ${weakest.name} at ${weakest.score}/100 underperforms while ${strongest.name} holds at ${strongest.score}/100.`
-    }
+    summary = concern
+      ? `${concern.title}${concernInsight ? ` (${concernInsight})` : ''} weighs on the score. ${bestSeg?.name || strongest.name} at ${bestSeg?.score}/100${quantInsight ? ` (${quantInsight})` : ''} is the upside.`
+      : `Mixed signals — ${weakest.name} underperforms at ${weakest.score}/100 while ${strongest.name} holds at ${strongest.score}/100.`
   } else {
-    // Weak — be direct
-    summary = worstSeg
-      ? `${worstSeg.name} scores just ${worstSeg.score}/100${worstMetric ? ` (${worstMetric})` : ''} — multiple pillars show weakness.`
-      : `Significant concerns across ${weakest.name} (${weakest.score}) and ${pillarScores[1].name} (${pillarScores[1].score}).`
+    summary = concernInsight
+      ? `${worstSeg?.name || weakest.name} at ${worstSeg?.score}/100 (${concernInsight}) — significant concerns across multiple pillars.`
+      : `Multiple pillars show weakness — ${weakest.name} ${weakest.score}/100, ${pillarScores[1].name} ${pillarScores[1].score}/100.`
   }
 
-  // ── Build rationale (2-3 lines — the "doctor's explanation") ──
-  // Format: [Profile context] → [What your priority segment shows] → [Key risk/strength]
+  // ── Build rationale (2-3 lines — metric-rich, profile-aware) ──
+  const metricLine = [
+    snap.roe ? `ROE ${snap.roe}` : null,
+    snap.opm ? `OPM ${snap.opm}` : null,
+    snap.pe ? `PE ${snap.pe}` : null,
+    snap.debtEbitda ? `D/E ${snap.debtEbitda}` : null,
+    snap.promoter ? `Promoter ${snap.promoter}` : null,
+  ].filter(Boolean).slice(0, 4).join(' · ')
+
   const profileSegNote = profileTopSegment
-    ? `Your top priority (${profileTopSegment.name}) scores ${profileTopSegment.score}/100 — ${profileTopSegment.score >= 60 ? 'aligned with' : 'below'} what ${thesis.lens} requires.`
+    ? `Your top priority for ${thesis.lens} — ${profileTopSegment.name} — scores ${profileTopSegment.score}/100${profileTopSegment.score >= 60 ? ' (aligned)' : ' (below expectations)'}.`
     : ''
 
   const riskNote = riskClean
-    ? `Risk profile is clean (${riskFlags.split('—')[0]?.trim() || '0 flags'}).`
-    : `Risk flags detected: ${riskFlags.split('—')[0]?.trim() || 'review recommended'}.`
+    ? `Risk profile clean (${riskSummary || '0 flags'}).`
+    : `Risk flags: ${riskSummary || 'review recommended'}.`
 
-  const rationale = `For ${thesis.lens}: Quant ${quant.score} · Qual ${qual.score} · Risk ${risk.score}. ` +
+  const rationale = `Quant ${quant.score} · Qual ${qual.score} · Risk ${risk.score}. ` +
+    (metricLine ? `Key metrics: ${metricLine}. ` : '') +
     profileSegNote +
     (profileSegNote ? ' ' : '') +
     riskNote
@@ -307,7 +334,7 @@ export async function buildVerdictForStock(
   const { topSignals, topConcerns } = synthesizeSignals(allPillars)
 
   // Generate contextual explainer copy (personalized, LLM-ready)
-  const explainer = generateVerdictExplainer(stock, profileId, allPillars, topSignals, topConcerns, overallScore, profileWeights)
+  const explainer = generateVerdictExplainer(stock, profileId, allPillars, topSignals, topConcerns, overallScore, profileWeights, resolved?.data)
 
   return {
     overallVerdict: overall.verdict,
