@@ -136,8 +136,8 @@ async function main() {
   const batchSize = 50
   const results = new Map(existingStocks)  // Start with existing data
 
-  // Process in parallel batches (5 concurrent — CMOTS has modest rate limits)
-  const CONCURRENCY = 5
+  // Process in parallel batches (20 concurrent — CMOTS handles this fine)
+  const CONCURRENCY = 20
 
   async function processStock(company) {
     const symbol = company.nsesymbol.toUpperCase()
@@ -206,8 +206,8 @@ async function main() {
       console.log(`  Batch ${batchNum}/${totalBatches} — ${successCount} ✓ ${failCount} ✗`)
     }
 
-    // Delay between batches to respect CMOTS rate limits
-    await new Promise(r => setTimeout(r, 500))
+    // Brief delay between batches
+    await new Promise(r => setTimeout(r, 100))
   }
 
   // Step 6: Compute peer rankings within each sector
