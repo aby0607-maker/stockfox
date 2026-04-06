@@ -50,8 +50,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'IndianAPI not configured' })
   }
 
-  const { path } = req.query
-  const iapiPath = Array.isArray(path) ? `/${path.join('/')}` : `/${path}`
+  const rawPath = req.query['...path'] ?? req.query.path
+  const iapiPath = Array.isArray(rawPath) ? `/${rawPath.join('/')}` : (rawPath ? `/${rawPath}` : '')
 
   if (iapiPath.includes('..') || iapiPath.includes('//')) {
     return res.status(400).json({ error: 'Invalid path' })
