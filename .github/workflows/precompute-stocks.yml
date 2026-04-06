@@ -1,16 +1,20 @@
-name: V2 Stock Data — Nightly Pre-computation
+name: V2 Stock Data — Nightly Pipeline
 
 on:
-  # Weeknights at 7:30 PM UTC (1:00 AM IST) — after Indian market close
+  # Weeknights at 7:30 PM UTC (1:00 AM IST)
   schedule:
     - cron: '30 19 * * 1-5'
-  # Manual trigger with tier override
+  # Manual trigger
   workflow_dispatch:
     inputs:
       tier:
         description: 'Tier to refresh (large, mid, small, all)'
         required: false
         default: 'all'
+      skip_enrichment:
+        description: 'Skip BSE/NSE/Yahoo enrichment'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -32,20 +36,30 @@ jobs:
       - name: Create output directory
         run: mkdir -p public/data
 
-      - name: Run pre-computation script
+      # ─── Cron 1: Core CMOTS data ───────────────
+      - name: "Cron 1: Core scoring (CMOTS TTM + Prices + Shareholding)"
         env:
           CMOTS_API_TOKEN: ${{ secrets.CMOTS_API_TOKEN }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TIER_OVERRIDE: ${{ github.event.inputs.tier }}
         run: |
-          if [ -n "$TIER_OVERRIDE" ] && [ "$TIER_OVERRIDE" != "all" ]; then
-            node scripts/precompute-stocks.mjs --tier="$TIER_OVERRIDE"
-          else
-            node scripts/precompute-stocks.mjs
-          fi
+          TIER="${TIER_OVERRIDE:-all}"
+          echo "🦊 Running core scoring for tier: $TIER"
+          node scripts/precompute-stocks.mjs --tier="$TIER"
 
-      - name: Commit updated static cache (fallback)
+      # ─── Cron 3: Yahoo Finance enrichment ──────
+      - name: "Cron 3: Yahoo enrichment (52W range + ESG)"
+        if: ${{ github.event.inputs.skip_enrichment != 'true' }}
+        env:
+          TIER_OVERRIDE: ${{ github.event.inputs.tier }}
+        run: |
+          TIER="${TIER_OVERRIDE:-all}"
+          echo "📈 Enriching with Yahoo data for tier: $TIER"
+          node scripts/enrich-yahoo.mjs --tier="$TIER"
+
+      # ─── Commit + Push ─────────────────────────
+      - name: Commit updated cache
         run: |
           git config user.name "StockFox Bot"
           git config user.email "bot@stockfox.pro"

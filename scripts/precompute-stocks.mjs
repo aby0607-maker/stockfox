@@ -167,6 +167,7 @@ async function main() {
       industry: company.industryname,
       mcapType: company.mcaptype,
       coCode: company.co_code,
+      bseCode: company.bsecode || null,
       score: quickScore(ttm),
       verdict: getVerdict(quickScore(ttm)),
       price: priceFeed?.price || null,

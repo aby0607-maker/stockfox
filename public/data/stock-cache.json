@@ -39,7 +39,13 @@
       "lastUpdated": "2026-04-06T19:31:36.949Z",
       "peerRank": 12,
       "peerTotal": 33,
-      "peerCategory": "E-Commerce/App based Aggregator"
+      "peerCategory": "E-Commerce/App based Aggregator",
+      "high52W": 354.35,
+      "low52W": 209.63,
+      "fromHigh": -34.47,
+      "fromLow": 10.77,
+      "return1Y": 10.77,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.239Z"
     },
     {
       "symbol": "AXISBANK",
@@ -66,7 +72,13 @@
       "lastUpdated": "2026-04-06T19:30:54.275Z",
       "peerRank": 21,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 1403,
+      "low52W": 1045.2,
+      "fromHigh": -14.62,
+      "fromLow": 14.61,
+      "return1Y": 14.31,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.146Z"
     },
     {
       "symbol": "TCS",
@@ -93,7 +105,13 @@
       "lastUpdated": "2026-04-06T19:31:04.818Z",
       "peerRank": 4,
       "peerTotal": 179,
-      "peerCategory": "IT - Software"
+      "peerCategory": "IT - Software",
+      "high52W": 3620.4,
+      "low52W": 2356,
+      "fromHigh": -32.31,
+      "fromLow": 4.02,
+      "return1Y": -25.15,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.154Z"
     },
     {
       "symbol": "RELIANCE",
@@ -120,7 +138,13 @@
       "lastUpdated": "2026-04-06T19:26:10.232Z",
       "peerRank": 6,
       "peerTotal": 7,
-      "peerCategory": "Refineries"
+      "peerCategory": "Refineries",
+      "high52W": 1592.3,
+      "low52W": 1165.7,
+      "fromHigh": -15.19,
+      "fromLow": 15.85,
+      "return1Y": 15.85,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.169Z"
     },
     {
       "symbol": "HDFCBANK",
@@ -147,7 +171,13 @@
       "lastUpdated": "2026-04-06T19:31:10.834Z",
       "peerRank": 19,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 1012.9,
+      "low52W": 731.55,
+      "fromHigh": -25.87,
+      "fromLow": 2.65,
+      "return1Y": -14.56,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.152Z"
     },
     {
       "symbol": "INFY",
@@ -174,7 +204,13 @@
       "lastUpdated": "2026-04-06T19:30:31.923Z",
       "peerRank": 5,
       "peerTotal": 179,
-      "peerCategory": "IT - Software"
+      "peerCategory": "IT - Software",
+      "high52W": 1689.8,
+      "low52W": 1220.8,
+      "fromHigh": -23.02,
+      "fromLow": 6.55,
+      "return1Y": -6.87,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.242Z"
     },
     {
       "symbol": "ICICIBANK",
@@ -201,7 +237,13 @@
       "lastUpdated": "2026-04-06T19:31:04.508Z",
       "peerRank": 13,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 1488.6,
+      "low52W": 1205.9,
+      "fromHigh": -18.33,
+      "fromLow": 0.82,
+      "return1Y": -5.57,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.187Z"
     },
     {
       "symbol": "SBIN",
@@ -228,7 +270,13 @@
       "lastUpdated": "2026-04-06T19:26:11.543Z",
       "peerRank": 10,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 1227.8,
+      "low52W": 742.2,
+      "fromHigh": -17.05,
+      "fromLow": 37.21,
+      "return1Y": 36.35,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.199Z"
     },
     {
       "symbol": "BHARTIARTL",
@@ -255,7 +303,13 @@
       "lastUpdated": "2026-04-06T19:26:16.845Z",
       "peerRank": 4,
       "peerTotal": 15,
-      "peerCategory": "Telecom-Service"
+      "peerCategory": "Telecom-Service",
+      "high52W": 2162.7,
+      "low52W": 1686.65,
+      "fromHigh": -17.25,
+      "fromLow": 6.11,
+      "return1Y": 6.11,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.138Z"
     },
     {
       "symbol": "ITC",
@@ -282,7 +336,13 @@
       "lastUpdated": "2026-04-06T19:26:08.736Z",
       "peerRank": 1,
       "peerTotal": 3,
-      "peerCategory": "Tobacco Products"
+      "peerCategory": "Tobacco Products",
+      "high52W": 442.9,
+      "low52W": 287.7,
+      "fromHigh": -33.88,
+      "fromLow": 1.79,
+      "return1Y": -27.88,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.186Z"
     },
     {
       "symbol": "HINDUNILVR",
@@ -309,7 +369,13 @@
       "lastUpdated": "2026-04-06T19:26:08.643Z",
       "peerRank": 2,
       "peerTotal": 105,
-      "peerCategory": "FMCG"
+      "peerCategory": "FMCG",
+      "high52W": 2692.6,
+      "low52W": 2052.2,
+      "fromHigh": -23.3,
+      "fromLow": 0.64,
+      "return1Y": -8.18,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.572Z"
     },
     {
       "symbol": "KOTAKBANK",
@@ -336,7 +402,13 @@
       "lastUpdated": "2026-04-06T19:30:31.994Z",
       "peerRank": 29,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 453.76,
+      "low52W": 353.4,
+      "fromHigh": -21.1,
+      "fromLow": 1.3,
+      "return1Y": -12.16,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.532Z"
     },
     {
       "symbol": "LT",
@@ -363,7 +435,13 @@
       "lastUpdated": "2026-04-06T19:26:10.327Z",
       "peerRank": 91,
       "peerTotal": 132,
-      "peerCategory": "Infrastructure Developers & Operators"
+      "peerCategory": "Infrastructure Developers & Operators",
+      "high52W": 4418.1,
+      "low52W": 3054.15,
+      "fromHigh": -18.22,
+      "fromLow": 18.3,
+      "return1Y": 17.75,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.508Z"
     },
     {
       "symbol": "MARUTI",
@@ -390,7 +468,13 @@
       "lastUpdated": "2026-04-06T19:26:14.966Z",
       "peerRank": 10,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 17292,
+      "low52W": 11329.75,
+      "fromHigh": -26.95,
+      "fromLow": 11.49,
+      "return1Y": 11.49,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.524Z"
     },
     {
       "symbol": "WIPRO",
@@ -417,7 +501,13 @@
       "lastUpdated": "2026-04-06T19:30:31.782Z",
       "peerRank": 20,
       "peerTotal": 179,
-      "peerCategory": "IT - Software"
+      "peerCategory": "IT - Software",
+      "high52W": 272.67,
+      "low52W": 187.54,
+      "fromHigh": -28.52,
+      "fromLow": 3.93,
+      "return1Y": -19.76,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.582Z"
     },
     {
       "symbol": "HCLTECH",
@@ -444,7 +534,13 @@
       "lastUpdated": "2026-04-06T19:26:14.867Z",
       "peerRank": 19,
       "peerTotal": 179,
-      "peerCategory": "IT - Software"
+      "peerCategory": "IT - Software",
+      "high52W": 1739.9,
+      "low52W": 1311.8,
+      "fromHigh": -19.41,
+      "fromLow": 6.89,
+      "return1Y": 2.04,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.553Z"
     },
     {
       "symbol": "TECHM",
@@ -471,7 +567,13 @@
       "lastUpdated": "2026-04-06T19:26:17.527Z",
       "peerRank": 57,
       "peerTotal": 179,
-      "peerCategory": "IT - Software"
+      "peerCategory": "IT - Software",
+      "high52W": 1768.4,
+      "low52W": 1272.75,
+      "fromHigh": -18.49,
+      "fromLow": 13.26,
+      "return1Y": 11.92,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.542Z"
     },
     {
       "symbol": "SUNPHARMA",
@@ -498,7 +600,13 @@
       "lastUpdated": "2026-04-06T19:30:59.876Z",
       "peerRank": 51,
       "peerTotal": 138,
-      "peerCategory": "Pharmaceuticals"
+      "peerCategory": "Pharmaceuticals",
+      "high52W": 1841.6,
+      "low52W": 1563.3,
+      "fromHigh": -8.04,
+      "fromLow": 8.33,
+      "return1Y": 1.64,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.542Z"
     },
     {
       "symbol": "DRREDDY",
@@ -525,7 +633,13 @@
       "lastUpdated": "2026-04-06T19:26:11.645Z",
       "peerRank": 14,
       "peerTotal": 138,
-      "peerCategory": "Pharmaceuticals"
+      "peerCategory": "Pharmaceuticals",
+      "high52W": 1362.7,
+      "low52W": 1087.9,
+      "fromHigh": -10.67,
+      "fromLow": 11.89,
+      "return1Y": 11.89,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.523Z"
     },
     {
       "symbol": "BAJFINANCE",
@@ -552,7 +666,13 @@
       "lastUpdated": "2026-04-06T19:30:53.368Z",
       "peerRank": 70,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 1094.15,
+      "low52W": 801.55,
+      "fromHigh": -24.43,
+      "fromLow": 3.16,
+      "return1Y": -3.5,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.543Z"
     },
     {
       "symbol": "BAJAJFINSV",
@@ -579,7 +699,13 @@
       "lastUpdated": "2026-04-06T19:31:47.323Z",
       "peerRank": 56,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 2176.6,
+      "low52W": 1631.8,
+      "fromHigh": -24.62,
+      "fromLow": 0.55,
+      "return1Y": -11.44,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.891Z"
     },
     {
       "symbol": "TATASTEEL",
@@ -606,7 +732,13 @@
       "lastUpdated": "2026-04-06T19:26:10.886Z",
       "peerRank": 10,
       "peerTotal": 93,
-      "peerCategory": "Steel"
+      "peerCategory": "Steel",
+      "high52W": 215.52,
+      "low52W": 127.18,
+      "fromHigh": -9.92,
+      "fromLow": 52.65,
+      "return1Y": 49.94,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.963Z"
     },
     {
       "symbol": "JSWSTEEL",
@@ -633,7 +765,13 @@
       "lastUpdated": "2026-04-06T19:30:53.379Z",
       "peerRank": 55,
       "peerTotal": 93,
-      "peerCategory": "Steel"
+      "peerCategory": "Steel",
+      "high52W": 1280.6,
+      "low52W": 930.3,
+      "fromHigh": -10.88,
+      "fromLow": 22.68,
+      "return1Y": 22.68,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.849Z"
     },
     {
       "symbol": "POWERGRID",
@@ -660,7 +798,13 @@
       "lastUpdated": "2026-04-06T19:31:04.596Z",
       "peerRank": 4,
       "peerTotal": 30,
-      "peerCategory": "Power Generation & Distribution"
+      "peerCategory": "Power Generation & Distribution",
+      "high52W": 320,
+      "low52W": 254.05,
+      "fromHigh": -9.39,
+      "fromLow": 14.13,
+      "return1Y": 0.19,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.872Z"
     },
     {
       "symbol": "NTPC",
@@ -687,7 +831,13 @@
       "lastUpdated": "2026-04-06T19:31:15.034Z",
       "peerRank": 7,
       "peerTotal": 30,
-      "peerCategory": "Power Generation & Distribution"
+      "peerCategory": "Power Generation & Distribution",
+      "high52W": 390.55,
+      "low52W": 318.5,
+      "fromHigh": -7.91,
+      "fromLow": 12.92,
+      "return1Y": 2.82,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.859Z"
     },
     {
       "symbol": "ADANIPORTS",
@@ -714,7 +864,13 @@
       "lastUpdated": "2026-04-06T19:31:15.243Z",
       "peerRank": 5,
       "peerTotal": 5,
-      "peerCategory": "Marine Port & Services"
+      "peerCategory": "Marine Port & Services",
+      "high52W": 1570.2,
+      "low52W": 1110.65,
+      "fromHigh": -12.27,
+      "fromLow": 24.04,
+      "return1Y": 24.04,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.885Z"
     },
     {
       "symbol": "ADANIENT",
@@ -741,7 +897,13 @@
       "lastUpdated": "2026-04-06T19:31:07.751Z",
       "peerRank": 13,
       "peerTotal": 98,
-      "peerCategory": "Trading"
+      "peerCategory": "Trading",
+      "high52W": 2676.4,
+      "low52W": 1758.8,
+      "fromHigh": -31.47,
+      "fromLow": 4.29,
+      "return1Y": -17.11,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.885Z"
     },
     {
       "symbol": "NESTLEIND",
@@ -768,7 +930,13 @@
       "lastUpdated": "2026-04-06T19:26:07.980Z",
       "peerRank": 18,
       "peerTotal": 105,
-      "peerCategory": "FMCG"
+      "peerCategory": "FMCG",
+      "high52W": 1332.4,
+      "low52W": 1089.4,
+      "fromHigh": -10.59,
+      "fromLow": 9.35,
+      "return1Y": 5.94,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.883Z"
     },
     {
       "symbol": "ASIANPAINT",
@@ -795,7 +963,13 @@
       "lastUpdated": "2026-04-06T19:30:10.373Z",
       "peerRank": 3,
       "peerTotal": 8,
-      "peerCategory": "Paints/Varnish"
+      "peerCategory": "Paints/Varnish",
+      "high52W": 2968.5,
+      "low52W": 2121.3,
+      "fromHigh": -26.93,
+      "fromLow": 2.25,
+      "return1Y": -7.36,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.866Z"
     },
     {
       "symbol": "DMART",
@@ -822,7 +996,13 @@
       "lastUpdated": "2026-04-06T19:31:47.568Z",
       "peerRank": 32,
       "peerTotal": 51,
-      "peerCategory": "Retail"
+      "peerCategory": "Retail",
+      "high52W": 4829.3,
+      "low52W": 3646.3,
+      "fromHigh": -9.67,
+      "fromLow": 19.64,
+      "return1Y": 8.43,
+      "yahooEnrichedAt": "2026-04-06T19:43:47.866Z"
     },
     {
       "symbol": "PAYTM",
@@ -957,7 +1137,13 @@
       "lastUpdated": "2026-04-06T19:26:07.980Z",
       "peerRank": 14,
       "peerTotal": 89,
-      "peerCategory": "Capital Goods - Electrical Equipment"
+      "peerCategory": "Capital Goods - Electrical Equipment",
+      "high52W": 3869,
+      "low52W": 1295.55,
+      "fromHigh": -1.21,
+      "fromLow": 195.03,
+      "return1Y": 195.03,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.270Z"
     },
     {
       "symbol": "AMBUJACEM",
@@ -984,7 +1170,13 @@
       "lastUpdated": "2026-04-06T19:30:17.517Z",
       "peerRank": 5,
       "peerTotal": 30,
-      "peerCategory": "Cement"
+      "peerCategory": "Cement",
+      "high52W": 620.55,
+      "low52W": 395.35,
+      "fromHigh": -32.57,
+      "fromLow": 5.84,
+      "return1Y": -20.33,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.240Z"
     },
     {
       "symbol": "SIEMENS",
@@ -1011,7 +1203,13 @@
       "lastUpdated": "2026-04-06T19:30:31.575Z",
       "peerRank": 59,
       "peerTotal": 89,
-      "peerCategory": "Capital Goods - Electrical Equipment"
+      "peerCategory": "Capital Goods - Electrical Equipment",
+      "high52W": 3418.6,
+      "low52W": 2715.85,
+      "fromHigh": -11.47,
+      "fromLow": 11.44,
+      "return1Y": 7.61,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.233Z"
     },
     {
       "symbol": "APOLLOHOSP",
@@ -1038,7 +1236,13 @@
       "lastUpdated": "2026-04-06T19:26:11.540Z",
       "peerRank": 16,
       "peerTotal": 55,
-      "peerCategory": "Healthcare"
+      "peerCategory": "Healthcare",
+      "high52W": 8012,
+      "low52W": 6683.3,
+      "fromHigh": -8.67,
+      "fromLow": 9.49,
+      "return1Y": 9.49,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.268Z"
     },
     {
       "symbol": "COALINDIA",
@@ -1065,7 +1269,13 @@
       "lastUpdated": "2026-04-06T19:31:26.552Z",
       "peerRank": 2,
       "peerTotal": 22,
-      "peerCategory": "Mining & Mineral products"
+      "peerCategory": "Mining & Mineral products",
+      "high52W": 470.1,
+      "low52W": 370.05,
+      "fromHigh": -4.41,
+      "fromLow": 21.43,
+      "return1Y": 19.03,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.229Z"
     },
     {
       "symbol": "LICI",
@@ -1092,7 +1302,13 @@
       "lastUpdated": "2026-04-06T19:31:14.799Z",
       "peerRank": 2,
       "peerTotal": 11,
-      "peerCategory": "Insurance"
+      "peerCategory": "Insurance",
+      "high52W": 972.8,
+      "low52W": 725.65,
+      "fromHigh": -24.46,
+      "fromLow": 1.27,
+      "return1Y": -4.22,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.329Z"
     },
     {
       "symbol": "HAL",
@@ -1119,7 +1335,13 @@
       "lastUpdated": "2026-04-06T19:26:16.178Z",
       "peerRank": 2,
       "peerTotal": 32,
-      "peerCategory": "Aerospace & Defence"
+      "peerCategory": "Aerospace & Defence",
+      "high52W": 5127.7,
+      "low52W": 3487.2,
+      "fromHigh": -28.1,
+      "fromLow": 5.73,
+      "return1Y": -8.01,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.263Z"
     },
     {
       "symbol": "BSE",
@@ -1146,7 +1368,13 @@
       "lastUpdated": "2026-04-06T19:31:14.914Z",
       "peerRank": 5,
       "peerTotal": 6,
-      "peerCategory": "Financial Services"
+      "peerCategory": "Financial Services",
+      "high52W": 3177.1,
+      "low52W": 1727.48,
+      "fromHigh": -10.25,
+      "fromLow": 65.06,
+      "return1Y": 65.06,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.256Z"
     },
     {
       "symbol": "GODREJCP",
@@ -1173,7 +1401,13 @@
       "lastUpdated": "2026-04-06T19:26:18.852Z",
       "peerRank": 39,
       "peerTotal": 105,
-      "peerCategory": "FMCG"
+      "peerCategory": "FMCG",
+      "high52W": 1299.5,
+      "low52W": 984.8,
+      "fromHigh": -23.45,
+      "fromLow": 1.02,
+      "return1Y": -14.25,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.254Z"
     },
     {
       "symbol": "VBL",
@@ -1200,7 +1434,13 @@
       "lastUpdated": "2026-04-06T19:26:18.851Z",
       "peerRank": 19,
       "peerTotal": 105,
-      "peerCategory": "FMCG"
+      "peerCategory": "FMCG",
+      "high52W": 556.75,
+      "low52W": 382.2,
+      "fromHigh": -27.49,
+      "fromLow": 5.63,
+      "return1Y": -22.31,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.255Z"
     },
     {
       "symbol": "MUTHOOTFIN",
@@ -1227,7 +1467,13 @@
       "lastUpdated": "2026-04-06T19:26:18.851Z",
       "peerRank": 27,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 4091.7,
+      "low52W": 2017,
+      "fromHigh": -22.31,
+      "fromLow": 57.6,
+      "return1Y": 41.01,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.629Z"
     },
     {
       "symbol": "BAJAJHLDNG",
@@ -1254,7 +1500,13 @@
       "lastUpdated": "2026-04-06T19:26:07.428Z",
       "peerRank": 19,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 14523,
+      "low52W": 8746,
+      "fromHigh": -38.08,
+      "fromLow": 2.82,
+      "return1Y": -16.58,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.610Z"
     },
     {
       "symbol": "BRITANNIA",
@@ -1281,7 +1533,13 @@
       "lastUpdated": "2026-04-06T19:26:07.322Z",
       "peerRank": 25,
       "peerTotal": 105,
-      "peerCategory": "FMCG"
+      "peerCategory": "FMCG",
+      "high52W": 6300.5,
+      "low52W": 5055.85,
+      "fromHigh": -13.63,
+      "fromLow": 7.64,
+      "return1Y": 7.64,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.602Z"
     },
     {
       "symbol": "CGPOWER",
@@ -1308,7 +1566,13 @@
       "lastUpdated": "2026-04-06T19:26:07.333Z",
       "peerRank": 56,
       "peerTotal": 89,
-      "peerCategory": "Capital Goods - Electrical Equipment"
+      "peerCategory": "Capital Goods - Electrical Equipment",
+      "high52W": 792.2,
+      "low52W": 530.65,
+      "fromHigh": -14.16,
+      "fromLow": 28.15,
+      "return1Y": 25.82,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.630Z"
     },
     {
       "symbol": "EICHERMOT",
@@ -1335,7 +1599,13 @@
       "lastUpdated": "2026-04-06T19:26:07.334Z",
       "peerRank": 3,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 8190,
+      "low52W": 5065.25,
+      "fromHigh": -18.81,
+      "fromLow": 31.28,
+      "return1Y": 31.28,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.612Z"
     },
     {
       "symbol": "GRASIM",
@@ -1362,7 +1632,13 @@
       "lastUpdated": "2026-04-06T19:26:07.979Z",
       "peerRank": 108,
       "peerTotal": 164,
-      "peerCategory": "Textiles"
+      "peerCategory": "Textiles",
+      "high52W": 2958.7,
+      "low52W": 2509.1,
+      "fromHigh": -13.34,
+      "fromLow": 2.19,
+      "return1Y": 2.19,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.642Z"
     },
     {
       "symbol": "HEROMOTOCO",
@@ -1389,7 +1665,13 @@
       "lastUpdated": "2026-04-06T19:30:12.404Z",
       "peerRank": 5,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 6350.5,
+      "low52W": 3526.9,
+      "fromHigh": -21.08,
+      "fromLow": 42.09,
+      "return1Y": 42.09,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.640Z"
     },
     {
       "symbol": "ABB",
@@ -1416,7 +1698,13 @@
       "lastUpdated": "2026-04-06T19:26:08.634Z",
       "peerRank": 21,
       "peerTotal": 89,
-      "peerCategory": "Capital Goods - Electrical Equipment"
+      "peerCategory": "Capital Goods - Electrical Equipment",
+      "high52W": 6409,
+      "low52W": 4691.5,
+      "fromHigh": -4.17,
+      "fromLow": 30.92,
+      "return1Y": 23.74,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.627Z"
     },
     {
       "symbol": "HINDALCO",
@@ -1443,7 +1731,13 @@
       "lastUpdated": "2026-04-06T19:30:25.150Z",
       "peerRank": 8,
       "peerTotal": 30,
-      "peerCategory": "Non Ferrous Metals"
+      "peerCategory": "Non Ferrous Metals",
+      "high52W": 1024.05,
+      "low52W": 561.8,
+      "fromHigh": -10.53,
+      "fromLow": 63.09,
+      "return1Y": 63.09,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.677Z"
     },
     {
       "symbol": "CUMMINSIND",
@@ -1470,7 +1764,13 @@
       "lastUpdated": "2026-04-06T19:26:08.674Z",
       "peerRank": 15,
       "peerTotal": 79,
-      "peerCategory": "Capital Goods-Non Electrical Equipment"
+      "peerCategory": "Capital Goods-Non Electrical Equipment",
+      "high52W": 4962.8,
+      "low52W": 2711.25,
+      "fromHigh": -6.37,
+      "fromLow": 71.38,
+      "return1Y": 71.38,
+      "yahooEnrichedAt": "2026-04-06T19:43:48.728Z"
     },
     {
       "symbol": "TRENT",
@@ -1497,7 +1797,13 @@
       "lastUpdated": "2026-04-06T19:30:28.140Z",
       "peerRank": 8,
       "peerTotal": 51,
-      "peerCategory": "Retail"
+      "peerCategory": "Retail",
+      "high52W": 6222.5,
+      "low52W": 3295.8,
+      "fromHigh": -42.94,
+      "fromLow": 7.73,
+      "return1Y": -25.11,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.035Z"
     },
     {
       "symbol": "M&M",
@@ -1524,7 +1830,13 @@
       "lastUpdated": "2026-04-06T19:30:10.481Z",
       "peerRank": 8,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 3802.4,
+      "low52W": 2491.25,
+      "fromHigh": -20.79,
+      "fromLow": 20.89,
+      "return1Y": 20.89,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.015Z"
     },
     {
       "symbol": "VEDL",
@@ -1551,7 +1863,13 @@
       "lastUpdated": "2026-04-06T19:26:10.232Z",
       "peerRank": 12,
       "peerTotal": 22,
-      "peerCategory": "Mining & Mineral products"
+      "peerCategory": "Mining & Mineral products",
+      "high52W": 766.35,
+      "low52W": 370.55,
+      "fromHigh": -10.27,
+      "fromLow": 85.58,
+      "return1Y": 83.84,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.007Z"
     },
     {
       "symbol": "TATAPOWER",
@@ -1578,7 +1896,13 @@
       "lastUpdated": "2026-04-06T19:30:31.797Z",
       "peerRank": 20,
       "peerTotal": 30,
-      "peerCategory": "Power Generation & Distribution"
+      "peerCategory": "Power Generation & Distribution",
+      "high52W": 414.7,
+      "low52W": 345.25,
+      "fromHigh": -7.16,
+      "fromLow": 11.51,
+      "return1Y": 8.5,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.042Z"
     },
     {
       "symbol": "TATACONSUM",
@@ -1605,7 +1929,13 @@
       "lastUpdated": "2026-04-06T19:26:10.882Z",
       "peerRank": 14,
       "peerTotal": 22,
-      "peerCategory": "Plantation & Plantation Products"
+      "peerCategory": "Plantation & Plantation Products",
+      "high52W": 1212.6,
+      "low52W": 1014.8,
+      "fromHigh": -14.07,
+      "fromLow": 2.68,
+      "return1Y": -0.51,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.011Z"
     },
     {
       "symbol": "TMPV",
@@ -1632,7 +1962,13 @@
       "lastUpdated": "2026-04-06T19:26:10.884Z",
       "peerRank": 1,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 417,
+      "low52W": 296.2,
+      "fromHigh": -26.28,
+      "fromLow": 3.78,
+      "return1Y": -21.35,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.017Z"
     },
     {
       "symbol": "TITAN",
@@ -1659,7 +1995,13 @@
       "lastUpdated": "2026-04-06T19:30:52.573Z",
       "peerRank": 22,
       "peerTotal": 37,
-      "peerCategory": "Diamond, Gems and Jewellery"
+      "peerCategory": "Diamond, Gems and Jewellery",
+      "high52W": 4342.6,
+      "low52W": 3022.2,
+      "fromHigh": -5.65,
+      "fromLow": 35.57,
+      "return1Y": 35.57,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.106Z"
     },
     {
       "symbol": "SHRIRAMFIN",
@@ -1686,7 +2028,13 @@
       "lastUpdated": "2026-04-06T19:26:12.203Z",
       "peerRank": 60,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 1104.6,
+      "low52W": 571.65,
+      "fromHigh": -19.28,
+      "fromLow": 55.97,
+      "return1Y": 45.21,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.084Z"
     },
     {
       "symbol": "CHOLAFIN",
@@ -1713,7 +2061,13 @@
       "lastUpdated": "2026-04-06T19:26:12.202Z",
       "peerRank": 53,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 1805.4,
+      "low52W": 1354.7,
+      "fromHigh": -24.88,
+      "fromLow": 0.12,
+      "return1Y": -2.15,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.012Z"
     },
     {
       "symbol": "BPCL",
@@ -1740,7 +2094,13 @@
       "lastUpdated": "2026-04-06T19:26:12.226Z",
       "peerRank": 1,
       "peerTotal": 7,
-      "peerCategory": "Refineries"
+      "peerCategory": "Refineries",
+      "high52W": 388.3,
+      "low52W": 271.3,
+      "fromHigh": -28.37,
+      "fromLow": 2.52,
+      "return1Y": 1.63,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.042Z"
     },
     {
       "symbol": "BEL",
@@ -1767,7 +2127,13 @@
       "lastUpdated": "2026-04-06T19:30:32.736Z",
       "peerRank": 4,
       "peerTotal": 32,
-      "peerCategory": "Aerospace & Defence"
+      "peerCategory": "Aerospace & Defence",
+      "high52W": 468.45,
+      "low52W": 272.1,
+      "fromHigh": -10,
+      "fromLow": 54.94,
+      "return1Y": 54.94,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.423Z"
     },
     {
       "symbol": "HINDZINC",
@@ -1794,7 +2160,13 @@
       "lastUpdated": "2026-04-06T19:26:12.306Z",
       "peerRank": 2,
       "peerTotal": 30,
-      "peerCategory": "Non Ferrous Metals"
+      "peerCategory": "Non Ferrous Metals",
+      "high52W": 727.2,
+      "low52W": 400.6,
+      "fromHigh": -29.08,
+      "fromLow": 28.74,
+      "return1Y": 26.8,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.395Z"
     },
     {
       "symbol": "MOTHERSON",
@@ -1821,7 +2193,13 @@
       "lastUpdated": "2026-04-06T19:26:12.865Z",
       "peerRank": 59,
       "peerTotal": 86,
-      "peerCategory": "Auto Ancillaries"
+      "peerCategory": "Auto Ancillaries",
+      "high52W": 135.31,
+      "low52W": 75.34,
+      "fromHigh": -21.06,
+      "fromLow": 41.77,
+      "return1Y": 40.07,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.381Z"
     },
     {
       "symbol": "LUPIN",
@@ -1848,7 +2226,13 @@
       "lastUpdated": "2026-04-06T19:30:43.312Z",
       "peerRank": 2,
       "peerTotal": 138,
-      "peerCategory": "Pharmaceuticals"
+      "peerCategory": "Pharmaceuticals",
+      "high52W": 2357.3,
+      "low52W": 1851.8,
+      "fromHigh": -3.51,
+      "fromLow": 22.83,
+      "return1Y": 18.28,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.409Z"
     },
     {
       "symbol": "PIDILITIND",
@@ -1875,7 +2259,13 @@
       "lastUpdated": "2026-04-06T19:30:35.069Z",
       "peerRank": 13,
       "peerTotal": 138,
-      "peerCategory": "Chemicals"
+      "peerCategory": "Chemicals",
+      "high52W": 1563.5,
+      "low52W": 1273.6,
+      "fromHigh": -18.54,
+      "fromLow": 0,
+      "return1Y": -10.59,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.392Z"
     },
     {
       "symbol": "TORNTPHARM",
@@ -1902,7 +2292,13 @@
       "lastUpdated": "2026-04-06T19:26:13.636Z",
       "peerRank": 29,
       "peerTotal": 138,
-      "peerCategory": "Pharmaceuticals"
+      "peerCategory": "Pharmaceuticals",
+      "high52W": 4446,
+      "low52W": 3126.8,
+      "fromHigh": -10.32,
+      "fromLow": 27.52,
+      "return1Y": 23.31,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.426Z"
     },
     {
       "symbol": "BANKBARODA",
@@ -1929,7 +2325,13 @@
       "lastUpdated": "2026-04-06T19:31:14.023Z",
       "peerRank": 11,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 324.45,
+      "low52W": 217.27,
+      "fromHigh": -23.08,
+      "fromLow": 14.86,
+      "return1Y": 8.81,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.413Z"
     },
     {
       "symbol": "CANBK",
@@ -1956,7 +2358,13 @@
       "lastUpdated": "2026-04-06T19:26:14.866Z",
       "peerRank": 2,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 158.93,
+      "low52W": 87.1,
+      "fromHigh": -20.07,
+      "fromLow": 45.86,
+      "return1Y": 45.86,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.471Z"
     },
     {
       "symbol": "UNIONBANK",
@@ -1983,7 +2391,13 @@
       "lastUpdated": "2026-04-06T19:26:14.870Z",
       "peerRank": 6,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 202.27,
+      "low52W": 115.58,
+      "fromHigh": -14.97,
+      "fromLow": 48.81,
+      "return1Y": 45.84,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.397Z"
     },
     {
       "symbol": "INDIANB",
@@ -2010,7 +2424,13 @@
       "lastUpdated": "2026-04-06T19:26:15.519Z",
       "peerRank": 4,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 991.55,
+      "low52W": 526.95,
+      "fromHigh": -12.32,
+      "fromLow": 64.99,
+      "return1Y": 61.16,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.409Z"
     },
     {
       "symbol": "ONGC",
@@ -2037,7 +2457,13 @@
       "lastUpdated": "2026-04-06T19:30:53.906Z",
       "peerRank": 3,
       "peerTotal": 8,
-      "peerCategory": "Crude Oil & Natural Gas"
+      "peerCategory": "Crude Oil & Natural Gas",
+      "high52W": 288.05,
+      "low52W": 219.84,
+      "fromHigh": -0.3,
+      "fromLow": 30.64,
+      "return1Y": 30.64,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.792Z"
     },
     {
       "symbol": "DLF",
@@ -2064,7 +2490,13 @@
       "lastUpdated": "2026-04-06T19:26:15.515Z",
       "peerRank": 22,
       "peerTotal": 76,
-      "peerCategory": "Realty"
+      "peerCategory": "Realty",
+      "high52W": 880.35,
+      "low52W": 504.1,
+      "fromHigh": -40.68,
+      "fromLow": 3.6,
+      "return1Y": -14.11,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.749Z"
     },
     {
       "symbol": "PNB",
@@ -2091,7 +2523,13 @@
       "lastUpdated": "2026-04-06T19:26:15.621Z",
       "peerRank": 14,
       "peerTotal": 41,
-      "peerCategory": "Banks"
+      "peerCategory": "Banks",
+      "high52W": 132.36,
+      "low52W": 91.36,
+      "fromHigh": -21.06,
+      "fromLow": 14.36,
+      "return1Y": 10.07,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.745Z"
     },
     {
       "symbol": "TVSMOTOR",
@@ -2118,7 +2556,13 @@
       "lastUpdated": "2026-04-06T19:26:15.514Z",
       "peerRank": 13,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 3954.2,
+      "low52W": 2368.15,
+      "fromHigh": -14.23,
+      "fromLow": 43.21,
+      "return1Y": 43.21,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.760Z"
     },
     {
       "symbol": "IOC",
@@ -2145,7 +2589,13 @@
       "lastUpdated": "2026-04-06T19:31:14.805Z",
       "peerRank": 4,
       "peerTotal": 7,
-      "peerCategory": "Refineries"
+      "peerCategory": "Refineries",
+      "high52W": 187.47,
+      "low52W": 128.09,
+      "fromHigh": -28.45,
+      "fromLow": 4.72,
+      "return1Y": 4.72,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.818Z"
     },
     {
       "symbol": "PFC",
@@ -2172,7 +2622,13 @@
       "lastUpdated": "2026-04-06T19:26:16.851Z",
       "peerRank": 30,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 438.15,
+      "low52W": 335.05,
+      "fromHigh": -8.19,
+      "fromLow": 20.06,
+      "return1Y": 1.82,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.784Z"
     },
     {
       "symbol": "MARICO",
@@ -2199,7 +2655,13 @@
       "lastUpdated": "2026-04-06T19:26:16.847Z",
       "peerRank": 10,
       "peerTotal": 105,
-      "peerCategory": "FMCG"
+      "peerCategory": "FMCG",
+      "high52W": 810.35,
+      "low52W": 662.65,
+      "fromHigh": -6.05,
+      "fromLow": 14.89,
+      "return1Y": 14.89,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.776Z"
     },
     {
       "symbol": "IRFC",
@@ -2226,7 +2688,13 @@
       "lastUpdated": "2026-04-06T19:31:14.903Z",
       "peerRank": 75,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 146.96,
+      "low52W": 87.23,
+      "fromHigh": -37.51,
+      "fromLow": 5.28,
+      "return1Y": -24.98,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.756Z"
     },
     {
       "symbol": "HYUNDAI",
@@ -2253,7 +2721,13 @@
       "lastUpdated": "2026-04-06T19:26:16.845Z",
       "peerRank": 6,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 2809.3,
+      "low52W": 1583.2,
+      "fromHigh": -39.08,
+      "fromLow": 8.1,
+      "return1Y": 8.1,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.732Z"
     },
     {
       "symbol": "ADANIPOWER",
@@ -2280,7 +2754,13 @@
       "lastUpdated": "2026-04-06T19:26:17.528Z",
       "peerRank": 1,
       "peerTotal": 30,
-      "peerCategory": "Power Generation & Distribution"
+      "peerCategory": "Power Generation & Distribution",
+      "high52W": 170.78,
+      "low52W": 101.69,
+      "fromHigh": -6.33,
+      "fromLow": 57.31,
+      "return1Y": 56.85,
+      "yahooEnrichedAt": "2026-04-06T19:43:49.748Z"
     },
     {
       "symbol": "LTM",
@@ -2307,7 +2787,13 @@
       "lastUpdated": "2026-04-06T19:26:17.533Z",
       "peerRank": 36,
       "peerTotal": 179,
-      "peerCategory": "IT - Software"
+      "peerCategory": "IT - Software",
+      "high52W": 5054,
+      "low52W": 4013.8,
+      "fromHigh": -14.77,
+      "fromLow": 7.31,
+      "return1Y": -14.77,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.107Z"
     },
     {
       "symbol": "JINDALSTEL",
@@ -2334,7 +2820,13 @@
       "lastUpdated": "2026-04-06T19:31:26.092Z",
       "peerRank": 38,
       "peerTotal": 93,
-      "peerCategory": "Steel"
+      "peerCategory": "Steel",
+      "high52W": 1266.5,
+      "low52W": 786.9,
+      "fromHigh": -10.15,
+      "fromLow": 44.61,
+      "return1Y": 43.85,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.132Z"
     },
     {
       "symbol": "JIOFIN",
@@ -2361,7 +2853,13 @@
       "lastUpdated": "2026-04-06T19:31:21.654Z",
       "peerRank": 71,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 333.9,
+      "low52W": 213.52,
+      "fromHigh": -29.53,
+      "fromLow": 10.21,
+      "return1Y": 10.21,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.085Z"
     },
     {
       "symbol": "ICICIAMC",
@@ -2388,7 +2886,13 @@
       "lastUpdated": "2026-04-06T19:26:18.189Z",
       "peerRank": 8,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 3150,
+      "low52W": 2585.9,
+      "fromHigh": -9.7,
+      "fromLow": 9.99,
+      "return1Y": 9.99,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.091Z"
     },
     {
       "symbol": "DIVISLAB",
@@ -2415,7 +2919,13 @@
       "lastUpdated": "2026-04-06T19:31:15.113Z",
       "peerRank": 40,
       "peerTotal": 138,
-      "peerCategory": "Pharmaceuticals"
+      "peerCategory": "Pharmaceuticals",
+      "high52W": 6983.5,
+      "low52W": 5258.95,
+      "fromHigh": -16.14,
+      "fromLow": 11.36,
+      "return1Y": 11.36,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.092Z"
     },
     {
       "symbol": "HDFCAMC",
@@ -2442,7 +2952,13 @@
       "lastUpdated": "2026-04-06T19:26:18.190Z",
       "peerRank": 5,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 2946,
+      "low52W": 1866.05,
+      "fromHigh": -20.28,
+      "fromLow": 25.86,
+      "return1Y": 25.86,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.120Z"
     },
     {
       "symbol": "HDFCLIFE",
@@ -2469,7 +2985,13 @@
       "lastUpdated": "2026-04-06T19:26:18.851Z",
       "peerRank": 8,
       "peerTotal": 11,
-      "peerCategory": "Insurance"
+      "peerCategory": "Insurance",
+      "high52W": 814.3,
+      "low52W": 566.1,
+      "fromHigh": -30.48,
+      "fromLow": 0,
+      "return1Y": -14.99,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.113Z"
     },
     {
       "symbol": "SBILIFE",
@@ -2496,7 +3018,13 @@
       "lastUpdated": "2026-04-06T19:26:18.968Z",
       "peerRank": 6,
       "peerTotal": 11,
-      "peerCategory": "Insurance"
+      "peerCategory": "Insurance",
+      "high52W": 2109.6,
+      "low52W": 1460.8,
+      "fromHigh": -15.91,
+      "fromLow": 21.44,
+      "return1Y": 21.44,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.130Z"
     },
     {
       "symbol": "ULTRACEMCO",
@@ -2523,7 +3051,13 @@
       "lastUpdated": "2026-04-06T19:31:37.111Z",
       "peerRank": 10,
       "peerTotal": 30,
-      "peerCategory": "Cement"
+      "peerCategory": "Cement",
+      "high52W": 13052,
+      "low52W": 10362,
+      "fromHigh": -18.63,
+      "fromLow": 2.49,
+      "return1Y": -5.11,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.113Z"
     },
     {
       "symbol": "SOLARINDS",
@@ -2550,7 +3084,13 @@
       "lastUpdated": "2026-04-06T19:26:19.524Z",
       "peerRank": 5,
       "peerTotal": 32,
-      "peerCategory": "Aerospace & Defence"
+      "peerCategory": "Aerospace & Defence",
+      "high52W": 17598,
+      "low52W": 10645.25,
+      "fromHigh": -25.51,
+      "fromLow": 23.14,
+      "return1Y": 23.14,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.128Z"
     },
     {
       "symbol": "POLYCAB",
@@ -2577,7 +3117,13 @@
       "lastUpdated": "2026-04-06T19:31:47.529Z",
       "peerRank": 1,
       "peerTotal": 23,
-      "peerCategory": "Cables"
+      "peerCategory": "Cables",
+      "high52W": 8610.5,
+      "low52W": 4934.6,
+      "fromHigh": -20.12,
+      "fromLow": 39.38,
+      "return1Y": 39.38,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.422Z"
     },
     {
       "symbol": "BAJAJ-AUTO",
@@ -2604,7 +3150,13 @@
       "lastUpdated": "2026-04-06T19:26:19.523Z",
       "peerRank": 4,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 10110,
+      "low52W": 7306.8,
+      "fromHigh": -13.37,
+      "fromLow": 19.87,
+      "return1Y": 19.87,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.418Z"
     },
     {
       "symbol": "TATACAP",
@@ -2631,7 +3183,13 @@
       "lastUpdated": "2026-04-06T19:31:47.742Z",
       "peerRank": 136,
       "peerTotal": 168,
-      "peerCategory": "Finance"
+      "peerCategory": "Finance",
+      "high52W": 361.55,
+      "low52W": 305,
+      "fromHigh": -14.66,
+      "fromLow": 1.16,
+      "return1Y": -6.64,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.382Z"
     },
     {
       "symbol": "INDIGO",
@@ -2658,7 +3216,13 @@
       "lastUpdated": "2026-04-06T19:26:20.193Z",
       "peerRank": 2,
       "peerTotal": 7,
-      "peerCategory": "Air Transport Service"
+      "peerCategory": "Air Transport Service",
+      "high52W": 6155.5,
+      "low52W": 3943.5,
+      "fromHigh": -31.87,
+      "fromLow": 6.34,
+      "return1Y": -15.94,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.418Z"
     },
     {
       "symbol": "INDUSTOWER",
@@ -2685,7 +3249,13 @@
       "lastUpdated": "2026-04-06T19:31:47.844Z",
       "peerRank": 1,
       "peerTotal": 13,
-      "peerCategory": "Telecom Equipment & Infra Services"
+      "peerCategory": "Telecom Equipment & Infra Services",
+      "high52W": 477.75,
+      "low52W": 324.05,
+      "fromHigh": -11.07,
+      "fromLow": 31.11,
+      "return1Y": 19.34,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.391Z"
     },
     {
       "symbol": "ADANIENSOL",
@@ -2712,7 +3282,13 @@
       "lastUpdated": "2026-04-06T19:31:47.717Z",
       "peerRank": 16,
       "peerTotal": 30,
-      "peerCategory": "Power Generation & Distribution"
+      "peerCategory": "Power Generation & Distribution",
+      "high52W": 1057.9,
+      "low52W": 755.95,
+      "fromHigh": -6.29,
+      "fromLow": 31.14,
+      "return1Y": 21.63,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.412Z"
     },
     {
       "symbol": "ADANIGREEN",
@@ -2739,7 +3315,13 @@
       "lastUpdated": "2026-04-06T19:31:47.815Z",
       "peerRank": 26,
       "peerTotal": 30,
-      "peerCategory": "Power Generation & Distribution"
+      "peerCategory": "Power Generation & Distribution",
+      "high52W": 1152.15,
+      "low52W": 772.8,
+      "fromHigh": -25.7,
+      "fromLow": 10.77,
+      "return1Y": -1.98,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.399Z"
     },
     {
       "symbol": "POWERINDIA",
@@ -2766,7 +3348,13 @@
       "lastUpdated": "2026-04-06T19:31:38.211Z",
       "peerRank": 49,
       "peerTotal": 89,
-      "peerCategory": "Capital Goods - Electrical Equipment"
+      "peerCategory": "Capital Goods - Electrical Equipment",
+      "high52W": 25860,
+      "low52W": 11353.45,
+      "fromHigh": -2.07,
+      "fromLow": 123.06,
+      "return1Y": 119.82,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.416Z"
     },
     {
       "symbol": "GROWW",
@@ -2793,7 +3381,13 @@
       "lastUpdated": "2026-04-06T19:31:37.428Z",
       "peerRank": 8,
       "peerTotal": 25,
-      "peerCategory": "Stock/ Commodity Brokers"
+      "peerCategory": "Stock/ Commodity Brokers",
+      "high52W": 188.77,
+      "low52W": 131.33,
+      "fromHigh": -12.69,
+      "fromLow": 25.5,
+      "return1Y": 25.5,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.391Z"
     },
     {
       "symbol": "TMCV",
@@ -2820,7 +3414,13 @@
       "lastUpdated": "2026-04-06T19:31:43.068Z",
       "peerRank": 24,
       "peerTotal": 24,
-      "peerCategory": "Automobile"
+      "peerCategory": "Automobile",
+      "high52W": 505.3,
+      "low52W": 317.6,
+      "fromHigh": -23.19,
+      "fromLow": 22.2,
+      "return1Y": 17.8,
+      "yahooEnrichedAt": "2026-04-06T19:43:50.408Z"
     },
     {
       "symbol": "ASHOKLEY",
@@ -93866,5 +94466,6 @@
       "peerTotal": 325,
       "peerCategory": "ETF"
     }
-  ]
+  ],
+  "lastYahooEnriched": "2026-04-06T19:43:50.524Z"
 }
