@@ -247,30 +247,36 @@ export function StockAnalysis() {
     const profileId = currentProfile.id
 
     async function loadStock() {
-      // Demo stocks: use sync path for instant load
+      // Demo stocks: show instantly with mock data, then upgrade to live V2 verdict
       if (isDemoStock(symbol)) {
         const stockData = getStockBySymbol(symbol)
         const verdictData = getVerdictForStock(symbol, profileId)
         const newsData = getNewsForStock(symbol)
-        const verdictV2Data = getVerdictV2(symbol, profileId)
-
-        // Fetch CMOTS metrics for learning mode (even for demo stocks)
-        if (verdictV2Data && !verdictV2Data.resolvedMetrics) {
-          import('@/services/metricResolver').then(({ resolveMetricValues }) => {
-            resolveMetricValues(symbol).then(resolved => {
-              if (resolved && !cancelled) {
-                setVerdictV2(prev => prev ? { ...prev, resolvedMetrics: resolved.data } : prev)
-              }
-            }).catch(() => {}) // Metrics unavailable — learning mode will use signal-level cues
-          })
-        }
+        const mockV2 = getVerdictV2(symbol, profileId)
 
         if (cancelled) return
+        // Instant render with mock data
         setStock(stockData || null)
         setVerdict(verdictData || null)
-        setVerdictV2(verdictV2Data || null)
+        setVerdictV2(mockV2 || null)
         setNews(newsData.slice(0, 5))
         setUpcomingEvents(getUpcomingEvents(symbol))
+        setIsLoading(false)
+
+        // Background: build live V2 verdict with personalization + explainer + audit trail
+        if (stockData) {
+          buildVerdictForStock(stockData, profileId).then(liveV2 => {
+            if (!cancelled && liveV2) {
+              setVerdictV2(liveV2)
+            }
+          }).catch(() => {
+            // Live scoring failed — mock V2 stays (no degradation)
+          })
+        }
+        // Early return — loading already set to false above
+        setSelectedPillar(null)
+        setSelectedFactorId(null)
+        return
       } else {
         // Non-demo: resolve via CMOTS API + live scoring
         const resolved = await resolveStock(symbol)
