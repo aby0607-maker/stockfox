@@ -68,12 +68,14 @@ export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRev
             <Icon className={cn('w-4 h-4', band.colorClass)} />
           </div>
           <div>
-            <Tooltip content={PILLAR_DESCRIPTIONS[pillar.pillar] || ''} position="bottom">
-              <span className="text-sm font-semibold text-white block">{label}</span>
-            </Tooltip>
-            <span className="text-[10px] text-neutral-500">
-              {totalSegments} {pillar.pillar === 'qual' ? 'factors' : 'segments'}
-            </span>
+            <div className="flex items-center gap-2">
+              <Tooltip content={PILLAR_DESCRIPTIONS[pillar.pillar] || ''} position="bottom">
+                <span className="text-sm font-semibold text-white">{label}</span>
+              </Tooltip>
+              <span className="text-[10px] text-neutral-500">
+                {totalSegments} {pillar.pillar === 'qual' ? 'factors' : 'segments'}
+              </span>
+            </div>
           </div>
         </div>
         <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
