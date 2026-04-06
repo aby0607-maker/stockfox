@@ -28,6 +28,7 @@ interface InfoData {
   quarterlyRevenue: { quarter: string; revenue: number; pat: number }[]
   peers: { symbol: string; name: string; pe?: number; mcap?: number; roe?: number }[]
   corporateActions: CorporateActionItem[]
+  mcapRank: { rank: number; total: number } | null  // Rank among peers by market cap
 }
 
 async function fetchInfoData(symbol: string): Promise<InfoData> {
@@ -123,19 +124,46 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
     }
   }
 
-  // Peers
+  // Peers — fetch with market cap for ranking
   let peers: InfoData['peers'] = []
   if (company) {
     try {
       const peerDetails = await generatePeerGroupDetailed(company)
-      peers = peerDetails.slice(0, 5).map(p => ({
-        symbol: p.symbol,
-        name: p.name,
-      }))
+      const peerSlice = peerDetails.slice(0, 5)
+
+      // Fetch TTM data for each peer in parallel to get mcap, P/E, ROE
+      const peerTTMs = await Promise.all(
+        peerSlice.map(async p => {
+          try {
+            const pTTM = await getTTMData(p.symbol)
+            const t = pTTM as unknown as Record<string, unknown> | null
+            return {
+              symbol: p.symbol,
+              name: p.name,
+              mcap: (t?.mcap as number) ?? null,
+              pe: (t?.pe_ttm as number) ?? null,
+              roe: (t?.roe_ttm as number) ?? null,
+            }
+          } catch {
+            return { symbol: p.symbol, name: p.name }
+          }
+        })
+      )
+      peers = peerTTMs
     } catch { /* peer lookup failed */ }
   }
 
-  return { ttm, shareholding, priceHistory, quarterlyRevenue, peers, corporateActions }
+  // Compute market cap rank among peers
+  let mcapRank: InfoData['mcapRank'] = null
+  const stockMcap = ttm['mcap']
+  if (stockMcap != null && peers.length > 0) {
+    const allMcaps = [{ symbol, mcap: stockMcap }, ...peers.filter(p => p.mcap != null).map(p => ({ symbol: p.symbol, mcap: p.mcap! }))]
+    allMcaps.sort((a, b) => b.mcap - a.mcap)  // Descending
+    const rank = allMcaps.findIndex(m => m.symbol === symbol) + 1
+    mcapRank = { rank, total: allMcaps.length }
+  }
+
+  return { ttm, shareholding, priceHistory, quarterlyRevenue, peers, corporateActions, mcapRank }
 }
 
 // ─── Components ─────────────────────────────────
@@ -253,7 +281,7 @@ function formatMetricValue(value: number | null, unit?: string): string {
   return `${value.toFixed(2)}`
 }
 
-function EnhancedMetricCard({ def, value }: { def: MetricDef; value: number | null }) {
+function EnhancedMetricCard({ def, value, badge }: { def: MetricDef; value: number | null; badge?: string }) {
   const formatted = formatMetricValue(value, def.unit)
   const interp = value != null && def.interpret ? def.interpret(value) : null
   const style = interp ? SENTIMENT_STYLES[interp.sentiment] : SENTIMENT_STYLES.none
@@ -264,8 +292,11 @@ function EnhancedMetricCard({ def, value }: { def: MetricDef; value: number | nu
       'bg-dark-700/40',
       interp ? style.bg : 'border-white/5',
     )}>
-      <div className="flex items-center gap-1.5 mb-1">
+      <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] text-neutral-400 font-medium">{def.label}</span>
+        {badge && (
+          <span className="text-[9px] font-bold text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">{badge}</span>
+        )}
       </div>
       <span className="text-base font-bold text-white block leading-tight">{formatted}</span>
       {interp && (
@@ -446,6 +477,7 @@ export function InfoTab({ stock }: InfoTabProps) {
                     key={metric.key}
                     def={metric}
                     value={data.ttm[metric.key]}
+                    badge={metric.key === 'mcap' && data.mcapRank ? `#${data.mcapRank.rank}/${data.mcapRank.total}` : undefined}
                   />
                 ))}
               </div>
@@ -501,13 +533,20 @@ export function InfoTab({ stock }: InfoTabProps) {
               <a
                 key={peer.symbol}
                 href={`/stock/${peer.symbol}`}
-                className="flex items-center justify-between py-2 px-3 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors"
+                className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors"
               >
-                <div>
+                <div className="min-w-0">
                   <span className="text-sm font-medium text-white">{peer.symbol}</span>
-                  <span className="text-xs text-neutral-500 ml-2">{peer.name}</span>
+                  <span className="text-xs text-neutral-500 ml-2 truncate">{peer.name}</span>
                 </div>
-                <span className="text-xs text-neutral-400">→</span>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {peer.mcap != null && (
+                    <span className="text-[10px] text-neutral-500">
+                      {peer.mcap >= 10000 ? `₹${(peer.mcap / 10000).toFixed(1)}L Cr` : `₹${peer.mcap.toFixed(0)} Cr`}
+                    </span>
+                  )}
+                  <span className="text-xs text-neutral-400">→</span>
+                </div>
               </a>
             ))}
           </div>
