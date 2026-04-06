@@ -1,1 +1,5 @@
 export { getYahooHistoricalPrices } from './priceData'
+export { getSectorRotation, mapSectorToIndex } from './sectorRotation'
+export type { SectorMomentum, SectorRotationData } from './sectorRotation'
+export { getESGScore } from './esgScore'
+export type { ESGScoreData } from './esgScore'
