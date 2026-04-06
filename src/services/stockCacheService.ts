@@ -158,6 +158,7 @@ export async function getTopStocks(limit = 10): Promise<CachedStock[]> {
 
 /**
  * Write-through: update a stock's cached data after fresh scoring.
+ * Updates in-memory cache AND sends to Vercel Blob via API.
  * Called by buildVerdictForStock when live data is fetched.
  */
 export function updateCachedStock(symbol: string, update: Partial<CachedStock>): void {
@@ -165,7 +166,11 @@ export function updateCachedStock(symbol: string, update: Partial<CachedStock>):
   const key = symbol.toUpperCase()
   const existing = _cache.get(key)
   if (existing) {
-    _cache.set(key, { ...existing, ...update, lastUpdated: new Date().toISOString() })
+    const updated = { ...existing, ...update, lastUpdated: new Date().toISOString() }
+    _cache.set(key, updated)
+
+    // Async Blob write-through (fire-and-forget, non-blocking)
+    persistToBlob(key, updated).catch(() => { /* Blob write failed — non-critical */ })
   } else {
     // New stock — add to cache if we have enough data
     if (update.name && update.score != null) {
@@ -195,6 +200,21 @@ export function updateCachedStock(symbol: string, update: Partial<CachedStock>):
       })
     }
   }
+}
+
+/**
+ * Persist a single stock update to Vercel Blob via API endpoint.
+ * The API endpoint patches the stock in the Blob JSON.
+ * Fire-and-forget — doesn't block the UI.
+ */
+async function persistToBlob(symbol: string, stock: CachedStock): Promise<void> {
+  try {
+    await fetch('/api/stock-cache', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, stock }),
+    })
+  } catch { /* non-critical */ }
 }
 
 /**

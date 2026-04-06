@@ -53,6 +53,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'PUT') {
     try {
       const body = req.body
+
+      // Single stock update (write-through from Scorecard)
+      if (body?.symbol && body?.stock) {
+        // Read current blob → patch stock → write back
+        const blobs = await list({ prefix: 'v2-stock-data/latest' })
+        const currentBlob = blobs.blobs[0]
+        if (currentBlob) {
+          const currentData = await fetch(currentBlob.url).then(r => r.json())
+          const stocks = currentData.stocks || []
+          const idx = stocks.findIndex((s: any) => s.symbol === body.symbol)
+          if (idx >= 0) {
+            stocks[idx] = { ...stocks[idx], ...body.stock }
+          } else {
+            stocks.push(body.stock)
+          }
+          currentData.stocks = stocks
+          currentData.stockCount = stocks.length
+          await put(BLOB_PATH, JSON.stringify(currentData), {
+            access: 'public', contentType: 'application/json',
+            addRandomSuffix: false, allowOverwrite: true,
+          })
+          return res.status(200).json({ success: true, patched: body.symbol })
+        }
+        return res.status(200).json({ success: true, message: 'No blob to patch' })
+      }
+
+      // Full cache replacement (from precompute script)
       if (!body || !body.stocks) {
         return res.status(400).json({ error: 'Missing stocks data' })
       }
@@ -61,6 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         access: 'public',
         contentType: 'application/json',
         addRandomSuffix: false,
+        allowOverwrite: true,
       })
 
       return res.status(200).json({
