@@ -140,18 +140,140 @@ async function fetchInfoData(symbol: string): Promise<InfoData> {
 
 // ─── Components ─────────────────────────────────
 
-function MetricCard({ label, value, unit, color }: { label: string; value: number | null; unit?: string; color?: string }) {
-  const formatted = value != null
-    ? unit === '%' ? `${value.toFixed(1)}%`
-    : unit === 'x' ? `${value.toFixed(2)}x`
-    : unit === 'Cr' ? `₹${(value / 100).toFixed(0)}L Cr`
-    : `${value.toFixed(2)}`
-    : '—'
+// ─── Metric interpretation engine ──────────────
+
+type MetricSentiment = 'positive' | 'neutral' | 'negative' | 'none'
+
+interface MetricDef {
+  label: string
+  key: string
+  unit?: string
+  interpret?: (v: number) => { sentiment: MetricSentiment; hint: string }
+}
+
+const METRIC_GROUPS: { title: string; icon: string; metrics: MetricDef[] }[] = [
+  {
+    title: 'Valuation',
+    icon: '📊',
+    metrics: [
+      { label: 'P/E', key: 'pe', unit: 'x', interpret: v =>
+        v < 15 ? { sentiment: 'positive', hint: 'Undervalued' } :
+        v < 25 ? { sentiment: 'neutral', hint: 'Fair' } :
+        v < 40 ? { sentiment: 'negative', hint: 'Expensive' } :
+        { sentiment: 'negative', hint: 'Very expensive' }
+      },
+      { label: 'P/B', key: 'pb', unit: 'x', interpret: v =>
+        v < 2 ? { sentiment: 'positive', hint: 'Attractive' } :
+        v < 4 ? { sentiment: 'neutral', hint: 'Fair' } :
+        { sentiment: 'negative', hint: 'Premium' }
+      },
+      { label: 'EV/EBITDA', key: 'evEbitda', unit: 'x', interpret: v =>
+        v < 10 ? { sentiment: 'positive', hint: 'Cheap' } :
+        v < 20 ? { sentiment: 'neutral', hint: 'Fair' } :
+        { sentiment: 'negative', hint: 'Expensive' }
+      },
+    ],
+  },
+  {
+    title: 'Profitability',
+    icon: '💹',
+    metrics: [
+      { label: 'ROE', key: 'roe', unit: '%', interpret: v =>
+        v >= 15 ? { sentiment: 'positive', hint: 'Strong' } :
+        v >= 10 ? { sentiment: 'neutral', hint: 'Decent' } :
+        { sentiment: 'negative', hint: 'Weak' }
+      },
+      { label: 'ROCE', key: 'roce', unit: '%', interpret: v =>
+        v >= 15 ? { sentiment: 'positive', hint: 'Efficient' } :
+        v >= 10 ? { sentiment: 'neutral', hint: 'Average' } :
+        { sentiment: 'negative', hint: 'Low' }
+      },
+      { label: 'OPM', key: 'opm', unit: '%', interpret: v =>
+        v >= 20 ? { sentiment: 'positive', hint: 'High margin' } :
+        v >= 10 ? { sentiment: 'neutral', hint: 'Moderate' } :
+        { sentiment: 'negative', hint: 'Thin margin' }
+      },
+    ],
+  },
+  {
+    title: 'Financial Health',
+    icon: '🛡️',
+    metrics: [
+      { label: 'D/E', key: 'de', unit: 'x', interpret: v =>
+        v < 0.5 ? { sentiment: 'positive', hint: 'Low debt' } :
+        v < 1 ? { sentiment: 'neutral', hint: 'Moderate' } :
+        { sentiment: 'negative', hint: 'High debt' }
+      },
+      { label: 'Current Ratio', key: 'cr', unit: 'x', interpret: v =>
+        v >= 1.5 ? { sentiment: 'positive', hint: 'Healthy' } :
+        v >= 1 ? { sentiment: 'neutral', hint: 'Adequate' } :
+        { sentiment: 'negative', hint: 'Tight' }
+      },
+      { label: 'EPS', key: 'eps', interpret: v =>
+        v > 0 ? { sentiment: 'positive', hint: `₹${v.toFixed(0)}/share` } :
+        { sentiment: 'negative', hint: 'Loss-making' }
+      },
+    ],
+  },
+  {
+    title: 'Income & Size',
+    icon: '🏢',
+    metrics: [
+      { label: 'Div. Yield', key: 'dy', unit: '%', interpret: v =>
+        v >= 2 ? { sentiment: 'positive', hint: 'Good yield' } :
+        v > 0 ? { sentiment: 'neutral', hint: 'Modest' } :
+        { sentiment: 'none', hint: 'No dividend' }
+      },
+      { label: 'Market Cap', key: 'mcap', unit: 'Cr' },
+      { label: 'PEG', key: 'peg', unit: 'x', interpret: v =>
+        v > 0 && v < 1 ? { sentiment: 'positive', hint: 'Undervalued' } :
+        v >= 1 && v < 2 ? { sentiment: 'neutral', hint: 'Fair' } :
+        v < 0 ? { sentiment: 'none', hint: 'Negative growth' } :
+        { sentiment: 'negative', hint: 'Overvalued' }
+      },
+    ],
+  },
+]
+
+const SENTIMENT_STYLES: Record<MetricSentiment, { dot: string; text: string; bg: string }> = {
+  positive: { dot: 'bg-emerald-400', text: 'text-emerald-400', bg: 'border-emerald-500/15' },
+  neutral:  { dot: 'bg-amber-400',   text: 'text-amber-400',   bg: 'border-amber-500/15' },
+  negative: { dot: 'bg-red-400',     text: 'text-red-400',     bg: 'border-red-500/15' },
+  none:     { dot: 'bg-neutral-600', text: 'text-neutral-500', bg: 'border-white/5' },
+}
+
+function formatMetricValue(value: number | null, unit?: string): string {
+  if (value == null) return '—'
+  if (unit === '%') return `${value.toFixed(1)}%`
+  if (unit === 'x') return `${value.toFixed(2)}x`
+  if (unit === 'Cr') {
+    if (value >= 10000) return `₹${(value / 10000).toFixed(1)}L Cr`
+    return `₹${value.toFixed(0)} Cr`
+  }
+  return `${value.toFixed(2)}`
+}
+
+function EnhancedMetricCard({ def, value }: { def: MetricDef; value: number | null }) {
+  const formatted = formatMetricValue(value, def.unit)
+  const interp = value != null && def.interpret ? def.interpret(value) : null
+  const style = interp ? SENTIMENT_STYLES[interp.sentiment] : SENTIMENT_STYLES.none
 
   return (
-    <div className="p-3 rounded-lg bg-dark-700/50 border border-white/5">
-      <span className="text-[10px] text-neutral-500 block">{label}</span>
-      <span className={cn('text-sm font-semibold', color || 'text-white')}>{formatted}</span>
+    <div className={cn(
+      'p-3 rounded-xl border transition-colors',
+      'bg-dark-700/40',
+      interp ? style.bg : 'border-white/5',
+    )}>
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-[10px] text-neutral-400 font-medium">{def.label}</span>
+      </div>
+      <span className="text-base font-bold text-white block leading-tight">{formatted}</span>
+      {interp && (
+        <div className="flex items-center gap-1 mt-1.5">
+          <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', style.dot)} />
+          <span className={cn('text-[10px] font-medium', style.text)}>{interp.hint}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -299,48 +421,36 @@ export function InfoTab({ stock }: InfoTabProps) {
         </div>
       </motion.div>
 
-      {/* Section 2: Key Metrics — grouped by theme */}
+      {/* Section 2: Key Metrics — grouped by theme with sentiment */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
         className="rounded-2xl bg-dark-800 border border-white/5 p-4"
       >
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-4 h-4 text-primary-400" />
           <h3 className="text-sm font-semibold text-white">Key Metrics</h3>
         </div>
 
-        {/* Valuation */}
-        <p className="text-[9px] text-neutral-600 uppercase tracking-wider mb-1.5 mt-2">Valuation</p>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <MetricCard label="P/E" value={data.ttm['pe']} unit="x" />
-          <MetricCard label="P/B" value={data.ttm['pb']} unit="x" />
-          <MetricCard label="EV/EBITDA" value={data.ttm['evEbitda']} unit="x" />
-        </div>
-
-        {/* Profitability */}
-        <p className="text-[9px] text-neutral-600 uppercase tracking-wider mb-1.5">Profitability</p>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <MetricCard label="ROE" value={data.ttm['roe']} unit="%" />
-          <MetricCard label="ROCE" value={data.ttm['roce']} unit="%" />
-          <MetricCard label="OPM" value={data.ttm['opm']} unit="%" />
-        </div>
-
-        {/* Financial Health */}
-        <p className="text-[9px] text-neutral-600 uppercase tracking-wider mb-1.5">Financial Health</p>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <MetricCard label="D/E" value={data.ttm['de']} unit="x" />
-          <MetricCard label="Current Ratio" value={data.ttm['cr']} unit="x" />
-          <MetricCard label="EPS" value={data.ttm['eps']} />
-        </div>
-
-        {/* Income */}
-        <p className="text-[9px] text-neutral-600 uppercase tracking-wider mb-1.5">Income & Size</p>
-        <div className="grid grid-cols-3 gap-2">
-          <MetricCard label="Dividend Yield" value={data.ttm['dy']} unit="%" />
-          <MetricCard label="Market Cap" value={data.ttm['mcap']} unit="Cr" />
-          <MetricCard label="PEG" value={data.ttm['peg']} unit="x" />
+        <div className="space-y-4">
+          {METRIC_GROUPS.map((group, gi) => (
+            <div key={gi}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-xs">{group.icon}</span>
+                <span className="text-[11px] font-semibold text-neutral-300 uppercase tracking-wide">{group.title}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {group.metrics.map(metric => (
+                  <EnhancedMetricCard
+                    key={metric.key}
+                    def={metric}
+                    value={data.ttm[metric.key]}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </motion.div>
 
