@@ -1,20 +1,14 @@
 name: V2 Stock Data — Nightly Pipeline
 
 on:
-  # Weeknights at 7:30 PM UTC (1:00 AM IST)
   schedule:
-    - cron: '30 19 * * 1-5'
-  # Manual trigger
+    - cron: '30 19 * * 1-5'  # Weeknights 7:30 PM UTC (1 AM IST)
   workflow_dispatch:
     inputs:
       tier:
-        description: 'Tier to refresh (large, mid, small, all)'
+        description: 'Tier to refresh (all, Large Cap, Mid Cap, Small Cap)'
         required: false
         default: 'all'
-      skip_enrichment:
-        description: 'Skip BSE/NSE/Yahoo enrichment'
-        required: false
-        default: 'false'
 
 permissions:
   contents: write
@@ -33,11 +27,13 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Create output directory
         run: mkdir -p public/data
 
-      # ─── Cron 1: Core CMOTS data ───────────────
-      - name: "Cron 1: Core scoring (CMOTS TTM + Prices + Shareholding)"
+      - name: "Run full pipeline (CMOTS + Yahoo + BSE)"
         env:
           CMOTS_API_TOKEN: ${{ secrets.CMOTS_API_TOKEN }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
@@ -45,24 +41,13 @@ jobs:
           TIER_OVERRIDE: ${{ github.event.inputs.tier }}
         run: |
           TIER="${TIER_OVERRIDE:-all}"
-          echo "🦊 Running core scoring for tier: $TIER"
+          echo "Running full pipeline for tier: $TIER"
           node scripts/precompute-stocks.mjs --tier="$TIER"
 
-      # ─── Cron 3: Yahoo Finance enrichment ──────
-      - name: "Cron 3: Yahoo enrichment (52W range + ESG)"
-        if: ${{ github.event.inputs.skip_enrichment != 'true' }}
-        env:
-          TIER_OVERRIDE: ${{ github.event.inputs.tier }}
-        run: |
-          TIER="${TIER_OVERRIDE:-all}"
-          echo "📈 Enriching with Yahoo data for tier: $TIER"
-          node scripts/enrich-yahoo.mjs --tier="$TIER"
-
-      # ─── Commit + Push ─────────────────────────
       - name: Commit updated cache
         run: |
           git config user.name "StockFox Bot"
           git config user.email "bot@stockfox.pro"
           git add public/data/stock-cache.json
-          git diff --staged --quiet || git commit -m "chore: update V2 stock data [skip ci]"
+          git diff --staged --quiet || git commit -m "chore: update V2 stock data"
           git push

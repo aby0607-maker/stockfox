@@ -139,10 +139,63 @@ async function main() {
   // Process in parallel batches (20 concurrent — CMOTS handles this fine)
   const CONCURRENCY = 20
 
+  // Yahoo symbol mapping
+  const YAHOO_RENAMES = { ZOMATO: 'ETERNAL' }
+  function toYahoo(sym) { const u = sym.toUpperCase(); return `${YAHOO_RENAMES[u] || u}.NS` }
+
+  async function fetch52W(symbol) {
+    const now = Math.floor(Date.now() / 1000)
+    const oneYearAgo = now - 365 * 24 * 60 * 60
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(toYahoo(symbol))}?period1=${oneYearAgo}&period2=${now}&interval=1d`
+      const res = await fetch(url, { headers: { 'User-Agent': 'StockFox/1.0' } })
+      if (!res.ok) return null
+      const json = await res.json()
+      const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close
+      if (!closes?.length) return null
+      const valid = closes.filter(c => c != null && c > 0)
+      if (valid.length < 10) return null
+      const high = Math.max(...valid), low = Math.min(...valid), cur = valid[valid.length - 1], first = valid[0]
+      return { high52W: Math.round(high * 100) / 100, low52W: Math.round(low * 100) / 100, fromHigh: Math.round(((cur - high) / high) * 10000) / 100, fromLow: Math.round(((cur - low) / low) * 10000) / 100, return1Y: Math.round(((cur - first) / first) * 10000) / 100 }
+    } catch { return null }
+  }
+
+  async function fetchBSEInsider(bseCode) {
+    if (!bseCode) return null
+    try {
+      const to = new Date(), from = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
+      const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+      const url = `https://api.bseindia.com/BseIndiaAPI/api/AnnualReportHDR/w?strCat=Insider+Trading+/+SAST&scripcode=${bseCode}&FromDate=${fmt(from)}&ToDate=${fmt(to)}`
+      const res = await fetch(url, { headers: { Accept: 'application/json' } })
+      if (!res.ok) return null
+      const data = await res.json()
+      const filings = Array.isArray(data?.Table) ? data.Table : []
+      if (filings.length === 0) return { sentiment: 'none', filings: 0 }
+      let buy = 0, sell = 0
+      for (const f of filings) { const h = (f.HEADLINE || '').toLowerCase(); if (h.includes('acqui') || h.includes('purchase')) buy++; if (h.includes('dispos') || h.includes('sale')) sell++ }
+      return { sentiment: buy > sell ? 'buying' : sell > buy ? 'selling' : buy > 0 ? 'mixed' : 'none', filings: filings.length }
+    } catch { return null }
+  }
+
+  async function fetchBSECorpActions(bseCode) {
+    if (!bseCode) return null
+    try {
+      const to = new Date(), from = new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)
+      const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+      const url = `https://api.bseindia.com/BseIndiaAPI/api/CorporateAction/w?scripcode=${bseCode}&segment=Equity&purpose_code=&from_date=${fmt(from)}&to_date=${fmt(to)}`
+      const res = await fetch(url, { headers: { Accept: 'application/json' } })
+      if (!res.ok) return null
+      const data = await res.json()
+      return { dividendCount: Array.isArray(data?.Table) ? data.Table.length : 0, bonusSplitCount: Array.isArray(data?.Table1) ? data.Table1.length : 0 }
+    } catch { return null }
+  }
+
   async function processStock(company) {
     const symbol = company.nsesymbol.toUpperCase()
+    const bseCode = company.bsecode || null
+    const isTopTier = company.mcaptype === 'Large Cap' || company.mcaptype === 'Mid Cap'
 
-    // Fetch TTM first — if it fails, retry once after a delay
+    // Core: CMOTS TTM + Shareholding
     let ttmData = await cmotsFetch(`/TTMData/${company.co_code}/s`)
     if (!ttmData?.length) {
       await new Promise(r => setTimeout(r, 500))
@@ -160,14 +213,14 @@ async function main() {
       promoterHolding = shData[0].Promoters || null
     }
 
-    return {
+    const entry = {
       symbol,
       name: company.companyshortname || company.companyname,
       sector: company.sectorname,
       industry: company.industryname,
       mcapType: company.mcaptype,
       coCode: company.co_code,
-      bseCode: company.bsecode || null,
+      bseCode,
       score: quickScore(ttm),
       verdict: getVerdict(quickScore(ttm)),
       price: priceFeed?.price || null,
@@ -185,6 +238,31 @@ async function main() {
       promoterHolding,
       lastUpdated: new Date().toISOString(),
     }
+
+    // Enrichment: Yahoo 52W (all stocks) + BSE insider/corp actions (Large+Mid only)
+    const [range, insider, corpActions] = await Promise.all([
+      fetch52W(symbol),
+      isTopTier ? fetchBSEInsider(bseCode) : null,
+      isTopTier ? fetchBSECorpActions(bseCode) : null,
+    ])
+
+    if (range) {
+      entry.high52W = range.high52W
+      entry.low52W = range.low52W
+      entry.fromHigh = range.fromHigh
+      entry.fromLow = range.fromLow
+      entry.return1Y = range.return1Y
+    }
+    if (insider) {
+      entry.insiderSentiment = insider.sentiment
+      entry.insiderFilings = insider.filings
+    }
+    if (corpActions) {
+      entry.dividendCount = corpActions.dividendCount
+      entry.corpActionCount = corpActions.dividendCount + corpActions.bonusSplitCount
+    }
+
+    return entry
   }
 
   for (let i = 0; i < stocksToProcess.length; i += CONCURRENCY) {
@@ -268,6 +346,7 @@ async function main() {
         token: BLOB_TOKEN,
         contentType: 'application/json',
         addRandomSuffix: false,
+        allowOverwrite: true,
       })
       console.log(`   ✓ Blob uploaded: ${blob.url}`)
     } catch (err) {
@@ -280,6 +359,7 @@ async function main() {
           token: BLOB_TOKEN,
           contentType: 'application/json',
           addRandomSuffix: false,
+        allowOverwrite: true,
         })
         console.log(`   ✓ Blob uploaded (retry): ${blob.url}`)
       } catch (retryErr) {
