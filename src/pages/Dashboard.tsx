@@ -63,58 +63,93 @@ export function Dashboard() {
 
     async function loadWatchlist() {
       setIsLoading(true)
-      const { resolveStock } = await import('@/services/stockService')
-      const { getTTMData } = await import('@/services/cmots')
-      const { getOverallVerdict } = await import('@/lib/scoring')
 
-      // Quick score from TTM data — no full scoring pipeline (fast: ~2s per stock)
-      function quickScore(ttm: Record<string, unknown>): number {
-        const pe = (ttm.pe_ttm as number) ?? 25
-        const roe = (ttm.roe_ttm as number) ?? 10
-        const de = (ttm.debttoequity as number) ?? 0.5
-        const opm = (ttm.operatingprofitmargin as number) ?? 15
-        const peS = pe > 0 && pe < 200 ? Math.max(0, Math.min(100, 100 - pe * 1.5)) : 50
-        const roeS = Math.min(100, Math.max(0, roe * 4.5))
-        const deS = de >= 0 ? Math.max(0, Math.min(100, 100 - de * 40)) : 50
-        const opmS = Math.min(100, Math.max(0, opm * 3.5))
-        return Math.round(peS * 0.25 + roeS * 0.3 + deS * 0.2 + opmS * 0.25)
+      // Strategy: Cache-first, live-fallback
+      // 1. Try pre-computed CDN cache (instant, <100ms)
+      // 2. Fallback to live CMOTS TTM scoring (~5-10s per stock)
+      const { getCachedStocks } = await import('@/services/stockCacheService')
+      const cached = await getCachedStocks(storeWatchlist)
+
+      if (cached.length > 0 && !cancelled) {
+        // Cache hit — render instantly, then optionally refresh in background
+        const watchlistFromCache = cached.map(c => ({
+          id: c.symbol,
+          symbol: c.symbol,
+          name: c.name,
+          sector: c.sector,
+          subSector: c.industry || '',
+          currentPrice: c.price || 0,
+          changePercent: c.changePercent || 0,
+          score: c.score,
+          verdict: c.verdict,
+          sectorRank: c.peerRank,
+          sectorTotal: c.peerTotal,
+          sectorAvgScore: 0,
+          verdictPeerGroup: c.peerCategory || c.sector,
+          quickInsight: `Score based on ${c.sector} fundamentals`,
+          topSignal: `ROE ${(c.roe ?? 0).toFixed(1)}%, P/E ${(c.pe ?? 0).toFixed(1)}x`,
+        } as WatchlistItem))
+        setWatchlist(watchlistFromCache)
+        setIsLoading(false)
       }
 
-      // Resolve all watchlist symbols in parallel (lightweight — TTM only)
-      const results = await Promise.allSettled(
-        storeWatchlist.map(async symbol => {
-          const stock = await resolveStock(symbol)
-          if (!stock) return null
+      // If cache missed (or partial), fall back to live resolution
+      if (cached.length < storeWatchlist.length) {
+        const uncachedSymbols = storeWatchlist.filter(s => !cached.find(c => c.symbol === s))
+        if (uncachedSymbols.length > 0) {
+          const { resolveStock } = await import('@/services/stockService')
+          const { getTTMData } = await import('@/services/cmots')
+          const { getOverallVerdict } = await import('@/lib/scoring')
 
-          // Get TTM data for quick score
-          const ttm = await getTTMData(symbol).catch(() => null)
-          const score = ttm ? quickScore(ttm as unknown as Record<string, unknown>) : 0
-          const overall = getOverallVerdict(score)
-          const changePercent = stock.changePercent ?? 0
+          function quickScore(ttm: Record<string, unknown>): number {
+            const pe = (ttm.pe_ttm as number) ?? 25
+            const roe = (ttm.roe_ttm as number) ?? 10
+            const de = (ttm.debttoequity as number) ?? 0.5
+            const opm = (ttm.operatingprofitmargin as number) ?? 15
+            const peS = pe > 0 && pe < 200 ? Math.max(0, Math.min(100, 100 - pe * 1.5)) : 50
+            const roeS = Math.min(100, Math.max(0, roe * 4.5))
+            const deS = de >= 0 ? Math.max(0, Math.min(100, 100 - de * 40)) : 50
+            const opmS = Math.min(100, Math.max(0, opm * 3.5))
+            return Math.round(peS * 0.25 + roeS * 0.3 + deS * 0.2 + opmS * 0.25)
+          }
 
-          return {
-            ...stock,
-            score,
-            verdict: overall.label,
-            sectorRank: undefined,  // Full ranking computed when user opens the stock
-            sectorTotal: undefined,
-            sectorAvgScore: 0,
-            verdictPeerGroup: stock.sector,
-            quickInsight: `Quick score from key financial ratios`,
-            topSignal: ttm ? `ROE ${((ttm as any).roe_ttm ?? 0).toFixed(1)}%, P/E ${((ttm as any).pe_ttm ?? 0).toFixed(1)}x` : '',
-            changePercent,
-          } as WatchlistItem
-        })
-      )
+          const results = await Promise.allSettled(
+            uncachedSymbols.map(async symbol => {
+              const stock = await resolveStock(symbol)
+              if (!stock) return null
+              const ttm = await getTTMData(symbol).catch(() => null)
+              const score = ttm ? quickScore(ttm as unknown as Record<string, unknown>) : 0
+              const overall = getOverallVerdict(score)
+              return {
+                ...stock, score, verdict: overall.label,
+                sectorRank: undefined, sectorTotal: undefined, sectorAvgScore: 0,
+                verdictPeerGroup: stock.sector,
+                quickInsight: 'Live score from CMOTS TTM',
+                topSignal: ttm ? `ROE ${((ttm as any).roe_ttm ?? 0).toFixed(1)}%, P/E ${((ttm as any).pe_ttm ?? 0).toFixed(1)}x` : '',
+              } as WatchlistItem
+            })
+          )
+          if (!cancelled) {
+            const liveResolved = results
+              .filter((r): r is PromiseFulfilledResult<WatchlistItem | null> => r.status === 'fulfilled')
+              .map(r => r.value).filter((item): item is WatchlistItem => item !== null)
 
-      if (cancelled) return
+            // Merge: cached + live resolved
+            const allFromCache = cached.map(c => ({
+              id: c.symbol, symbol: c.symbol, name: c.name, sector: c.sector,
+              subSector: c.industry || '', currentPrice: c.price || 0,
+              changePercent: c.changePercent || 0, score: c.score, verdict: c.verdict,
+              sectorRank: c.peerRank, sectorTotal: c.peerTotal, sectorAvgScore: 0,
+              verdictPeerGroup: c.peerCategory || c.sector,
+              quickInsight: `Score based on ${c.sector} fundamentals`,
+              topSignal: `ROE ${(c.roe ?? 0).toFixed(1)}%, P/E ${(c.pe ?? 0).toFixed(1)}x`,
+            } as WatchlistItem))
+            setWatchlist([...allFromCache, ...liveResolved])
+          }
+        }
+      }
 
-      const resolved = results
-        .filter((r): r is PromiseFulfilledResult<WatchlistItem | null> => r.status === 'fulfilled')
-        .map(r => r.value)
-        .filter((item): item is WatchlistItem => item !== null)
-
-      setWatchlist(resolved)
+      if (!cancelled) setIsLoading(false)
 
       // Get alerts for this profile
       const profileAlerts = getAlertsForProfile(currentProfile.id)

@@ -433,7 +433,7 @@ export async function buildVerdictForStock(
     peerCategory: stock.sector || '',
   }))
 
-  return {
+  const verdictResult: StockVerdictV2 = {
     overallVerdict: overall.verdict,
     overallScore,
     overallLabel: overall.label,
@@ -466,4 +466,22 @@ export async function buildVerdictForStock(
       profileName: profileId,
     },
   }
+
+  // Write-through: update in-memory cache so next Dashboard visit shows fresh data
+  try {
+    const { updateCachedStock } = await import('./stockCacheService')
+    updateCachedStock(stock.symbol, {
+      name: stock.name,
+      sector: stock.sector || '',
+      score: overallScore,
+      verdict: overall.label,
+      price: stock.currentPrice ?? null,
+      changePercent: stock.changePercent ?? null,
+      peerRank: ranking.peerRank,
+      peerTotal: ranking.peerTotal,
+      peerCategory: ranking.peerCategory,
+    })
+  } catch { /* cache write failed — non-critical */ }
+
+  return verdictResult
 }
