@@ -1,5 +1,6 @@
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { useEffect } from 'react'
+import { Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getOverallVerdict, getScoreGlowV2 } from '@/lib/scoring'
 import { OverallScoreBreakdown } from './ScoreBreakdown'
@@ -102,7 +103,31 @@ export function OverallVerdictCard({ verdict, profileName }: OverallVerdictCardP
               {overall.label}
             </motion.span>
 
-            <p className="text-sm text-neutral-400 mt-3 leading-relaxed">
+            {/* Peer Rank Badge */}
+            {verdict.peerRank != null && verdict.peerTotal != null && verdict.peerTotal > 1 && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex items-center gap-1.5 mt-2"
+              >
+                <Trophy className={cn('w-3.5 h-3.5',
+                  verdict.peerRank <= Math.ceil(verdict.peerTotal * 0.2) ? 'text-success-400' :
+                  verdict.peerRank <= Math.ceil(verdict.peerTotal * 0.5) ? 'text-teal-400' :
+                  'text-neutral-400'
+                )} />
+                <span className="text-xs text-neutral-400">
+                  <span className={cn('font-semibold',
+                    verdict.peerRank <= Math.ceil(verdict.peerTotal * 0.2) ? 'text-success-400' :
+                    verdict.peerRank <= Math.ceil(verdict.peerTotal * 0.5) ? 'text-teal-400' :
+                    'text-neutral-400'
+                  )}>#{verdict.peerRank}</span>
+                  {' '}of {verdict.peerTotal} {verdict.peerCategory || 'sector'} stocks
+                </span>
+              </motion.div>
+            )}
+
+            <p className="text-sm text-neutral-400 mt-2 leading-relaxed">
               {verdict.overallSummary}
             </p>
 

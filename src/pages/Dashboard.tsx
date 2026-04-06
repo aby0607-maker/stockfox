@@ -4,8 +4,7 @@ import { ArrowRight, TrendingUp, Bell, Plus, Search, Flame, Sparkles, ChevronRig
 import { motion } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
-import { stocks, getAlertsForProfile } from '@/data'
-import { getVerdictV2 } from '@/data/verdictsV2'
+import { getAlertsForProfile } from '@/data'
 import { VerdictBadge, FreeTierBanner } from '@/components/ui'
 import { StaggerContainer, StaggerItem } from '@/components/motion'
 import { DemoModeToggle, SpotlightTour } from '@/components/demo'
@@ -55,49 +54,89 @@ export function Dashboard() {
   const spotlights = getSpotlightsForLocation('dashboard')
   const showDemoSpotlights = demoMode
 
+  // Read watchlist symbols from store (seeded with ETERNAL, AXISBANK, TCS)
+  const storeWatchlist = useAppStore(state => state.watchlist)
+
   useEffect(() => {
     if (!currentProfile) return
+    let cancelled = false
 
-    const timer = setTimeout(() => {
-      // Get stocks with their V2 verdicts for this profile
-      const watchlistData = stocks.map(stock => {
-        const v2 = getVerdictV2(stock.symbol, currentProfile.id)
-        return {
-          ...stock,
-          score: v2?.overallScore ?? 70,
-          verdict: v2?.overallLabel ?? 'HOLD',
-          sectorRank: v2?.peerRank ?? 3,
-          sectorTotal: v2?.peerTotal ?? 8,
-          sectorAvgScore: 65,
-          verdictPeerGroup: v2?.sector || stock.sector,
-          quickInsight: getDefaultInsightV2(stock, v2 ?? null),
-          topSignal: v2?.topSignals?.[0]?.title || v2?.verdictRationale,
-        }
-      })
-      setWatchlist(watchlistData)
+    async function loadWatchlist() {
+      setIsLoading(true)
+      const { resolveStock } = await import('@/services/stockService')
+      const { getTTMData } = await import('@/services/cmots')
+      const { getOverallVerdict } = await import('@/lib/scoring')
+
+      // Quick score from TTM data — no full scoring pipeline (fast: ~2s per stock)
+      function quickScore(ttm: Record<string, unknown>): number {
+        const pe = (ttm.pe_ttm as number) ?? 25
+        const roe = (ttm.roe_ttm as number) ?? 10
+        const de = (ttm.debttoequity as number) ?? 0.5
+        const opm = (ttm.operatingprofitmargin as number) ?? 15
+        const peS = pe > 0 && pe < 200 ? Math.max(0, Math.min(100, 100 - pe * 1.5)) : 50
+        const roeS = Math.min(100, Math.max(0, roe * 4.5))
+        const deS = de >= 0 ? Math.max(0, Math.min(100, 100 - de * 40)) : 50
+        const opmS = Math.min(100, Math.max(0, opm * 3.5))
+        return Math.round(peS * 0.25 + roeS * 0.3 + deS * 0.2 + opmS * 0.25)
+      }
+
+      // Resolve all watchlist symbols in parallel (lightweight — TTM only)
+      const results = await Promise.allSettled(
+        storeWatchlist.map(async symbol => {
+          const stock = await resolveStock(symbol)
+          if (!stock) return null
+
+          // Get TTM data for quick score
+          const ttm = await getTTMData(symbol).catch(() => null)
+          const score = ttm ? quickScore(ttm as unknown as Record<string, unknown>) : 0
+          const overall = getOverallVerdict(score)
+          const changePercent = stock.changePercent ?? 0
+
+          return {
+            ...stock,
+            score,
+            verdict: overall.label,
+            sectorRank: undefined,  // Full ranking computed when user opens the stock
+            sectorTotal: undefined,
+            sectorAvgScore: 0,
+            verdictPeerGroup: stock.sector,
+            quickInsight: `Quick score from key financial ratios`,
+            topSignal: ttm ? `ROE ${((ttm as any).roe_ttm ?? 0).toFixed(1)}%, P/E ${((ttm as any).pe_ttm ?? 0).toFixed(1)}x` : '',
+            changePercent,
+          } as WatchlistItem
+        })
+      )
+
+      if (cancelled) return
+
+      const resolved = results
+        .filter((r): r is PromiseFulfilledResult<WatchlistItem | null> => r.status === 'fulfilled')
+        .map(r => r.value)
+        .filter((item): item is WatchlistItem => item !== null)
+
+      setWatchlist(resolved)
 
       // Get alerts for this profile
       const profileAlerts = getAlertsForProfile(currentProfile.id)
       setAlerts(profileAlerts.slice(0, 3))
 
-      // Mock trending stocks with sector ranks (V2 scale: 0-100)
+      // Trending & similar — static for now (could be live in future)
       setTrendingStocks([
-        { symbol: 'SWIGGY', name: 'Swiggy', shortName: 'Swiggy', score: 78, verdict: 'BUY', change: 4.2, reason: 'IPO momentum', sectorRank: 2, sectorTotal: 6 },
-        { symbol: 'PAYTM', name: 'One97', shortName: 'Paytm', score: 62, verdict: 'HOLD', change: -1.8, reason: 'Profitability turn', sectorRank: 4, sectorTotal: 6 },
-        { symbol: 'NYKAA', name: 'FSN E-Commerce', shortName: 'Nykaa', score: 58, verdict: 'HOLD', change: 2.1, reason: 'Beauty strong', sectorRank: 5, sectorTotal: 6 },
+        { symbol: 'SWIGGY', name: 'Swiggy', shortName: 'Swiggy', score: 0, verdict: '—', change: 0, reason: 'IPO stock', sectorRank: undefined, sectorTotal: undefined },
+        { symbol: 'PAYTM', name: 'One97', shortName: 'Paytm', score: 0, verdict: '—', change: 0, reason: 'Fintech turnaround', sectorRank: undefined, sectorTotal: undefined },
+        { symbol: 'NYKAA', name: 'FSN E-Commerce', shortName: 'Nykaa', score: 0, verdict: '—', change: 0, reason: 'D2C leader', sectorRank: undefined, sectorTotal: undefined },
       ])
-
-      // Mock similar stocks (V2 scale: 0-100)
       setSimilarStocks([
-        { symbol: 'DMART', name: 'Avenue Supermarts', shortName: 'DMart', score: 81, verdict: 'BUY', change: 1.5, reason: 'Growth pick', sectorRank: 1, sectorTotal: 5 },
-        { symbol: 'INFY', name: 'Infosys', shortName: 'Infosys', score: 72, verdict: 'BUY', change: 0.8, reason: 'IT like TCS', sectorRank: 2, sectorTotal: 8 },
+        { symbol: 'DMART', name: 'Avenue Supermarts', shortName: 'DMart', score: 0, verdict: '—', change: 0, reason: 'Retail leader', sectorRank: undefined, sectorTotal: undefined },
+        { symbol: 'INFY', name: 'Infosys', shortName: 'Infosys', score: 0, verdict: '—', change: 0, reason: 'IT bellwether', sectorRank: undefined, sectorTotal: undefined },
       ])
 
       setIsLoading(false)
-    }, 500)
+    }
 
-    return () => clearTimeout(timer)
-  }, [currentProfile])
+    loadWatchlist()
+    return () => { cancelled = true }
+  }, [currentProfile, storeWatchlist])
 
   if (!currentProfile) return null
 
@@ -199,16 +238,18 @@ export function Dashboard() {
                       {/* Vertical divider */}
                       <div className="w-px h-8 bg-white/10" />
 
-                      {/* Sector Rank */}
-                      <div className="flex items-center gap-1.5">
-                        <Trophy className={cn('w-3.5 h-3.5', getRankColor(sectorRank, sectorTotal))} />
-                        <span className={cn('text-sm font-medium', getRankColor(sectorRank, sectorTotal))}>
-                          #{sectorRank}
-                        </span>
-                        <span className="text-xs text-neutral-500">
-                          of {sectorTotal}
-                        </span>
-                      </div>
+                      {/* Sector Rank — only show when real ranking data exists */}
+                      {sectorTotal > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <Trophy className={cn('w-3.5 h-3.5', getRankColor(sectorRank, sectorTotal))} />
+                          <span className={cn('text-sm font-medium', getRankColor(sectorRank, sectorTotal))}>
+                            #{sectorRank}
+                          </span>
+                          <span className="text-xs text-neutral-500">
+                            of {sectorTotal}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Vertical divider */}
                       <div className="w-px h-8 bg-white/10" />

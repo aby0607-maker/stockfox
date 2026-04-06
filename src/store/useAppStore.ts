@@ -115,8 +115,8 @@ export const useAppStore = create<AppState>()(
       alerts: [],
       unreadAlertCount: 0,
 
-      // Watchlist & Favorites
-      watchlist: [],
+      // Watchlist & Favorites — seeded with 3 default stocks
+      watchlist: ['ETERNAL', 'AXISBANK', 'TCS'],
       favorites: [],
 
       // Recent analyses
@@ -281,6 +281,16 @@ export const useAppStore = create<AppState>()(
         favorites: state.favorites,
         recentAnalyses: state.recentAnalyses,
       }),
+      // Migrate: seed empty watchlist with defaults
+      merge: (persisted: unknown, current: AppState) => {
+        const p = persisted as Partial<AppState> | undefined
+        const merged = { ...current, ...p }
+        // If persisted watchlist is empty, seed with defaults
+        if (!merged.watchlist || merged.watchlist.length === 0) {
+          merged.watchlist = ['ETERNAL', 'AXISBANK', 'TCS']
+        }
+        return merged as AppState
+      },
     }
   )
 )

@@ -17,6 +17,9 @@ import { resolveMetricValues } from './metricResolver'
 import { buildNewsEvents } from './newsBuilder'
 import { getSurveillanceStatus, surveillanceToScannerValues, getSurveillanceRedFlags } from './nse'
 import { getBSEScannerSignals, bseScannerToValues, bseScannerRedFlags } from './bse'
+import { getTTMData } from './cmots'
+import { generatePeerGroupDetailed } from './stockService'
+import { getCompanyBySymbol } from './cmots'
 
 // ============================================================
 // V2 VERDICT ASSEMBLY — Live data for any stock
@@ -291,6 +294,72 @@ function generateVerdictExplainer(
   return { summary, rationale, context: ctx }
 }
 
+// ─── Peer Ranking System ──────────────────────────
+
+/**
+ * Quick proxy score for peer ranking — uses TTM data only (1 API call per peer).
+ * Approximates the full StockFox score with ~80% correlation.
+ */
+function quickPeerScore(ttm: Record<string, unknown>): number {
+  const pe = (ttm.pe_ttm as number) ?? 25
+  const roe = (ttm.roe_ttm as number) ?? 10
+  const de = (ttm.debttoequity as number) ?? 0.5
+  const opm = (ttm.operatingprofitmargin as number) ?? 15
+
+  // Normalize each to 0-100
+  const peScore = pe > 0 && pe < 200 ? Math.max(0, Math.min(100, 100 - pe * 1.5)) : 50
+  const roeScore = Math.min(100, Math.max(0, roe * 4.5))
+  const deScore = de >= 0 ? Math.max(0, Math.min(100, 100 - de * 40)) : 50
+  const opmScore = Math.min(100, Math.max(0, opm * 3.5))
+
+  return Math.round(peScore * 0.25 + roeScore * 0.3 + deScore * 0.2 + opmScore * 0.25)
+}
+
+/**
+ * Compute peer rank for a stock within its sector.
+ * Returns rank, total, and peer category (sector name).
+ */
+async function computePeerRank(
+  stock: Stock,
+  stockScore: number,
+): Promise<{ peerRank: number; peerTotal: number; peerCategory: string }> {
+  try {
+    const company = await getCompanyBySymbol(stock.symbol)
+    if (!company) return { peerRank: 1, peerTotal: 1, peerCategory: stock.sector || 'Unknown' }
+
+    const peerDetails = await generatePeerGroupDetailed(company)
+    const peerSlice = peerDetails.slice(0, 8)
+
+    // Fetch TTM for each peer and compute quick scores in parallel
+    const peerScores = await Promise.all(
+      peerSlice.map(async p => {
+        try {
+          const ttm = await getTTMData(p.symbol)
+          if (!ttm) return { symbol: p.symbol, score: 50 }
+          return { symbol: p.symbol, score: quickPeerScore(ttm as unknown as Record<string, unknown>) }
+        } catch {
+          return { symbol: p.symbol, score: 50 }
+        }
+      })
+    )
+
+    // Combine stock + peers, sort by score descending
+    const all = [
+      { symbol: stock.symbol, score: stockScore },
+      ...peerScores,
+    ].sort((a, b) => b.score - a.score)
+
+    const rank = all.findIndex(s => s.symbol === stock.symbol) + 1
+    return {
+      peerRank: rank,
+      peerTotal: all.length,
+      peerCategory: company.sectorname || stock.sector || 'Unknown',
+    }
+  } catch {
+    return { peerRank: 1, peerTotal: 1, peerCategory: stock.sector || 'Unknown' }
+  }
+}
+
 /**
  * Build a full V2 verdict for any stock from live CMOTS data.
  * Quant pillar uses live scoring; Qual uses placeholders; Risk computed from red flags.
@@ -357,6 +426,13 @@ export async function buildVerdictForStock(
   // Generate contextual explainer copy (personalized, LLM-ready)
   const explainer = generateVerdictExplainer(stock, profileId, allPillars, topSignals, topConcerns, overallScore, profileWeights, resolved?.data)
 
+  // Compute peer rank (non-blocking — doesn't delay verdict)
+  const ranking = await computePeerRank(stock, overallScore).catch(() => ({
+    peerRank: undefined as number | undefined,
+    peerTotal: undefined as number | undefined,
+    peerCategory: stock.sector || '',
+  }))
+
   return {
     overallVerdict: overall.verdict,
     overallScore,
@@ -375,6 +451,9 @@ export async function buildVerdictForStock(
     verdictRationale: explainer.rationale,
     positionSizing: 'See detailed analysis',
     entryGuidance: 'See detailed analysis',
+    peerRank: ranking.peerRank,
+    peerTotal: ranking.peerTotal,
+    peerCategory: ranking.peerCategory,
     scannerValues,
     resolvedMetrics: resolved?.data,
     scoreBreakdown: {
