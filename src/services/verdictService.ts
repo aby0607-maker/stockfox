@@ -12,7 +12,7 @@ import { getScoreBandEnum, getOverallVerdict } from '@/lib/scoring'
 import { getProfileWeightsV2, profiles } from '@/data/profiles'
 import { computeQuantSegments } from './quantScoringService'
 import { computeQualFactors } from './qualScoringService'
-import { computeRiskFromScanner, buildScannerValuesFromMetrics } from './redFlagScannerService'
+import { computeRiskFromScanner, buildScannerValuesFromMetrics, buildScannerValuesFromSegments } from './redFlagScannerService'
 import { resolveMetricValues } from './metricResolver'
 import { buildNewsEvents } from './newsBuilder'
 import { getSurveillanceStatus, surveillanceToScannerValues, getSurveillanceRedFlags } from './nse'
@@ -313,11 +313,14 @@ export async function buildVerdictForStock(
   const quantPillar = buildPillarVerdictV2('quant', 'Quant Score', quantSegments, profileWeights.quantWeights)
   const qualPillar = buildPillarVerdictV2('qual', 'Qual Score', qualFactors, profileWeights.qualWeights)
 
-  // Build dynamic scanner display values from CMOTS + NSE surveillance + BSE signals
+  // Build dynamic scanner display values from ALL data sources
   const cmotsScannerValues = resolved ? buildScannerValuesFromMetrics(resolved.data) : {}
   const survScannerValues = surveillanceToScannerValues(surveillance)
   const bseScannerValues = bseScannerToValues(bseSignals)
-  const scannerValues = { ...cmotsScannerValues, ...survScannerValues, ...bseScannerValues }
+  // Extract scanner values from scored segments (pledge, receivables, inventory, Z-score, M-score, etc.)
+  const segmentScannerValues = buildScannerValuesFromSegments(quantSegments, qualFactors)
+  // Merge all sources — CMOTS first, then enrichments (later sources override display text)
+  const scannerValues = { ...cmotsScannerValues, ...segmentScannerValues, ...survScannerValues, ...bseScannerValues }
 
   // Inject surveillance + BSE red flags into qual factors so they flow through to the scanner
   const externalFlags = [

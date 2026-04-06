@@ -449,9 +449,13 @@ export function buildScannerValuesFromMetrics(m: Record<string, number | null>):
 
   // rf-sector-headwind: (no CMOTS data for this — stays default)
 
-  // rf-liquidity: (no CMOTS volume data in current metrics — stays default)
-
-  // rf-insider-selling: (no CMOTS data — stays default)
+  // rf-liquidity: Volume change ratio as proxy
+  const volChange = m['v2_volume_change']
+  if (volChange != null) {
+    v['rf-liquidity'] = volChange >= 1.5 ? `Volume ${(volChange * 100).toFixed(0)}% of avg (high)`
+      : volChange >= 0.8 ? `Volume ${(volChange * 100).toFixed(0)}% of avg (normal)`
+      : `Volume ${(volChange * 100).toFixed(0)}% of avg (low)`
+  }
 
   // Institutional context (not a scanner flag, but enriches promoter-related flags)
   const mf = m['mf_holding']
@@ -468,6 +472,156 @@ export function buildScannerValuesFromMetrics(m: Record<string, number | null>):
     const emaNote = ema200 > 0 ? ', above 200 EMA' : ', below 200 EMA'
     if (ret1y != null) {
       v['rf-peer-underperform'] = `${ret1y >= 0 ? '+' : ''}${ret1y.toFixed(0)}% 1Y${techNote}${emaNote}`
+    }
+  }
+
+  return v
+}
+
+// ─── Scanner Values from Verdict Segments (quant + qual signals) ──
+
+/**
+ * Extract additional scanner display values from scored verdict segments.
+ * These supplement CMOTS metrics with data from Screener, BSE, Finnhub, etc.
+ * that flows through the quant/qual scoring pipeline.
+ */
+export function buildScannerValuesFromSegments(
+  quantSegments: SegmentVerdictV2[],
+  qualFactors: SegmentVerdictV2[],
+  priceRecords?: { TotalVolume: number }[],
+): Record<string, string> {
+  const v: Record<string, string> = {}
+
+  // Helper: find a signal by ID across all signal groups in a segment
+  const findSignal = (segments: SegmentVerdictV2[], segId: string, sigId: string) => {
+    const seg = segments.find(s => s.id === segId)
+    if (!seg?.signalGroups) return null
+    for (const g of seg.signalGroups) {
+      const sig = g.signals.find(s => s.id === sigId)
+      if (sig) return sig
+    }
+    return null
+  }
+
+  // ── From Quant: Financial Health gates ──
+
+  // rf-default → Altman Z-score proxy (G1 gate)
+  const g1 = findSignal(quantSegments, 'financial_health', 'G1')
+  if (g1?.gateValue) {
+    const zScore = parseFloat(g1.gateValue)
+    if (!isNaN(zScore)) {
+      v['rf-default'] = zScore < 1.1 ? `Z-score ${zScore.toFixed(1)} — distress zone`
+        : zScore < 2.6 ? `Z-score ${zScore.toFixed(1)} — grey zone`
+        : `Z-score ${zScore.toFixed(1)} — safe zone`
+    }
+  }
+
+  // rf-forensic → Beneish M-score proxy (G2 gate if it exists)
+  const g2 = findSignal(quantSegments, 'financial_health', 'G2')
+  if (g2?.gateValue) {
+    const mScore = parseFloat(g2.gateValue)
+    if (!isNaN(mScore)) {
+      v['rf-forensic'] = mScore > -1.78 ? `M-score ${mScore.toFixed(2)} — manipulation risk`
+        : `M-score ${mScore.toFixed(2)} — likely clean`
+    }
+  }
+
+  // ── From Qual: Management & Governance ──
+
+  // rf-pledge → Promoter pledging from MG-A3
+  const a3 = findSignal(qualFactors, 'management_governance', 'A3')
+  if (a3 && a3.state !== 'not_applicable' && a3.userText) {
+    // Extract pledge % from userText (e.g., "Promoter pledging at 5.2%")
+    const pledgeMatch = a3.userText.match(/([\d.]+)%\s*pledge/i) || a3.userText.match(/pledge[^.]*?([\d.]+)%/i)
+    if (pledgeMatch) {
+      v['rf-pledge'] = `${pledgeMatch[1]}% pledged`
+    } else if (a3.score != null && a3.score >= 80) {
+      v['rf-pledge'] = 'No/minimal pledging'
+    }
+    // rf-pledge-rising: infer from score trend if available
+    if (a3.state === 'flag') {
+      v['rf-pledge-rising'] = 'Elevated pledging detected'
+    } else {
+      v['rf-pledge-rising'] = 'Pledging stable'
+    }
+  }
+
+  // rf-rpt → Related party transactions from MG-A5
+  const a5 = findSignal(qualFactors, 'management_governance', 'A5')
+  if (a5 && a5.state !== 'not_applicable') {
+    v['rf-rpt'] = a5.state === 'flag' ? 'High RPT activity'
+      : a5.state === 'strong' ? 'RPT within limits'
+      : a5.userText?.slice(0, 50) || 'RPT data available'
+  }
+
+  // rf-insider-selling → Insider sentiment from MG-A4
+  const a4 = findSignal(qualFactors, 'management_governance', 'A4')
+  if (a4 && a4.state !== 'not_applicable') {
+    v['rf-insider-selling'] = a4.state === 'flag' ? 'Net insider selling detected'
+      : a4.state === 'strong' ? 'Net insider buying'
+      : 'Mixed insider activity'
+  }
+
+  // ── From Qual: Earnings Quality ──
+
+  // rf-receivables → Receivables quality from EQ-B1
+  const eqB1 = findSignal(qualFactors, 'earnings_quality', 'B1')
+  if (eqB1 && eqB1.state !== 'not_applicable') {
+    v['rf-receivables'] = eqB1.state === 'flag' ? 'Receivables growing faster than revenue'
+      : eqB1.state === 'strong' ? 'Receivables healthy'
+      : eqB1.userText?.slice(0, 50) || 'Receivables data available'
+  }
+
+  // rf-inventory → Inventory quality from EQ-B2
+  const eqB2 = findSignal(qualFactors, 'earnings_quality', 'B2')
+  if (eqB2 && eqB2.state !== 'not_applicable') {
+    v['rf-inventory'] = eqB2.state === 'flag' ? 'Inventory pileup detected'
+      : eqB2.state === 'strong' ? 'Inventory levels healthy'
+      : eqB2.userText?.slice(0, 50) || 'Inventory data available'
+  }
+
+  // rf-contingent → Contingent liabilities from EQ-B3
+  const eqB3 = findSignal(qualFactors, 'earnings_quality', 'B3')
+  if (eqB3 && eqB3.state !== 'not_applicable') {
+    v['rf-contingent'] = eqB3.state === 'flag' ? 'High contingent liabilities'
+      : eqB3.state === 'strong' ? 'Low contingent liabilities'
+      : eqB3.userText?.slice(0, 50) || 'Contingent liability data available'
+  }
+
+  // ── From Qual: Execution Quality ──
+
+  // rf-analyst-downgrade → Analyst consensus from ExQ-A1
+  const exA1 = findSignal(qualFactors, 'execution_quality', 'A1')
+  if (exA1 && exA1.state !== 'not_applicable') {
+    v['rf-analyst-downgrade'] = exA1.state === 'flag' ? 'Analyst downgrades detected'
+      : exA1.state === 'strong' ? 'Analyst consensus positive'
+      : exA1.userText?.slice(0, 50) || 'Analyst data available'
+  }
+
+  // ── From Qual: Capital Discipline ──
+
+  // rf-promoter-loans → Promoter entity loans from CD signals
+  const cdA3 = findSignal(qualFactors, 'capital_discipline', 'A3')
+  if (cdA3 && cdA3.state !== 'not_applicable') {
+    if (cdA3.state === 'flag') {
+      v['rf-promoter-loans'] = 'Promoter borrowing concerns'
+    } else {
+      v['rf-promoter-loans'] = 'No promoter loan concerns'
+    }
+  }
+
+  // ── From Price Data: Volume / Liquidity ──
+
+  if (priceRecords && priceRecords.length > 0) {
+    // Compute average daily volume from last 30 trading days
+    const recent = priceRecords.slice(-30)
+    const avgVolume = recent.reduce((sum, r) => sum + (r.TotalVolume || 0), 0) / recent.length
+    const avgValueCr = avgVolume / 10_000_000  // Rough: volume × assumed avg price / 1 Cr
+
+    if (avgVolume > 0) {
+      v['rf-liquidity'] = avgValueCr >= 100 ? `₹${Math.round(avgValueCr)} Cr/day avg`
+        : avgValueCr >= 10 ? `₹${Math.round(avgValueCr)} Cr/day avg`
+        : `₹${avgValueCr.toFixed(1)} Cr/day (low)`
     }
   }
 

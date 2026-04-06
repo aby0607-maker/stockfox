@@ -387,7 +387,19 @@ export function StockAnalysis() {
             </span>
           </div>
 
-          {/* 52W Range — hidden until live price API available */}
+          {/* 52W Range — shows when price data available (Yahoo fallback) */}
+          {stock.high52w > 0 && stock.low52w > 0 && (
+            <div className="flex items-center gap-2 text-xs text-neutral-500 mb-4">
+              <span>52W: {formatCurrency(stock.low52w)}</span>
+              <div className="flex-1 max-w-24 h-1 bg-dark-600 rounded-full relative">
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-primary-400 rounded-full -ml-1"
+                  style={{ left: `${Math.min(100, Math.max(0, ((stock.currentPrice - stock.low52w) / (stock.high52w - stock.low52w)) * 100))}%` }}
+                />
+              </div>
+              <span>{formatCurrency(stock.high52w)}</span>
+            </div>
+          )}
         </div>
 
         {/* HERO: V2 Overall Verdict — hidden in learning mode */}
