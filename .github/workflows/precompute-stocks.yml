@@ -1,11 +1,16 @@
-name: Pre-compute Stock Data
+name: V2 Stock Data — Nightly Pre-computation
 
 on:
-  # Nightly at 7:30 PM UTC (1:00 AM IST) — after Indian market close
+  # Weeknights at 7:30 PM UTC (1:00 AM IST) — after Indian market close
   schedule:
-    - cron: '30 19 * * 1-5'  # Weekdays only (Mon-Fri)
-  # Manual trigger for testing
+    - cron: '30 19 * * 1-5'
+  # Manual trigger with tier override
   workflow_dispatch:
+    inputs:
+      tier:
+        description: 'Tier to refresh (large, mid, small, all)'
+        required: false
+        default: 'all'
 
 permissions:
   contents: write
@@ -13,7 +18,7 @@ permissions:
 jobs:
   precompute:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -30,12 +35,20 @@ jobs:
       - name: Run pre-computation script
         env:
           CMOTS_API_TOKEN: ${{ secrets.CMOTS_API_TOKEN }}
-        run: node scripts/precompute-stocks.mjs
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TIER_OVERRIDE: ${{ github.event.inputs.tier }}
+        run: |
+          if [ -n "$TIER_OVERRIDE" ] && [ "$TIER_OVERRIDE" != "all" ]; then
+            node scripts/precompute-stocks.mjs --tier="$TIER_OVERRIDE"
+          else
+            node scripts/precompute-stocks.mjs
+          fi
 
-      - name: Commit and push cached data
+      - name: Commit updated static cache (fallback)
         run: |
           git config user.name "StockFox Bot"
           git config user.email "bot@stockfox.pro"
           git add public/data/stock-cache.json
-          git diff --staged --quiet || git commit -m "chore: update pre-computed stock data [skip ci]"
+          git diff --staged --quiet || git commit -m "chore: update V2 stock data [skip ci]"
           git push

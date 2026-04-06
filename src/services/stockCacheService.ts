@@ -68,27 +68,43 @@ let _lastCDNFetch = 0
 const CDN_REFRESH_INTERVAL = 30 * 60 * 1000 // 30 min — re-fetch CDN version
 
 /**
- * Load the stock cache from CDN (static JSON file).
- * Called lazily on first access.
+ * Load the stock cache. Tries:
+ * 1. Vercel Blob API (/api/stock-cache) — freshest data, includes write-through updates
+ * 2. Static fallback (/data/stock-cache.json) — seed data committed to repo
  */
 async function loadFromCDN(): Promise<void> {
   try {
-    const response = await fetch('/data/stock-cache.json')
-    if (!response.ok) {
-      console.warn('[StockCache] CDN cache not found — will use live API')
-      _cache = new Map()
-      return
+    // Try Vercel Blob API first
+    let response = await fetch('/api/stock-cache')
+    let data: StockCacheData | null = null
+
+    if (response.ok) {
+      const json = await response.json()
+      if (json.stocks && json.stockCount > 0) {
+        data = json as StockCacheData
+      }
     }
 
-    const data: StockCacheData = await response.json()
-    _cache = new Map()
-    for (const stock of data.stocks) {
-      _cache.set(stock.symbol.toUpperCase(), stock)
+    // Fallback to static JSON
+    if (!data) {
+      response = await fetch('/data/stock-cache.json')
+      if (response.ok) {
+        data = await response.json()
+      }
     }
-    _lastCDNFetch = Date.now()
-    console.info(`[StockCache] Loaded ${data.stockCount} stocks from CDN (generated ${data.generatedAt})`)
+
+    _cache = new Map()
+    if (data?.stocks) {
+      for (const stock of data.stocks) {
+        _cache.set(stock.symbol.toUpperCase(), stock)
+      }
+      _lastCDNFetch = Date.now()
+      console.info(`[StockCache] Loaded ${data.stockCount} stocks (v${data.version}, generated ${data.generatedAt})`)
+    } else {
+      console.warn('[StockCache] No cache data available — will use live API')
+    }
   } catch (err) {
-    console.warn('[StockCache] Failed to load CDN cache:', err)
+    console.warn('[StockCache] Failed to load cache:', err)
     _cache = new Map()
   }
 }
