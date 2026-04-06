@@ -155,16 +155,28 @@ export function Dashboard() {
       const profileAlerts = getAlertsForProfile(currentProfile.id)
       setAlerts(profileAlerts.slice(0, 3))
 
-      // Trending & similar — static for now (could be live in future)
-      setTrendingStocks([
-        { symbol: 'SWIGGY', name: 'Swiggy', shortName: 'Swiggy', score: 0, verdict: '—', change: 0, reason: 'IPO stock', sectorRank: undefined, sectorTotal: undefined },
-        { symbol: 'PAYTM', name: 'One97', shortName: 'Paytm', score: 0, verdict: '—', change: 0, reason: 'Fintech turnaround', sectorRank: undefined, sectorTotal: undefined },
-        { symbol: 'NYKAA', name: 'FSN E-Commerce', shortName: 'Nykaa', score: 0, verdict: '—', change: 0, reason: 'D2C leader', sectorRank: undefined, sectorTotal: undefined },
+      // Trending & similar — pull from cache
+      const { getTopStocks, getCachedStocks: getCached2 } = await import('@/services/stockCacheService')
+      const trendingSymbols = ['SWIGGY', 'PAYTM', 'NYKAA']
+      const similarSymbols = ['DMART', 'INFY']
+      const [trendingCached, similarCached, topStocks] = await Promise.all([
+        getCached2(trendingSymbols),
+        getCached2(similarSymbols),
+        getTopStocks(5),
       ])
-      setSimilarStocks([
-        { symbol: 'DMART', name: 'Avenue Supermarts', shortName: 'DMart', score: 0, verdict: '—', change: 0, reason: 'Retail leader', sectorRank: undefined, sectorTotal: undefined },
-        { symbol: 'INFY', name: 'Infosys', shortName: 'Infosys', score: 0, verdict: '—', change: 0, reason: 'IT bellwether', sectorRank: undefined, sectorTotal: undefined },
-      ])
+
+      const mapToDiscovery = (c: import('@/services/stockCacheService').CachedStock, reason: string) => ({
+        symbol: c.symbol, name: c.name, shortName: c.name.split(' ')[0],
+        score: c.score, verdict: c.verdict, change: c.changePercent || 0,
+        reason, sectorRank: c.peerRank, sectorTotal: c.peerTotal,
+      } as DashboardDiscoveryStock)
+
+      setTrendingStocks(trendingCached.length > 0
+        ? trendingCached.map(c => mapToDiscovery(c, c.sector))
+        : [])
+      setSimilarStocks(similarCached.length > 0
+        ? similarCached.map(c => mapToDiscovery(c, c.sector))
+        : topStocks.slice(0, 3).map(c => mapToDiscovery(c, 'Top rated')))
 
       setIsLoading(false)
     }

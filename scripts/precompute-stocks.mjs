@@ -287,10 +287,10 @@ async function main() {
   // Step 10: Create GitHub Release (cold archive)
   if (GITHUB_TOKEN) {
     const dateTag = new Date().toISOString().split('T')[0]
-    const releaseName = `v2-stock-data-${dateTag}`
+    const releaseName = `v2-historical-scoring-${dateTag}`
     console.log(`📦 Creating GitHub Release: ${releaseName}...`)
     try {
-      // Create release
+      // Create release under "V2 Historical Scoring" naming convention
       const releaseRes = await fetch(`https://api.github.com/repos/${REPO}/releases`, {
         method: 'POST',
         headers: {
@@ -300,7 +300,7 @@ async function main() {
         },
         body: JSON.stringify({
           tag_name: releaseName,
-          name: `V2 Stock Data — ${dateTag}`,
+          name: `V2 Historical Scoring — ${dateTag}`,
           body: `Pre-computed stock data for ${allStocks.length} stocks.\n\n` +
             `- Large Cap: ${output.breakdown.largeCap}\n` +
             `- Mid Cap: ${output.breakdown.midCap}\n` +

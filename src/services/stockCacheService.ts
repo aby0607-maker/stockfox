@@ -74,23 +74,28 @@ const CDN_REFRESH_INTERVAL = 30 * 60 * 1000 // 30 min — re-fetch CDN version
  */
 async function loadFromCDN(): Promise<void> {
   try {
-    // Try Vercel Blob API first
-    let response = await fetch('/api/stock-cache')
     let data: StockCacheData | null = null
 
-    if (response.ok) {
-      const json = await response.json()
-      if (json.stocks && json.stockCount > 0) {
-        data = json as StockCacheData
+    // Try static JSON first (always available, committed to repo)
+    try {
+      const staticRes = await fetch('/data/stock-cache.json')
+      if (staticRes.ok) {
+        const json = await staticRes.json()
+        if (json?.stocks?.length > 0) data = json as StockCacheData
       }
-    }
+    } catch { /* static file not available */ }
 
-    // Fallback to static JSON
-    if (!data) {
-      response = await fetch('/data/stock-cache.json')
-      if (response.ok) {
-        data = await response.json()
-      }
+    // Try Vercel Blob API for potentially fresher data (write-through updates)
+    if (!data || data.stockCount < 100) {
+      try {
+        const blobRes = await fetch('/api/stock-cache')
+        if (blobRes.ok) {
+          const json = await blobRes.json()
+          if (json?.stocks?.length > 0 && json.stockCount > (data?.stockCount ?? 0)) {
+            data = json as StockCacheData
+          }
+        }
+      } catch { /* Blob API not available — static data is fine */ }
     }
 
     _cache = new Map()
