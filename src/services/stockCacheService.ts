@@ -74,28 +74,21 @@ const CDN_REFRESH_INTERVAL = 30 * 60 * 1000 // 30 min — re-fetch CDN version
  */
 async function loadFromCDN(): Promise<void> {
   try {
-    let data: StockCacheData | null = null
-
-    // Try Vercel Blob first (edge-cached, freshest data from write-through)
+    // Load from BOTH sources and take the one with more stocks
+    // This prevents stale Blob (with fewer stocks from a partial run) from hiding stocks
     const BLOB_URL = 'https://kpuuqdqydpcfh7a7.public.blob.vercel-storage.com/v2-stock-data/latest.json'
-    try {
-      const blobRes = await fetch(BLOB_URL)
-      if (blobRes.ok) {
-        const json = await blobRes.json()
-        if (json?.stocks?.length > 0) data = json as StockCacheData
-      }
-    } catch { /* Blob unavailable */ }
 
-    // Fallback to static JSON (committed to repo, always available)
-    if (!data) {
-      try {
-        const staticRes = await fetch('/data/stock-cache.json')
-        if (staticRes.ok) {
-          const json = await staticRes.json()
-          if (json?.stocks?.length > 0) data = json as StockCacheData
-        }
-      } catch { /* static file not available */ }
-    }
+    const [blobData, staticData] = await Promise.all([
+      fetch(BLOB_URL).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/data/stock-cache.json').then(r => r.ok ? r.json() : null).catch(() => null),
+    ])
+
+    // Pick the source with more stocks (protects against partial Blob uploads)
+    const blobCount = blobData?.stocks?.length ?? 0
+    const staticCount = staticData?.stocks?.length ?? 0
+    const data: StockCacheData | null = blobCount >= staticCount
+      ? (blobCount > 0 ? blobData as StockCacheData : null)
+      : (staticCount > 0 ? staticData as StockCacheData : null)
 
     _cache = new Map()
     if (data?.stocks) {
