@@ -211,8 +211,9 @@ async function main() {
     await new Promise(r => setTimeout(r, 100))
   }
 
-  // Step 6: Compute peer rankings within each sector
-  console.log('\n🏆 Computing peer rankings...')
+  // Step 6: Compute peer rankings — by sector (cap-agnostic)
+  // All stocks in the same sector compete regardless of market cap
+  console.log('\n🏆 Computing peer rankings (sector-based, cap-agnostic)...')
   const allStocks = [...results.values()]
   const bySector = new Map()
   for (const stock of allStocks) {
@@ -261,25 +262,29 @@ async function main() {
   if (BLOB_TOKEN) {
     console.log('☁️  Uploading to Vercel Blob...')
     try {
-      const blobRes = await fetch('https://blob.vercel-storage.com/v2-stock-data/latest.json', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${BLOB_TOKEN}`,
-          'x-api-version': '7',
-          'Content-Type': 'application/json',
-          'x-content-type': 'application/json',
-          'x-cache-control-max-age': '300',
-        },
-        body: outputJSON,
+      const { put } = await import('@vercel/blob')
+      const blob = await put('v2-stock-data/latest.json', outputJSON, {
+        access: 'public',
+        token: BLOB_TOKEN,
+        contentType: 'application/json',
+        addRandomSuffix: false,
       })
-      if (blobRes.ok) {
-        const blobResult = await blobRes.json()
-        console.log(`   ✓ Blob uploaded: ${blobResult.url}`)
-      } else {
-        console.warn(`   ⚠ Blob upload failed: ${blobRes.status} ${await blobRes.text()}`)
-      }
+      console.log(`   ✓ Blob uploaded: ${blob.url}`)
     } catch (err) {
-      console.warn(`   ⚠ Blob upload error: ${err.message}`)
+      console.warn(`   ⚠ Blob upload failed: ${err.message}`)
+      // Try with private access if public fails
+      try {
+        const { put } = await import('@vercel/blob')
+        const blob = await put('v2-stock-data/latest.json', outputJSON, {
+          access: 'public',  // Vercel Blob requires public access for put
+          token: BLOB_TOKEN,
+          contentType: 'application/json',
+          addRandomSuffix: false,
+        })
+        console.log(`   ✓ Blob uploaded (retry): ${blob.url}`)
+      } catch (retryErr) {
+        console.warn(`   ⚠ Blob retry also failed: ${retryErr.message}`)
+      }
     }
   } else {
     console.log('⏭️  Skipping Vercel Blob (BLOB_READ_WRITE_TOKEN not set)')
