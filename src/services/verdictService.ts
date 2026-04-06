@@ -125,14 +125,36 @@ interface VerdictContext {
   profileTopSegment: { name: string; score: number } | null
 }
 
-const PROFILE_LENS: Record<string, string> = {
-  ankit: 'For comprehensive analysis',
-  sneha: 'For value-focused investing',
-  meera: 'For momentum trading',
-  kavya: 'As a learning opportunity',
-  fatima: 'For long-term compounding',
-  nikhil: 'For remote investing with governance trust',
-  priya: 'For a balanced investment view',
+// Profile thesis descriptors for natural copy
+const THESIS_COPY: Record<string, { lens: string; seeks: string; avoids: string }> = {
+  ankit: { lens: 'comprehensive analysis', seeks: 'balanced strength across all dimensions', avoids: 'blind spots in any pillar' },
+  sneha: { lens: 'value investing', seeks: 'undervaluation with margin of safety', avoids: 'expensive stocks without earnings backing' },
+  meera: { lens: 'momentum trading', seeks: 'price momentum backed by execution delivery', avoids: 'stocks with fading technical trends' },
+  kavya: { lens: 'learning to invest', seeks: 'safe, well-understood businesses', avoids: 'complex or volatile stocks' },
+  fatima: { lens: 'long-term compounding', seeks: 'consistent profitability and durable moats', avoids: 'businesses without proven profit models' },
+  nikhil: { lens: 'remote investing', seeks: 'trustworthy governance and institutional backing', avoids: 'companies with governance red flags' },
+  priya: { lens: 'a balanced view', seeks: 'clear buy/hold/sell signals', avoids: 'ambiguous mixed signals' },
+}
+
+/**
+ * Extract the most meaningful metric insight from a segment's interpretation.
+ * Returns a short phrase like "ROE 18%", "Revenue CAGR 70%+", "PE 90x".
+ */
+function extractMetricInsight(seg: SegmentVerdictV2): string | null {
+  // The interpretation field often contains key metrics — extract them
+  const interp = seg.interpretation
+  if (!interp) return null
+
+  // Look for patterns like "ROE 18%", "PE 90x", "Revenue CAGR 70%"
+  const metricMatch = interp.match(/(?:ROE|ROCE|OPM|NPM|PE|PB|EV|Revenue|Growth|CAGR|D\/E|OCF|FCF|Beta|RSI)\s*[-–]?\s*[\d.]+[%x]?/i)
+  if (metricMatch) return metricMatch[0].trim()
+
+  // Fallback: use quickInsight if available (often has specific numbers)
+  if (seg.quickInsight) {
+    const qiMatch = seg.quickInsight.match(/[\d.]+[%x]/)
+    if (qiMatch) return seg.quickInsight.slice(0, 40)
+  }
+  return null
 }
 
 function generateVerdictExplainer(
@@ -148,28 +170,37 @@ function generateVerdictExplainer(
   const qual = pillars.find(p => p.pillar === 'qual')!
   const risk = pillars.find(p => p.pillar === 'risk')!
 
-  // Find strongest and weakest pillars
   const pillarScores = [
-    { name: 'Quant', score: quant.score },
-    { name: 'Qual', score: qual.score },
-    { name: 'Risk', score: risk.score },
+    { name: 'Quant', pillar: 'quant', score: quant.score },
+    { name: 'Qual', pillar: 'qual', score: qual.score },
+    { name: 'Risk', pillar: 'risk', score: risk.score },
   ].sort((a, b) => b.score - a.score)
   const strongest = pillarScores[0]
   const weakest = pillarScores[pillarScores.length - 1]
 
-  // Find the profile's highest-weighted quant segment and its score
+  // Find the profile's top-priority quant segment
   const qw = profileWeightsObj.quantWeights
   const topSegKey = Object.entries(qw).sort(([, a], [, b]) => b - a)[0]?.[0]
   const topSegment = quant.segments.find(s => s.id === topSegKey)
   const profileTopSegment = topSegment ? { name: topSegment.name, score: topSegment.score ?? 0 } : null
 
+  // Find highest and lowest scoring SEGMENTS (not pillars) for specific insights
+  const allScoredSegs = [...quant.segments, ...qual.segments]
+    .filter(s => s.scoringType === 'scored' && s.score != null)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+  const bestSeg = allScoredSegs[0]
+  const worstSeg = allScoredSegs[allScoredSegs.length - 1]
+
+  // Extract metric insights from best/worst segments
+  const bestMetric = bestSeg ? extractMetricInsight(bestSeg) : null
+  const worstMetric = worstSeg ? extractMetricInsight(worstSeg) : null
+
   const profile = profiles.find(p => p.id === profileId)
-  const lens = PROFILE_LENS[profileId] || 'For your analysis'
-  const displayName = profile?.displayName || profileId
+  const thesis = THESIS_COPY[profileId] || THESIS_COPY['priya']
 
   const ctx: VerdictContext = {
     stock: { name: stock.name, sector: stock.sector },
-    profile: { id: profileId, thesis: profile?.investmentThesis || 'balanced', displayName },
+    profile: { id: profileId, thesis: profile?.investmentThesis || 'balanced', displayName: profile?.displayName || profileId },
     scores: { overall: overallScore, quant: quant.score, qual: qual.score, risk: risk.score },
     topStrength: topSignals[0] || null,
     topConcern: topConcerns[0] || null,
@@ -178,36 +209,55 @@ function generateVerdictExplainer(
     profileTopSegment,
   }
 
-  // ── Build summary (1-line contextual copy) ──
+  // ── Build summary (1-line — the "doctor's diagnosis") ──
   let summary: string
-  const strengthText = topSignals[0]?.title || strongest.name
-  const concernText = topConcerns[0]?.title || null
+  const riskClean = risk.score >= 75
+  const riskFlags = risk.segments[0]?.interpretation || ''
 
-  if (overallScore >= 70) {
-    // Strong stock
-    summary = `${strengthText} leads the analysis` +
-      (concernText ? ` — minor watch area: ${concernText.toLowerCase()}.` : ' across all pillars.')
+  if (overallScore >= 75) {
+    // Strong conviction
+    summary = bestSeg
+      ? `${bestSeg.name} stands out at ${bestSeg.score}/100${bestMetric ? ` (${bestMetric})` : ''} with a clean risk profile.`
+      : `Strong across all dimensions — ${strongest.name} leads at ${strongest.score}/100.`
   } else if (overallScore >= 60) {
-    // Good stock
-    summary = `${strengthText} is a key positive` +
-      (concernText ? `, but ${concernText.toLowerCase()} needs attention.` : ', with solid fundamentals overall.')
-  } else if (overallScore >= 40) {
-    // Mixed stock
-    summary = concernText
-      ? `${concernText} weighs on the score — ${strengthText.toLowerCase()} provides some support.`
-      : `Mixed signals across pillars — ${weakest.name} at ${weakest.score}/100 is the main drag.`
+    // Good with nuance
+    if (worstSeg && worstSeg.score != null && worstSeg.score < 45) {
+      summary = `${bestSeg?.name || strongest.name} scores well${bestMetric ? ` (${bestMetric})` : ''}, but ${worstSeg.name} at ${worstSeg.score}/100 needs attention` +
+        (worstMetric ? ` — ${worstMetric}.` : '.')
+    } else {
+      summary = `Solid fundamentals led by ${bestSeg?.name || strongest.name}${bestMetric ? ` (${bestMetric})` : ''}` +
+        (riskClean ? ', with a clean risk profile.' : `, though ${riskFlags.split('—')[0]?.trim() || 'some risk flags exist'}.`)
+    }
+  } else if (overallScore >= 45) {
+    // Mixed — lead with the concern
+    const concern = topConcerns[0]
+    if (concern && bestSeg) {
+      summary = `${concern.title} drags the score — ${bestSeg.name} at ${bestSeg.score}/100 is the bright spot` +
+        (bestMetric ? ` (${bestMetric}).` : '.')
+    } else {
+      summary = `Mixed picture — ${weakest.name} at ${weakest.score}/100 underperforms while ${strongest.name} holds at ${strongest.score}/100.`
+    }
   } else {
-    // Weak stock
-    summary = concernText
-      ? `${concernText} — significant concerns identified across ${weakest.name.toLowerCase()}.`
-      : `Multiple concerns across ${weakest.name} (${weakest.score}/100) and ${pillarScores[1].name} (${pillarScores[1].score}/100).`
+    // Weak — be direct
+    summary = worstSeg
+      ? `${worstSeg.name} scores just ${worstSeg.score}/100${worstMetric ? ` (${worstMetric})` : ''} — multiple pillars show weakness.`
+      : `Significant concerns across ${weakest.name} (${weakest.score}) and ${pillarScores[1].name} (${pillarScores[1].score}).`
   }
 
-  // ── Build rationale (2-3 line expanded) ──
-  const rationale = `${lens}: ${strongest.name} leads at ${strongest.score}/100` +
-    (profileTopSegment ? `, with your top-priority segment ${profileTopSegment.name} at ${profileTopSegment.score}/100` : '') +
-    `. ${weakest.name} at ${weakest.score}/100 is the weakest pillar.` +
-    (topConcerns.length > 0 ? ` Key concern: ${topConcerns[0].title}.` : '')
+  // ── Build rationale (2-3 lines — the "doctor's explanation") ──
+  // Format: [Profile context] → [What your priority segment shows] → [Key risk/strength]
+  const profileSegNote = profileTopSegment
+    ? `Your top priority (${profileTopSegment.name}) scores ${profileTopSegment.score}/100 — ${profileTopSegment.score >= 60 ? 'aligned with' : 'below'} what ${thesis.lens} requires.`
+    : ''
+
+  const riskNote = riskClean
+    ? `Risk profile is clean (${riskFlags.split('—')[0]?.trim() || '0 flags'}).`
+    : `Risk flags detected: ${riskFlags.split('—')[0]?.trim() || 'review recommended'}.`
+
+  const rationale = `For ${thesis.lens}: Quant ${quant.score} · Qual ${qual.score} · Risk ${risk.score}. ` +
+    profileSegNote +
+    (profileSegNote ? ' ' : '') +
+    riskNote
 
   return { summary, rationale, context: ctx }
 }
