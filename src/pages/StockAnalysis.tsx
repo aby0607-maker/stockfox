@@ -9,6 +9,7 @@ import { resolveStock, isDemoStock } from '@/services/stockService'
 import { buildVerdictForStock } from '@/services/verdictService'
 import { buildNewsItems, buildUpcomingEvents } from '@/services/newsBuilder'
 import { LearningProgress } from '@/components/learning/LearningProgress'
+import { ScoringMethodologyModal } from '@/components/scoring/ScoringMethodologyModal'
 import { LearningCompletion } from '@/components/learning/LearningCompletion'
 import { getAccuracy } from '@/data/learningMetrics'
 import { getNewsForStock, getUpcomingEvents, formatEventDate, getEventIcon, type NewsItem, type UpcomingEvent } from '@/data/news'
@@ -209,6 +210,9 @@ export function StockAnalysis() {
   // V2 pillar navigation state
   const [selectedPillar, setSelectedPillar] = useState<VerdictPillar | null>(null)
   const [selectedFactorId, setSelectedFactorId] = useState<string | null>(null)
+
+  // Methodology modal state
+  const [showMethodology, setShowMethodology] = useState(false)
 
   // Learning mode state
   const [learningMode, setLearningMode] = useState(false)
@@ -531,7 +535,27 @@ export function StockAnalysis() {
             <p className="text-xs text-primary-400 mt-1">Rate all segments to reveal the overall score</p>
           </div>
         )}
+
+        {/* "How we score" button — Spinny-style trigger */}
+        {verdictV2 && (
+          <div className="px-5 pb-3">
+            <button
+              onClick={() => setShowMethodology(true)}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-dark-700/50 border border-white/5 hover:border-primary-500/30 transition-colors"
+            >
+              <span className="text-[11px] text-neutral-400">⭐ See how scores are calculated?</span>
+              <span className="text-neutral-600">›</span>
+            </button>
+          </div>
+        )}
       </motion.div>
+
+      {/* Methodology Modal */}
+      <ScoringMethodologyModal
+        isOpen={showMethodology}
+        onClose={() => setShowMethodology(false)}
+        profile={currentProfile}
+      />
 
       {/* ============== QUICK VALIDATION CTA - Below Score Card ============== */}
       <motion.div

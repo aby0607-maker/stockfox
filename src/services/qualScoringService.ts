@@ -1287,6 +1287,7 @@ function assembleQualFactor(
       state: confidenceState,
       tooltip: `${build.computed} of ${build.total} signals computed — remaining require annual report and editorial data`,
     },
+    scoreJustification: result.scoreJustification,
     signalGroups: build.groups,
     redFlags: [...result.hardFlags, ...result.softFlags],
   }

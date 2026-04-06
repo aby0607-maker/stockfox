@@ -24,11 +24,17 @@ function buildPillarVerdictV2(
   pillar: 'quant' | 'qual' | 'risk',
   name: string,
   segments: SegmentVerdictV2[],
+  profileSegmentWeights?: Record<string, number>,
 ): PillarVerdict {
   const scoredSegments = segments.filter(s => s.scoringType === 'scored' && s.score !== undefined)
-  const totalWeight = scoredSegments.reduce((sum, s) => sum + (s.weight || 0), 0)
+
+  // Apply profile-specific segment weights if provided (Layer 2 personalization)
+  const getWeight = (seg: SegmentVerdictV2) =>
+    profileSegmentWeights?.[seg.id] ?? seg.weight ?? 0
+
+  const totalWeight = scoredSegments.reduce((sum, s) => sum + getWeight(s), 0)
   const weightedScore = totalWeight > 0
-    ? Math.round(scoredSegments.reduce((sum, s) => sum + (s.score! * (s.weight || 0)), 0) / totalWeight)
+    ? Math.round(scoredSegments.reduce((sum, s) => sum + (s.score! * getWeight(s)), 0) / totalWeight)
     : 0
 
   const scoreBand = getScoreBandEnum(weightedScore)
@@ -56,7 +62,7 @@ function synthesizeSignals(pillars: PillarVerdict[]): { topSignals: Signal[]; to
   for (const pillar of pillars) {
     for (const seg of pillar.segments) {
       // Strengths: segments scoring ≥70
-      if (seg.scoringType === 'scored' && seg.score != null && seg.score >= 70 && seg.interpretation) {
+      if (seg.scoringType === 'scored' && seg.score != null && seg.score >= 60 && seg.interpretation) {
         strengths.push({
           title: seg.name,
           description: seg.interpretation,
@@ -87,7 +93,7 @@ function synthesizeSignals(pillars: PillarVerdict[]): { topSignals: Signal[]; to
   if (concerns.length < 4) {
     for (const pillar of pillars) {
       for (const seg of pillar.segments) {
-        if (seg.scoringType === 'scored' && seg.score != null && seg.score < 40 && seg.interpretation) {
+        if (seg.scoringType === 'scored' && seg.score != null && seg.score < 45 && seg.interpretation) {
           concerns.push({
             title: `${seg.name} — Weak`,
             description: seg.interpretation,
@@ -121,8 +127,10 @@ export async function buildVerdictForStock(
     resolveMetricValues(stock.symbol),
     buildNewsEvents(stock.symbol, stock.name),
   ])
-  const quantPillar = buildPillarVerdictV2('quant', 'Quant Score', quantSegments)
-  const qualPillar = buildPillarVerdictV2('qual', 'Qual Score', qualFactors)
+  // Apply profile-specific segment weights (Layer 2 personalization)
+  const profileWeights = getProfileWeightsV2(profileId)
+  const quantPillar = buildPillarVerdictV2('quant', 'Quant Score', quantSegments, profileWeights.quantWeights)
+  const qualPillar = buildPillarVerdictV2('qual', 'Qual Score', qualFactors, profileWeights.qualWeights)
 
   // Build dynamic scanner display values from raw CMOTS metrics
   const scannerValues = resolved ? buildScannerValuesFromMetrics(resolved.data) : undefined
@@ -139,7 +147,6 @@ export async function buildVerdictForStock(
     segments: [riskResult.segment],
   }
 
-  const profileWeights = getProfileWeightsV2(profileId)
   const pw = profileWeights.pillarWeights
   const totalWeight = pw.quant + pw.qual + pw.risk
   const overallScore = Math.round(
@@ -169,5 +176,14 @@ export async function buildVerdictForStock(
     entryGuidance: 'See detailed analysis',
     scannerValues,
     resolvedMetrics: resolved?.data,
+    scoreBreakdown: {
+      pillarWeights: { quant: pw.quant, qual: pw.qual, risk: pw.risk },
+      pillarContributions: {
+        quant: Math.round(quantPillar.score * pw.quant / totalWeight * 10) / 10,
+        qual: Math.round(qualPillar.score * pw.qual / totalWeight * 10) / 10,
+        risk: Math.round(riskPillar.score * pw.risk / totalWeight * 10) / 10,
+      },
+      profileName: profileId,
+    },
   }
 }

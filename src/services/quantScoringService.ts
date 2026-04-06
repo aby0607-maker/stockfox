@@ -247,12 +247,22 @@ function buildFinancialHealth(m: Record<string, number | null>): SegmentVerdictV
   const gatesPassed = g1Passed && g3Passed && g4Passed && g5Passed
   const finalScore = Math.max(0, Math.min(100, gatesPassed ? clusterScore + modPenalty : Math.min(clusterScore, 35)))
 
+  const gateCount = [g1Passed, g3Passed, g4Passed, g5Passed].filter(Boolean).length
+  const scoreJustification = [
+    `Gates: ${gateCount}/4 passed`,
+    `Clusters: B1(${b1Score})×25% + B2(${b2Score})×25% + B3(${accrualScore})×20% + B4(${b4Score})×15% + B5(${b5Score})×15% = ${clusterScore}`,
+    modPenalty !== 0 ? `Modifiers: ${modPenalty > 0 ? '+' : ''}${modPenalty} pts` : null,
+    !gatesPassed ? 'Gate penalty: score capped at 35' : null,
+    `Final: ${finalScore}/100`,
+  ].filter(Boolean).join(' → ')
+
   return {
     id: 'financial_health', name: 'Financial Health', pillar: 'quant',
     scoringType: 'scored', score: finalScore, scoreBand: getScoreBandEnum(finalScore),
     label: getScoreBandEnum(finalScore).toUpperCase(), weight: 20,
     status: finalScore >= 60 ? 'positive' : finalScore >= 40 ? 'neutral' : 'negative',
     interpretation: `Financial health scores ${finalScore}/100 — ${finalScore >= 60 ? 'solid fundamentals' : 'areas of concern exist'}.`,
+    scoreJustification,
     confidenceIndicator: confidence(computed, total), signalGroups: groups, redFlags,
   }
 }
@@ -353,12 +363,20 @@ function buildProfitability(m: Record<string, number | null>): SegmentVerdictV2 
 
   const finalScore = Math.round(anchorAvg * 0.55 + modAvg * 0.30 + stabilityScore * 0.15)
 
+  const scoreJustification = [
+    `Anchors: avg ${Math.round(anchorAvg)}/100 × 55%`,
+    `Modifiers: avg ${Math.round(modAvg)}/100 × 30%`,
+    `Stability: ${Math.round(stabilityScore)}/100 × 15%`,
+    `Final: ${finalScore}/100`,
+  ].join(' → ')
+
   return {
     id: 'profitability', name: 'Profitability', pillar: 'quant',
     scoringType: 'scored', score: finalScore, scoreBand: getScoreBandEnum(finalScore),
     label: getScoreBandEnum(finalScore).toUpperCase(), weight: 20,
     status: finalScore >= 60 ? 'positive' : finalScore >= 40 ? 'neutral' : 'negative',
     interpretation: `Profitability scores ${finalScore}/100 — ROE ${fmt(roe)}, ROCE ${fmt(roce)}, OPM ${fmt(opm)}.`,
+    scoreJustification,
     confidenceIndicator: confidence(computed, total), signalGroups: groups, redFlags,
   }
 }
@@ -425,12 +443,15 @@ function buildGrowth(m: Record<string, number | null>): SegmentVerdictV2 {
 
   const growthFinal = Math.round(avgScore * 0.70 + qualityAvg * 0.30)
 
+  const scoreJustification = `CAGR avg: ${Math.round(avgScore)}/100 × 70% + Quality avg: ${Math.round(qualityAvg)}/100 × 30% → Final: ${growthFinal}/100`
+
   return {
     id: 'growth', name: 'Growth', pillar: 'quant',
     scoringType: 'scored', score: growthFinal, scoreBand: getScoreBandEnum(growthFinal),
     label: getScoreBandEnum(growthFinal).toUpperCase(), weight: 25,
     status: growthFinal >= 60 ? 'positive' : growthFinal >= 40 ? 'neutral' : 'negative',
     interpretation: `Growth scores ${growthFinal}/100 — Revenue ${fmt(revGrowth)}, EBITDA ${fmt(ebitdaGrowth)}, Earnings ${fmt(earningsGrowth)} CAGR.`,
+    scoreJustification,
     confidenceIndicator: confidence(7, 8), signalGroups: groups, redFlags,
   }
 }
@@ -510,12 +531,15 @@ function buildValuation(m: Record<string, number | null>): SegmentVerdictV2 {
 
   const finalScore = Math.round(histAvg * 0.65 + benchAvg * 0.35)
 
+  const scoreJustification = `Historical avg: ${Math.round(histAvg)}/100 × 65% + Value benchmarks: ${Math.round(benchAvg)}/100 × 35% → Final: ${finalScore}/100`
+
   return {
     id: 'valuation', name: 'Valuation', pillar: 'quant',
     scoringType: 'scored', score: finalScore, scoreBand: getScoreBandEnum(finalScore),
     label: getScoreBandEnum(finalScore).toUpperCase(), weight: 20,
     status: finalScore >= 60 ? 'positive' : finalScore >= 40 ? 'neutral' : 'negative',
     interpretation: `Valuation scores ${finalScore}/100 — PE/PB/EV vs history ${histAvg}, value benchmarks ${benchAvg}.`,
+    scoreJustification,
     confidenceIndicator: confidence(computed, total), signalGroups: groups, redFlags,
   }
 }
@@ -613,12 +637,15 @@ function buildTechnical(m: Record<string, number | null>): SegmentVerdictV2 {
     redFlags.push({ signalId: 'TECH_RSI', severity: 'soft', title: 'Deeply Oversold', description: `RSI is ${fmt(rsiVal, '', 0)} — extreme selling pressure`, source: 'Tech-RSI' })
   }
 
+  const scoreJustification = `Trend avg: ${Math.round(trendAvg)}/100 × 60% + RS/Momentum: ${Math.round(rsAvg)}/100 × 30% + Volume: ${Math.round(volScore)}/100 × 10% → Final: ${avgScore}/100`
+
   return {
     id: 'technical', name: 'Technical', pillar: 'quant',
     scoringType: 'scored', score: avgScore, scoreBand: getScoreBandEnum(avgScore),
     label: getScoreBandEnum(avgScore).toUpperCase(), weight: 15,
     status: avgScore >= 60 ? 'positive' : avgScore >= 40 ? 'neutral' : 'negative',
     interpretation: `Technical scores ${avgScore}/100 — EMA trend ${ema200 != null && ema200 > 0 ? 'bullish' : 'bearish'}, RSI ${fmt(rsiVal, '', 0)}.`,
+    scoreJustification,
     confidenceIndicator: confidence(computed, total), signalGroups: groups, redFlags,
   }
 }

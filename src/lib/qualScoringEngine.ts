@@ -204,6 +204,7 @@ export interface FactorScoreResult {
   softFlags: RedFlagV2[]
   confidence: ConfidenceIndicator
   groupScores: Record<string, number | null>
+  scoreJustification?: string
 }
 
 /**
@@ -297,6 +298,17 @@ export function scoreQualFactor(
   const scoreBand = getScoreBandEnum(finalScore)
   const label = config.labels[scoreBand] || scoreBand.toUpperCase()
 
+  const scoreJustification = [
+    `Anchor: ${Math.round(anchorScore)}/100`,
+    totalWeight > 0 ? `Non-anchor composite: ${Math.round(nonAnchorComposite)}/100` : null,
+    totalWeight > 0
+      ? `Hybrid: ${Math.round(anchorScore)}×50% + ${Math.round(nonAnchorComposite)}×50% = ${Math.round(rawScore)}`
+      : `Anchor only (no non-anchor data)`,
+    Math.round(rawScore) !== finalScore ? `Clamped [${floor}, ${ceiling}] → ${finalScore}` : null,
+    softFlags.length > 0 ? `${softFlags.length} soft flag(s) flagged` : null,
+    `Final: ${finalScore}/100`,
+  ].filter(Boolean).join(' → ')
+
   return {
     score: finalScore,
     scoreBand,
@@ -306,6 +318,7 @@ export function scoreQualFactor(
     softFlags,
     confidence: buildConfidence(groups, scoreBand === 'suppressed' ? 'suppressed' : undefined),
     groupScores,
+    scoreJustification,
   }
 }
 
