@@ -148,8 +148,11 @@ export function StockAnalysis() {
 
       // Step 0: Try cache for instant render
       const { getCachedStock } = await import('@/services/stockCacheService')
-      const cachedStock = await getCachedStock(symbol)
-      const hasCachedScoring = cachedStock && (cachedStock as any).scoringVersion === 'full-3pillar'
+      const cachedStock = await getCachedStock(symbol.toUpperCase())
+      // Check for full scoring: has per-profile scores OR scoringVersion flag
+      const cached = cachedStock as any
+      const hasCachedScoring = cached && (cached.scores || cached.scoringVersion === 'full-3pillar')
+      console.info(`[StockAnalysis] Cache check for ${symbol}: ${hasCachedScoring ? 'HIT — instant render' : 'MISS — live pipeline'}`, cached ? { scoringVersion: cached.scoringVersion, hasScores: !!cached.scores, score: cached.score } : 'not in cache')
 
       if (hasCachedScoring && !cancelled) {
         // ═══ INSTANT PATH: Render from cache (<1 second) ═══
