@@ -147,17 +147,18 @@ export function PillarDrillDown({
                         'bg-neutral-500'
                       )} />
                       <div className="flex-1 min-w-0">
-                        {SEGMENT_TOOLTIPS[segment.id] ? (
-                          <Tooltip content={SEGMENT_TOOLTIPS[segment.id]} position="bottom" maxWidth={280}>
-                            <span className="text-sm font-medium text-white block truncate cursor-help border-b border-dotted border-neutral-700">
-                              {segment.name}
-                            </span>
-                          </Tooltip>
-                        ) : (
-                          <span className="text-sm font-medium text-white block truncate">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-medium text-white truncate">
                             {segment.name}
                           </span>
-                        )}
+                          {SEGMENT_TOOLTIPS[segment.id] && (
+                            <InfoTooltip
+                              content={SEGMENT_TOOLTIPS[segment.id]}
+                              size="sm"
+                              position="bottom"
+                            />
+                          )}
+                        </div>
                         {!isHidden && segment.quickInsight && (
                           <AutoTooltipText
                             text={segment.quickInsight}

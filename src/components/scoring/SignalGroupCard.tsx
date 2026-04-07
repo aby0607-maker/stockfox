@@ -50,12 +50,9 @@ export function SignalGroupCard({ group, defaultExpanded = false }: SignalGroupC
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            {GROUP_TOOLTIPS[group.name] ? (
-              <Tooltip content={GROUP_TOOLTIPS[group.name]} position="bottom" maxWidth={280}>
-                <span className={cn('text-sm font-medium truncate cursor-help border-b border-dotted border-neutral-700', allNA ? 'text-neutral-500' : 'text-white')}>{group.name}</span>
-              </Tooltip>
-            ) : (
-              <span className={cn('text-sm font-medium truncate', allNA ? 'text-neutral-500' : 'text-white')}>{group.name}</span>
+            <span className={cn('text-sm font-medium truncate', allNA ? 'text-neutral-500' : 'text-white')}>{group.name}</span>
+            {GROUP_TOOLTIPS[group.name] && (
+              <InfoTooltip content={GROUP_TOOLTIPS[group.name]} size="sm" position="bottom" />
             )}
             <Tooltip content={roleBadge.tooltip} position="bottom">
               <span className={cn('text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded cursor-help', allNA ? 'bg-neutral-700/30 text-neutral-600' : roleBadge.class)}>
