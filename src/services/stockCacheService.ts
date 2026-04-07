@@ -210,6 +210,12 @@ async function persistToBlob(symbol: string, stock: CachedStock): Promise<void> 
   } catch { /* non-critical */ }
 }
 
+// ─── Eager preload: start loading cache immediately on import ──────
+// This ensures the cache is warm by the time user navigates to any stock page
+if (typeof window !== 'undefined') {
+  ensureCache().catch(() => {})
+}
+
 /**
  * Check if the cache has data for a given symbol.
  */
