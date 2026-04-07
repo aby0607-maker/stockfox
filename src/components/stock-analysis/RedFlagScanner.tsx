@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, AlertCircle, Check, X, TrendingDown, Newspaper, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
 import { generateRedFlagFramework } from '@/services/redFlagScannerService'
 import { getDemoScannerValues } from '@/data/verdicts'
 import type { StockVerdict, StockVerdictV2 } from '@/types'
@@ -75,6 +76,10 @@ export function RedFlagScanner({ verdict, verdictV2, news }: RedFlagScannerProps
               <Check className="w-5 h-5 text-success-400" />
             )}
             <h3 className="font-semibold text-white">Red Flag Scanner</h3>
+            <InfoTooltip
+              content="35-point risk scanner checking for deal-breakers: debt stress, earnings manipulation, governance red flags, regulatory actions, insider selling, and more. Issues are ranked by severity — Critical flags can override the entire stock score."
+              size="sm"
+            />
           </div>
           <div className="flex items-center gap-2">
             {scoreImpact !== 0 && (
@@ -129,9 +134,17 @@ export function RedFlagScanner({ verdict, verdictV2, news }: RedFlagScannerProps
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-base">{cat.emoji}</span>
-                    <div className="text-left">
+                    <div className="flex items-center gap-1.5 text-left">
                       <span className="text-sm font-medium text-white">{cat.label}</span>
-                      <span className="text-xs text-neutral-500 ml-2">({cat.count} checks)</span>
+                      <span className="text-xs text-neutral-500">({cat.count} checks)</span>
+                      <InfoTooltip
+                        content={
+                          cat.key === 'critical' ? 'Critical flags are deal-breakers — bankruptcy risk, fraud indicators, regulatory bans. Even one critical flag can override the entire stock score.' :
+                          cat.key === 'high' ? 'High severity flags indicate serious concerns — heavy debt, insider selling, governance failures. Multiple high flags significantly reduce the Risk score.' :
+                          'Medium flags are yellow warnings — elevated ratios, declining trends, concentration risks. They reduce the score modestly but are not deal-breakers alone.'
+                        }
+                        size="sm"
+                      />
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -178,11 +191,17 @@ export function RedFlagScanner({ verdict, verdictV2, news }: RedFlagScannerProps
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
-                                <span className={cn(
-                                  'font-medium',
-                                  flag.isTriggered ? 'text-white' : 'text-neutral-400'
-                                )}>
-                                  {flag.title}
+                                <span className="flex items-center gap-1">
+                                  <span className={cn(
+                                    'font-medium',
+                                    flag.isTriggered ? 'text-white' : 'text-neutral-400'
+                                  )}>
+                                    {flag.title}
+                                  </span>
+                                  <InfoTooltip
+                                    content={`${flag.title}: ${flag.description}${flag.threshold ? ` Threshold: ${flag.threshold}.` : ''} Source: ${flag.source}.`}
+                                    size="sm"
+                                  />
                                 </span>
                                 <span className="text-[10px] text-neutral-500 flex-shrink-0">
                                   {flag.source}
