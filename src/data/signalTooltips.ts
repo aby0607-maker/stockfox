@@ -316,3 +316,42 @@ export const GROUP_TOOLTIPS: Record<string, string> = {
 export function getSignalTooltip(id: string, name: string): string | undefined {
   return SIGNAL_TOOLTIPS[id] || SIGNAL_NAME_TOOLTIPS[name]
 }
+
+// ============================================================
+// VERDICT & SCORE BAND TOOLTIPS (for ⓘ icons on Scorecard)
+// ============================================================
+
+export const VERDICT_TOOLTIPS: Record<string, string> = {
+  'Strong Buy': 'Score 80+. Exceptional across most dimensions. Strong fundamentals, quality management, and limited risk flags.',
+  'Buy': 'Score 65-79. More strengths than concerns. Solid fundamentals with some areas to monitor.',
+  'Hold': 'Score 50-64. Mixed signals. Notable strengths but meaningful gaps or risks that need watching.',
+  'Sell': 'Score 35-49. More concerns than strengths. Significant risks or deteriorating fundamentals.',
+  'Strong Sell': 'Score below 35. Major red flags across multiple dimensions. High risk of capital erosion.',
+}
+
+export const SCORE_BAND_TOOLTIPS: Record<string, string> = {
+  'STRONG': 'Score 70+. This dimension is a clear strength — performing well above average.',
+  'GOOD': 'Score 60-69. Solid performance in this dimension with minor areas for improvement.',
+  'MODERATE': 'Score 45-59. Average performance. Some positives but notable gaps or inconsistencies.',
+  'WEAK': 'Score 30-44. Below average. Significant concerns that weigh on the overall assessment.',
+  'POOR': 'Score below 30. Major weakness. This dimension is dragging the overall score down.',
+  // Also handle lowercase/mixed variants
+  'good': 'Score 60+. This dimension is a clear strength.',
+  'mixed': 'Score 45-59. Average performance with gaps.',
+  'poor': 'Score below 45. Significant weakness in this dimension.',
+}
+
+export const PILLAR_TOOLTIPS: Record<string, string> = {
+  quant: 'Quantitative Analysis — measures financial fundamentals: profitability, growth trajectory, valuation attractiveness, financial health, and technical momentum.',
+  qual: 'Qualitative Analysis — evaluates management quality, business durability, capital discipline, earnings reliability, and execution track record.',
+  risk: 'Risk Assessment — 35-point scanner checking for red flags: debt stress, audit concerns, governance issues, regulatory actions, and insider selling.',
+}
+
+export function getOverallScoreTooltip(quantWeight: number, qualWeight: number, riskWeight: number): string {
+  return `Your StockFox Score — weighted blend of Quant (${quantWeight}%), Qual (${qualWeight}%), and Risk (${riskWeight}%) based on your profile.`
+}
+
+export function getPeerRankTooltip(rank: number, total: number, category: string): string {
+  const percentile = Math.round(((total - rank + 1) / total) * 100)
+  return `Ranked #${rank} among ${total} ${category} stocks by StockFox score. Top ${percentile}% in this peer group.`
+}

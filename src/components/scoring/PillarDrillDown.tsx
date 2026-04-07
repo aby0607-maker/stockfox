@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { getScoreBandV2 } from '@/lib/scoring'
 import { Tooltip, AutoTooltipText } from '@/components/ui'
 import { SEGMENT_TOOLTIPS } from '@/data/signalTooltips'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
 import { SEGMENT_PREVIEW_METRICS, type RatingBand } from '@/data/learningMetrics'
 import { SegmentRatingCard } from '@/components/learning/SegmentRatingCard'
 import { RatingReveal } from '@/components/learning/RatingReveal'
@@ -198,6 +199,13 @@ export function PillarDrillDown({
                             )}>
                               {segment.label || segBand.shortLabel}
                             </span>
+                            {segment.scoringType === 'context' && (
+                              <InfoTooltip
+                                content="Informational score — measured for comparison but not weighted into the pillar total."
+                                size="sm"
+                                position="left"
+                              />
+                            )}
                           </div>
                         )
                       })() : null}

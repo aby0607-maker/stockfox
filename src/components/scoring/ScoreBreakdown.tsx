@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Calculator } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -31,8 +32,13 @@ export function ScoreBreakdown({ justification, label }: ScoreBreakdownProps) {
         className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-dark-700/30 transition-colors"
       >
         <Calculator className="w-3.5 h-3.5 text-primary-400 flex-shrink-0" />
-        <span className="text-[11px] text-primary-400 font-medium flex-1">
+        <span className="text-[11px] text-primary-400 font-medium flex-1 flex items-center gap-1">
           {label || 'How was this scored?'}
+          <InfoTooltip
+            content="Score formula: Hard Gates check for deal-breakers → Anchor clusters score core metrics → Modifiers adjust for context → Weight & average → Final score."
+            position="bottom"
+            size="sm"
+          />
         </span>
         <ChevronDown className={cn(
           'w-3.5 h-3.5 text-neutral-500 transition-transform',
@@ -107,8 +113,13 @@ export function OverallScoreBreakdown({ scoreBreakdown, pillarScores, overallSco
         className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-dark-700/30 transition-colors"
       >
         <Calculator className="w-3.5 h-3.5 text-primary-400 flex-shrink-0" />
-        <span className="text-[11px] text-primary-400 font-medium flex-1">
+        <span className="text-[11px] text-primary-400 font-medium flex-1 flex items-center gap-1">
           How was the overall score calculated?
+          <InfoTooltip
+            content="Overall = (Quant × weight) + (Qual × weight) + (Risk × weight). Weights vary by your profile — growth-focused profiles weight Quant higher, safety-focused profiles weight Risk higher."
+            position="bottom"
+            size="sm"
+          />
         </span>
         <ChevronDown className={cn(
           'w-3.5 h-3.5 text-neutral-500 transition-transform',

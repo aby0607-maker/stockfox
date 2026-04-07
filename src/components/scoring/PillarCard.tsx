@@ -3,6 +3,8 @@ import { ChevronRight, BarChart3, Shield, Brain } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getScoreBandV2 } from '@/lib/scoring'
 import { Tooltip } from '@/components/ui'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
+import { PILLAR_TOOLTIPS, SCORE_BAND_TOOLTIPS } from '@/data/signalTooltips'
 import type { PillarVerdict } from '@/types'
 
 interface PillarCardProps {
@@ -106,6 +108,14 @@ export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRev
               {hideScore ? '?' : Math.round(pillar.score)}
             </span>
           </div>
+          {/* ⓘ for pillar explanation */}
+          <div className="absolute -top-1 -right-1">
+            <InfoTooltip
+              content={PILLAR_TOOLTIPS[pillar.pillar] || `${pillar.name} — tap to see the full breakdown.`}
+              position="bottom"
+              size="sm"
+            />
+          </div>
         </div>
 
         {/* Band + Summary */}
@@ -121,11 +131,17 @@ export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRev
             </>
           ) : (
             <>
-              <span className={cn(
-                'inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase mb-1',
-                band.bgClass, band.colorClass
-              )}>
-                {band.shortLabel}
+              <span className="flex items-center gap-1 mb-1">
+                <span className={cn(
+                  'inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase',
+                  band.bgClass, band.colorClass
+                )}>
+                  {band.shortLabel}
+                </span>
+                <InfoTooltip
+                  content={SCORE_BAND_TOOLTIPS[band.shortLabel] || SCORE_BAND_TOOLTIPS[pillar.scoreBand || ''] || 'Score band based on pillar performance.'}
+                  size="sm"
+                />
               </span>
               <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
                 {pillar.summary}

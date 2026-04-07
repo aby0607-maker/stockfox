@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getOverallVerdict, getScoreGlowV2 } from '@/lib/scoring'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
+import { VERDICT_TOOLTIPS, getOverallScoreTooltip, getPeerRankTooltip } from '@/data/signalTooltips'
 import { OverallScoreBreakdown } from './ScoreBreakdown'
 import type { StockVerdictV2 } from '@/types'
 
@@ -82,26 +84,39 @@ export function OverallVerdictCard({ verdict, profileName }: OverallVerdictCardP
               >
                 {displayScore}
               </motion.span>
-              <span className="text-xs text-neutral-500">/100</span>
+              <span className="text-xs text-neutral-500 flex items-center gap-0.5">
+                /100
+                <InfoTooltip
+                  content={getOverallScoreTooltip(
+                    verdict.scoreBreakdown?.pillarWeights?.quant ?? 40,
+                    verdict.scoreBreakdown?.pillarWeights?.qual ?? 35,
+                    verdict.scoreBreakdown?.pillarWeights?.risk ?? 25,
+                  )}
+                  position="bottom"
+                />
+              </span>
             </motion.div>
           </div>
 
           {/* Verdict Info */}
           <div className="flex-1">
-            <motion.span
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-              className={cn(
-                'inline-block px-3 py-1 rounded-full text-sm font-semibold',
-                overall.verdict === 'strong_buy' && 'bg-gradient-to-r from-success-500 to-success-600 text-white shadow-glow-green',
-                overall.verdict === 'buy' && 'bg-success-500/20 border border-success-500/40 text-success-400',
-                overall.verdict === 'hold' && 'bg-warning-500/20 border border-warning-500/40 text-warning-400',
-                overall.verdict === 'sell' && 'bg-destructive-500/20 border border-destructive-500/40 text-destructive-400',
-              )}
-            >
-              {overall.label}
-            </motion.span>
+            <div className="flex items-center gap-1.5">
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className={cn(
+                  'inline-block px-3 py-1 rounded-full text-sm font-semibold',
+                  overall.verdict === 'strong_buy' && 'bg-gradient-to-r from-success-500 to-success-600 text-white shadow-glow-green',
+                  overall.verdict === 'buy' && 'bg-success-500/20 border border-success-500/40 text-success-400',
+                  overall.verdict === 'hold' && 'bg-warning-500/20 border border-warning-500/40 text-warning-400',
+                  overall.verdict === 'sell' && 'bg-destructive-500/20 border border-destructive-500/40 text-destructive-400',
+                )}
+              >
+                {overall.label}
+              </motion.span>
+              <InfoTooltip content={VERDICT_TOOLTIPS[overall.label] || `Score-based verdict for this stock.`} />
+            </div>
 
             {/* Peer Rank Badge */}
             {verdict.peerRank != null && verdict.peerTotal != null && verdict.peerTotal > 1 && (
@@ -124,6 +139,10 @@ export function OverallVerdictCard({ verdict, profileName }: OverallVerdictCardP
                   )}>#{verdict.peerRank}</span>
                   {' '}of {verdict.peerTotal} {verdict.peerCategory || 'sector'} stocks
                 </span>
+                <InfoTooltip
+                  content={getPeerRankTooltip(verdict.peerRank!, verdict.peerTotal!, verdict.peerCategory || 'sector')}
+                  size="sm"
+                />
               </motion.div>
             )}
 
