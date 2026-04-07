@@ -3,6 +3,8 @@ import { ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getScoreBandV2 } from '@/lib/scoring'
 import { AutoTooltipText } from '@/components/ui'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
+import { SEGMENT_TOOLTIPS } from '@/data/signalTooltips'
 import { SignalGroupCard } from './SignalGroupCard'
 import { RedFlagBanner } from './RedFlagBanner'
 import { ConfidenceIndicator } from './ConfidenceIndicator'
@@ -35,10 +37,19 @@ export function QualFactorTab({ factor, onBack }: QualFactorTabProps) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1">
-          <h3 className="font-semibold text-white">{factor.name}</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-semibold text-white">{factor.name}</h3>
+            <InfoTooltip
+              content={SEGMENT_TOOLTIPS[factor.id] || `${factor.name} — qualitative assessment based on ${factor.signalGroups?.length || 0} signal groups.`}
+              position="bottom"
+            />
+          </div>
           <div className="flex items-center gap-2 mt-0.5">
             {factor.isSuppressed ? (
-              <span className="text-sm font-bold text-destructive-400">RED FLAG</span>
+              <span className="flex items-center gap-1 text-sm font-bold text-destructive-400">
+                RED FLAG
+                <InfoTooltip content="A critical issue was detected that suppresses this factor's score entirely. Check the red flag details below." size="sm" />
+              </span>
             ) : band && factor.score != null ? (
               <>
                 <span className={cn('text-lg font-bold', band.colorClass)}>

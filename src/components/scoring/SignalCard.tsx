@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Tooltip, AutoTooltipText } from '@/components/ui'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
 import { getSignalTooltip } from '@/data/signalTooltips'
 import type { QualSignal } from '@/types'
 
@@ -57,15 +58,10 @@ export function SignalCard({ signal }: SignalCardProps) {
         <div className="flex-1 min-w-0">
           {/* Signal name + ID + badges */}
           <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-sm font-medium text-white">{signal.name}</span>
             {(() => {
               const tip = getSignalTooltip(signal.id, signal.name)
-              return tip ? (
-                <Tooltip content={tip} position="bottom" maxWidth={300}>
-                  <span className="text-sm font-medium text-white cursor-help border-b border-dotted border-neutral-600">{signal.name}</span>
-                </Tooltip>
-              ) : (
-                <span className="text-sm font-medium text-white">{signal.name}</span>
-              )
+              return tip ? <InfoTooltip content={tip} size="sm" position="bottom" /> : null
             })()}
             <span className="text-[10px] text-neutral-600 font-mono">{signal.id}</span>
             {signal.escalationTier !== 'score_only' && (
@@ -167,8 +163,13 @@ export function SignalCard({ signal }: SignalCardProps) {
                   }}
                 />
               </div>
-              <span className={cn('text-[10px] font-medium', config.text)}>
+              <span className={cn('text-[10px] font-medium flex items-center gap-0.5', config.text)}>
                 {signal.score}/100
+                <InfoTooltip
+                  content={`${signal.name} scores ${signal.score}/100. ${signal.state === 'strong' ? 'Strong performance on this metric.' : signal.state === 'flag' ? 'This metric is flagged as a concern.' : 'Average performance — room for improvement.'}`}
+                  size="sm"
+                  position="left"
+                />
               </span>
             </div>
           )}

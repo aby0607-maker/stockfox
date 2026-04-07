@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils'
 import { getScoreBandV2 } from '@/lib/scoring'
 import { SignalCard } from './SignalCard'
 import { Tooltip } from '@/components/ui'
-import { GROUP_TOOLTIPS } from '@/data/signalTooltips'
+import { InfoTooltip } from '@/components/ui/InfoTooltip'
+import { GROUP_TOOLTIPS, SCORE_BAND_TOOLTIPS } from '@/data/signalTooltips'
 import type { SignalGroup } from '@/types'
 
 interface SignalGroupCardProps {
@@ -73,7 +74,7 @@ export function SignalGroupCard({ group, defaultExpanded = false }: SignalGroupC
               </Tooltip>
             )}
 
-            {/* Group score */}
+            {/* Group score + ⓘ */}
             {!allNA && band && group.score != null && (
               <div className="flex items-center gap-1.5">
                 <span className={cn('text-sm font-bold', band.colorClass)}>
@@ -85,20 +86,35 @@ export function SignalGroupCard({ group, defaultExpanded = false }: SignalGroupC
                 )}>
                   {band.shortLabel}
                 </span>
+                <InfoTooltip
+                  content={`${group.name} scores ${Math.round(group.score)}/100. ${SCORE_BAND_TOOLTIPS[band.shortLabel] || ''} Based on ${applicableSignals.length} signal${applicableSignals.length > 1 ? 's' : ''}.`}
+                  size="sm"
+                  position="left"
+                />
               </div>
             )}
 
-            {/* Flag count */}
+            {/* Flag count + ⓘ */}
             {flaggedSignals.length > 0 && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive-500/20 text-destructive-400">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive-500/20 text-destructive-400">
                 {flaggedSignals.length} flag{flaggedSignals.length > 1 ? 's' : ''}
+                <InfoTooltip
+                  content={`${flaggedSignals.length} signal${flaggedSignals.length > 1 ? 's are' : ' is'} flagged as a concern. Flagged signals may suppress or reduce the group score.`}
+                  size="sm"
+                  position="left"
+                />
               </span>
             )}
 
-            {/* Signal count */}
+            {/* Signal count + ⓘ */}
             {!allNA && (
-              <span className="text-[10px] text-neutral-600">
+              <span className="flex items-center gap-0.5 text-[10px] text-neutral-600">
                 {applicableSignals.length}/{group.signals.length}
+                <InfoTooltip
+                  content={`${applicableSignals.length} of ${group.signals.length} signals have data. Missing signals are marked N/A — they don't affect the score.`}
+                  size="sm"
+                  position="left"
+                />
               </span>
             )}
 

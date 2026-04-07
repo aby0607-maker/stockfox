@@ -199,13 +199,17 @@ export function PillarDrillDown({
                             )}>
                               {segment.label || segBand.shortLabel}
                             </span>
-                            {segment.scoringType === 'context' && (
-                              <InfoTooltip
-                                content="Informational score — measured for comparison but not weighted into the pillar total."
-                                size="sm"
-                                position="left"
-                              />
-                            )}
+                            <InfoTooltip
+                              content={
+                                segment.scoringType === 'context'
+                                  ? `${segment.name} scores ${Math.round(segment.score)}/100. Informational — measured for comparison but not weighted into the pillar total.`
+                                  : SEGMENT_TOOLTIPS[segment.id]
+                                    ? `${segment.name}: ${Math.round(segment.score)}/100. ${SEGMENT_TOOLTIPS[segment.id]}`
+                                    : `${segment.name} scores ${Math.round(segment.score)}/100. Tap to see the signals that drive this score.`
+                              }
+                              size="sm"
+                              position="left"
+                            />
                           </div>
                         )
                       })() : null}
