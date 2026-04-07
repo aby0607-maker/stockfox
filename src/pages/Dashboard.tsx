@@ -93,7 +93,7 @@ export function Dashboard() {
             sectorRank: profileRank?.rank ?? c.peerRank,
             sectorTotal: profileRank?.total ?? c.peerTotal,
             sectorAvgScore: 0,
-            verdictPeerGroup: profileRank?.category ?? c.peerCategory || c.sector,
+            verdictPeerGroup: profileRank?.category ?? (c.peerCategory || c.sector),
             quickInsight: `Score based on ${c.sector} fundamentals`,
             topSignal: `ROE ${(c.roe ?? 0).toFixed(1)}%, P/E ${(c.pe ?? 0).toFixed(1)}x`,
           } as WatchlistItem
