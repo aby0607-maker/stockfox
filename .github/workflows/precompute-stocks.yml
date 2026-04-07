@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       tier:
-        description: 'Tier to refresh (all, Large Cap, Mid Cap, Small Cap)'
+        description: 'Tier to refresh (Large Cap, Mid Cap, all)'
         required: false
-        default: 'all'
+        default: 'Large Cap'
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ permissions:
 jobs:
   precompute:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30  # Large+Mid Cap only (~248 stocks, ~15 min)
 
     steps:
       - name: Checkout repository
@@ -36,7 +36,7 @@ jobs:
       - name: Create output directory
         run: mkdir -p public/data
 
-      - name: "Full 3-pillar scoring pipeline"
+      - name: "Full 3-pillar scoring — Large + Mid Cap"
         env:
           CMOTS_API_TOKEN: ${{ secrets.CMOTS_API_TOKEN }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
@@ -45,10 +45,20 @@ jobs:
           INDIANAPI_KEY: ${{ secrets.INDIANAPI_KEY }}
           TIER_OVERRIDE: ${{ github.event.inputs.tier }}
         run: |
-          TIER="${TIER_OVERRIDE:-all}"
-          echo "Running full 3-pillar scoring for tier: $TIER"
+          TIER="${TIER_OVERRIDE:-Large Cap}"
           echo "Profiles: priya, kavya, meera, sneha"
-          npx vite-node scripts/precompute-full-scoring.ts -- --tier="$TIER"
+
+          if [ -z "$TIER_OVERRIDE" ]; then
+            # Default nightly: score Large Cap + Mid Cap (~248 stocks, ~15 min)
+            echo "=== Nightly run: Large Cap ==="
+            npx vite-node scripts/precompute-full-scoring.ts -- --tier="Large Cap"
+            echo "=== Nightly run: Mid Cap ==="
+            npx vite-node scripts/precompute-full-scoring.ts -- --tier="Mid Cap"
+          else
+            # Manual trigger: score requested tier only
+            echo "=== Manual run: $TIER ==="
+            npx vite-node scripts/precompute-full-scoring.ts -- --tier="$TIER"
+          fi
 
       - name: Commit updated cache
         run: |
