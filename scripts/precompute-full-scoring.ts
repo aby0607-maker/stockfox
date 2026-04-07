@@ -423,37 +423,60 @@ async function main() {
     console.log(`   ✓ ${priced} stocks priced`)
   }
 
-  // Step 5: Peer rankings per sector (cap-agnostic)
-  console.log('\n🏆 Computing peer rankings...')
+  // Step 5: Peer rankings by industry (per profile)
+  console.log('\n🏆 Computing peer rankings (industry-based, per profile)...')
   const allStocks = [...results.values()]
+
+  // Build industry + sector groups
+  const byIndustry = new Map<string, any[]>()
   const bySector = new Map<string, any[]>()
   for (const stock of allStocks) {
+    const industry = stock.industry || stock.sector || 'Unknown'
     const sector = stock.sector || 'Unknown'
+    if (!byIndustry.has(industry)) byIndustry.set(industry, [])
+    byIndustry.get(industry)!.push(stock)
     if (!bySector.has(sector)) bySector.set(sector, [])
     bySector.get(sector)!.push(stock)
   }
 
-  // Rank per profile
+  // Rank per profile within industry (fall back to sector if <3 industry peers)
   for (const profileId of ACTIVE_PROFILE_IDS) {
-    for (const [sector, stocks] of bySector) {
+    // Sort each group by this profile's score
+    const sortByProfile = (stocks: any[]) => {
       stocks.sort((a: any, b: any) => {
         const scoreA = a.scores?.[profileId]?.score ?? a.score ?? 0
         const scoreB = b.scores?.[profileId]?.score ?? b.score ?? 0
         return scoreB - scoreA
       })
-      stocks.forEach((stock: any, i: number) => {
-        if (!stock.peerRanks) stock.peerRanks = {}
-        stock.peerRanks[profileId] = { rank: i + 1, total: stocks.length, category: sector }
-      })
+    }
+    for (const [, stocks] of byIndustry) sortByProfile(stocks)
+    for (const [, stocks] of bySector) sortByProfile(stocks)
+
+    for (const stock of allStocks) {
+      const industry = stock.industry || stock.sector || 'Unknown'
+      const industryPeers = byIndustry.get(industry) || [stock]
+
+      if (!stock.peerRanks) stock.peerRanks = {}
+
+      if (industryPeers.length >= 3) {
+        const rank = industryPeers.findIndex((s: any) => s.symbol === stock.symbol) + 1
+        stock.peerRanks[profileId] = { rank, total: industryPeers.length, category: industry }
+      } else {
+        const sector = stock.sector || 'Unknown'
+        const sectorPeers = bySector.get(sector) || [stock]
+        const rank = sectorPeers.findIndex((s: any) => s.symbol === stock.symbol) + 1
+        stock.peerRanks[profileId] = { rank, total: sectorPeers.length, category: sector }
+      }
     }
   }
+
   // Default ranking = Priya
   for (const stock of allStocks) {
     stock.peerRank = stock.peerRanks?.['priya']?.rank ?? 1
     stock.peerTotal = stock.peerRanks?.['priya']?.total ?? 1
     stock.peerCategory = stock.peerRanks?.['priya']?.category ?? stock.sector
   }
-  console.log(`   ✓ Ranked across ${bySector.size} sectors × ${ACTIVE_PROFILE_IDS.length} profiles`)
+  console.log(`   ✓ Ranked across ${byIndustry.size} industries × ${ACTIVE_PROFILE_IDS.length} profiles`)
 
   // Step 6: Write output
   const output = {

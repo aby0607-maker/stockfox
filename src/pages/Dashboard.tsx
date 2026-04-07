@@ -71,24 +71,33 @@ export function Dashboard() {
       const cached = await getCachedStocks(storeWatchlist)
 
       if (cached.length > 0 && !cancelled) {
-        // Cache hit — render instantly, then optionally refresh in background
-        const watchlistFromCache = cached.map(c => ({
-          id: c.symbol,
-          symbol: c.symbol,
-          name: c.name,
-          sector: c.sector,
-          subSector: c.industry || '',
-          currentPrice: c.price || 0,
-          changePercent: c.changePercent || 0,
-          score: c.score,
-          verdict: c.verdict,
-          sectorRank: c.peerRank,
-          sectorTotal: c.peerTotal,
-          sectorAvgScore: 0,
-          verdictPeerGroup: c.peerCategory || c.sector,
-          quickInsight: `Score based on ${c.sector} fundamentals`,
-          topSignal: `ROE ${(c.roe ?? 0).toFixed(1)}%, P/E ${(c.pe ?? 0).toFixed(1)}x`,
-        } as WatchlistItem))
+        // Cache hit — use profile-specific score if available
+        const profileId = currentProfile.id
+        const watchlistFromCache = cached.map(c => {
+          // Try profile-specific score from full 3-pillar scoring
+          const profileScore = (c as any).scores?.[profileId]
+          const profileRank = (c as any).peerRanks?.[profileId]
+          const score = profileScore?.score ?? c.score
+          const verdict = profileScore?.label ?? c.verdict
+
+          return {
+            id: c.symbol,
+            symbol: c.symbol,
+            name: c.name,
+            sector: c.sector,
+            subSector: c.industry || '',
+            currentPrice: c.price || 0,
+            changePercent: c.changePercent || 0,
+            score,
+            verdict,
+            sectorRank: profileRank?.rank ?? c.peerRank,
+            sectorTotal: profileRank?.total ?? c.peerTotal,
+            sectorAvgScore: 0,
+            verdictPeerGroup: profileRank?.category ?? c.peerCategory || c.sector,
+            quickInsight: `Score based on ${c.sector} fundamentals`,
+            topSignal: `ROE ${(c.roe ?? 0).toFixed(1)}%, P/E ${(c.pe ?? 0).toFixed(1)}x`,
+          } as WatchlistItem
+        })
         setWatchlist(watchlistFromCache)
         setIsLoading(false)
       }
