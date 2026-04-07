@@ -102,6 +102,7 @@ export function StockAnalysis() {
   }
 
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false) // Background refresh in progress
   const [loadingSteps, setLoadingSteps] = useState<LoadingStep[]>(createLoadingSteps())
   const [stock, setStock] = useState<Stock | null>(null)
   const [verdictV2, setVerdictV2] = useState<StockVerdictV2 | null>(null)
@@ -176,13 +177,62 @@ export function StockAnalysis() {
         } as unknown as Stock
         setStock(cachedStockObj)
 
-        // Build a minimal V2 verdict from cached segment scores
+        // Build full V2 verdict from cached segment scores
+        const { getScoreBandEnum } = await import('@/lib/scoring')
+        const segs = cached.segments || {}
+
+        // Reconstruct pillar objects from cached segment scores
+        const makeSegment = (id: string, name: string, pillar: 'quant' | 'qual' | 'risk', score: number | undefined) => ({
+          id, name, pillar, scoringType: 'scored' as const,
+          score: score ?? undefined, scoreBand: score != null ? getScoreBandEnum(score) : undefined,
+          label: score != null ? getScoreBandEnum(score) : undefined,
+          status: (score ?? 50) >= 60 ? 'positive' as const : (score ?? 50) < 45 ? 'negative' as const : 'neutral' as const,
+          interpretation: '', signalGroups: [], redFlags: [],
+          confidenceIndicator: { state: 'partial' as const, computed: 0, total: 0, detail: 'From pre-computed cache' },
+        })
+
+        const quantSegs = [
+          makeSegment('financial_health', 'Financial Health', 'quant', segs.financial_health),
+          makeSegment('profitability', 'Profitability', 'quant', segs.profitability),
+          makeSegment('growth', 'Growth', 'quant', segs.growth),
+          makeSegment('valuation', 'Valuation', 'quant', segs.valuation),
+          makeSegment('technical', 'Technical', 'quant', segs.technical),
+          makeSegment('performance', 'Performance', 'quant', segs.performance),
+          makeSegment('institutional_signals', 'Institutional Signals', 'quant', segs.institutional_signals),
+        ]
+        const qualSegs = [
+          makeSegment('management_governance', 'Management & Governance', 'qual', segs.management_governance),
+          makeSegment('business_quality', 'Business Quality', 'qual', segs.business_quality),
+          makeSegment('capital_discipline', 'Capital Discipline', 'qual', segs.capital_discipline),
+          makeSegment('earnings_quality', 'Earnings Quality', 'qual', segs.earnings_quality),
+          makeSegment('execution_quality', 'Execution Quality', 'qual', segs.execution_quality),
+        ]
+        const riskSeg = makeSegment('risk', 'Risk Score', 'risk', segs.risk ?? cached.riskScore)
+
+        const makePillar = (pillar: 'quant' | 'qual' | 'risk', name: string, segments: any[]) => {
+          const scored = segments.filter((s: any) => s.score != null)
+          const avg = scored.length > 0 ? Math.round(scored.reduce((sum: number, s: any) => sum + s.score, 0) / scored.length) : 50
+          return {
+            pillar, name, score: avg,
+            scoreBand: getScoreBandEnum(avg),
+            label: getOverallVerdict(avg).label,
+            summary: `Based on ${scored.length} pre-computed segment scores`,
+            segments,
+          }
+        }
+
+        const pillars = [
+          makePillar('quant', 'Quant Score', quantSegs),
+          makePillar('qual', 'Qual Score', qualSegs),
+          makePillar('risk', 'Risk Score', [riskSeg]),
+        ]
+
         const cachedVerdict = {
           overallVerdict: overall.verdict,
           overallScore: profileScore?.score ?? cached.score,
           overallLabel: profileScore?.label ?? overall.label,
-          overallSummary: `Score ${profileScore?.score ?? cached.score}/100 based on pre-computed analysis. Refreshing in background...`,
-          pillars: [],
+          overallSummary: `Pre-computed score. Live analysis refreshing in background...`,
+          pillars,
           newsEvents: [],
           ticker: cached.symbol,
           stockName: cached.name,
@@ -203,20 +253,15 @@ export function StockAnalysis() {
         setIsLoading(false)
 
         // ═══ BACKGROUND REFRESH: Run live scoring silently ═══
+        setIsRefreshing(true)
         const resolved = await resolveStock(symbol)
         if (resolved && !cancelled) {
           setStock(resolved) // Update with live price
           try {
             const liveVerdict = await buildVerdictForStock(resolved, profileId)
             if (!cancelled && liveVerdict) {
-              // Only update if score changed meaningfully (>5 point difference)
-              const scoreDiff = Math.abs((liveVerdict.overallScore || 0) - (cachedVerdict.overallScore || 0))
-              if (scoreDiff > 5 || cachedVerdict.pillars.length === 0) {
-                setVerdictV2(liveVerdict)
-              } else {
-                // Small diff — silently update with full pillar data but keep similar score
-                setVerdictV2(liveVerdict)
-              }
+              // Always update with live data (has full signal groups, interpretations, etc.)
+              setVerdictV2(liveVerdict)
             }
           } catch { /* Background refresh failed — cached data stays */ }
 
@@ -229,6 +274,7 @@ export function StockAnalysis() {
             if (!cancelled) { setNews(newsItems); setUpcomingEvents(events) }
           } catch { /* News failed */ }
         }
+        if (!cancelled) setIsRefreshing(false)
 
       } else {
         // ═══ LIVE PATH: Full scoring with AnalysisLoader ═══
@@ -771,6 +817,15 @@ export function StockAnalysis() {
           />
         </div>
       )}
+      {/* Loading indicator for Strengths/Weaknesses during background refresh */}
+      {!selectedPillar && verdictV2 && verdictV2.topSignals.length === 0 && isRefreshing && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-white/5 bg-dark-800 p-4">
+          <div className="flex items-center gap-2 text-sm text-neutral-400">
+            <div className="w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+            <span>Analyzing strengths & weaknesses...</span>
+          </div>
+        </motion.div>
+      )}
 
       {/* Red Flag Scanner moved into Risk pillar drill-down */}
 
@@ -779,6 +834,15 @@ export function StockAnalysis() {
         <div data-spotlight="news-section">
           <NewsEventSection events={verdictV2.newsEvents} />
         </div>
+      )}
+      {/* Loading indicator for News during background refresh */}
+      {verdictV2 && verdictV2.newsEvents.length === 0 && !selectedPillar && isRefreshing && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-white/5 bg-dark-800 p-4">
+          <div className="flex items-center gap-2 text-sm text-neutral-400">
+            <div className="w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+            <span>Fetching news & events...</span>
+          </div>
+        </motion.div>
       )}
 
       {/* ============== UPCOMING EVENTS (if any) ============== */}
