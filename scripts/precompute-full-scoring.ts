@@ -106,6 +106,15 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     return originalFetch(targetUrl, init)
   }
 
+  // Catch any remaining relative URLs (would fail in Node.js)
+  if (url.startsWith('/api/') || url.startsWith('/')) {
+    console.warn(`[INTERCEPT] Unhandled relative URL: ${url}`)
+    // Return a mock 404 response instead of crashing
+    return new Response(JSON.stringify({ success: false, data: [], message: 'Not intercepted' }), {
+      status: 404, headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   // Pass through everything else (external URLs)
   return originalFetch(input, init)
 }
@@ -114,8 +123,12 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 
 import { getCompanyMaster, getCompanyBySymbol, getTTMData } from '@/services/cmots'
 import { resolveMetricValues } from '@/services/metricResolver'
+// Import the internal builders directly to avoid double-resolving metrics
 import { computeQuantSegments } from '@/services/quantScoringService'
 import { computeQualFactors } from '@/services/qualScoringService'
+
+// We need buildSegmentsFromMetrics which is not exported — we'll use computeQuantSegments
+// but pass the symbol so it uses cached metrics from the first resolveMetricValues call
 import { computeRiskFromScanner, buildScannerValuesFromMetrics, buildScannerValuesFromSegments } from '@/services/redFlagScannerService'
 import { buildNewsEvents } from '@/services/newsBuilder'
 import { getSurveillanceStatus, surveillanceToScannerValues } from '@/services/nse'
@@ -205,7 +218,7 @@ async function main() {
   const stocksToProcess = tiersToRefresh.flatMap(tier => tiers[tier] || [])
   console.log(`\n🔬 Full scoring for ${stocksToProcess.length} stocks...\n`)
 
-  const CONCURRENCY = 3  // Lower concurrency for full scoring (many API calls per stock)
+  const CONCURRENCY = 1  // Sequential — each stock makes ~8 concurrent API calls internally
   let successCount = 0, failCount = 0
   const results = new Map(existingStocks)
 
@@ -216,11 +229,27 @@ async function main() {
       const resolved = await resolveMetricValues(symbol)
       if (!resolved) return null
 
-      // Compute Quant segments (7 segments, 57 signals)
-      const quantSegments = await computeQuantSegments(symbol)
+      // Compute Quant segments using already-resolved metrics (avoid double API calls)
+      let quantSegments: SegmentVerdictV2[]
+      try {
+        quantSegments = await computeQuantSegments(symbol)
+        if (!quantSegments || !Array.isArray(quantSegments)) {
+          console.warn(`  ⚠ ${symbol}: quantSegments not iterable, using empty`)
+          quantSegments = []
+        }
+      } catch (qErr: any) {
+        console.warn(`  ⚠ ${symbol}: quant failed: ${qErr?.message}`)
+        quantSegments = []
+      }
 
       // Compute Qual factors (5 factors, 57 signals)
-      const qualFactors = await computeQualFactors(symbol)
+      let qualFactors: SegmentVerdictV2[]
+      try {
+        qualFactors = await computeQualFactors(symbol)
+        if (!qualFactors || !Array.isArray(qualFactors)) qualFactors = []
+      } catch {
+        qualFactors = []
+      }
 
       // Compute Risk (red flag scanner)
       const surveillance = await getSurveillanceStatus(symbol).catch(() => null)
@@ -232,7 +261,7 @@ async function main() {
       if (surveillance) Object.assign(scannerValues, surveillanceToScannerValues(surveillance))
       Object.assign(scannerValues, bseScannerToValues(bseSignals))
 
-      const riskResult = computeRiskFromScanner(scannerValues, quantSegments, qualFactors)
+      const riskResult = computeRiskFromScanner(quantSegments, qualFactors, null, scannerValues)
 
       // Compute 4 profile-specific scores
       const profileScores: Record<string, { score: number; verdict: string; label: string }> = {}
@@ -342,7 +371,9 @@ async function main() {
         scoringVersion: 'full-3pillar',
         lastUpdated: new Date().toISOString(),
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error(`  ❌ ${symbol} FAILED:`, err?.message || err)
+      if (err?.stack) console.error('    Stack:', err.stack.split('\n').slice(0, 5).join('\n    '))
       return null
     }
   }
@@ -369,7 +400,7 @@ async function main() {
       console.log(`  [${pct}%] Batch ${batchNum}/${totalBatches} — ${successCount} ✓ ${failCount} ✗`)
     }
 
-    await new Promise(r => setTimeout(r, 200))
+    await new Promise(r => setTimeout(r, 1000))  // 1s pause between stocks
   }
 
   // Step 4: Add prices from BSE delayed feed
