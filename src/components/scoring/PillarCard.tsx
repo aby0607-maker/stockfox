@@ -13,6 +13,7 @@ interface PillarCardProps {
   delay?: number
   learningMode?: boolean
   pillarRevealed?: boolean  // true after all segments in this pillar have been rated
+  isCached?: boolean  // true when showing pre-computed data (drill-down not available yet)
 }
 
 const PILLAR_ICONS = {
@@ -33,7 +34,7 @@ const PILLAR_DESCRIPTIONS = {
   risk: 'Aggregated risk flags across all pillars',
 } as const
 
-export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRevealed }: PillarCardProps) {
+export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRevealed, isCached }: PillarCardProps) {
   const band = getScoreBandV2(pillar.score)
   const Icon = PILLAR_ICONS[pillar.pillar] || BarChart3
   const label = PILLAR_LABELS[pillar.pillar] || pillar.name
@@ -52,12 +53,12 @@ export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRev
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      onClick={onClick}
+      onClick={isCached ? undefined : onClick}
       className={cn(
         'w-full rounded-2xl border p-4 transition-all text-left group',
-        'bg-dark-800 hover:bg-dark-700/50',
+        'bg-dark-800',
+        isCached ? 'cursor-default' : 'hover:bg-dark-700/50 hover:shadow-lg',
         band.borderClass,
-        'hover:shadow-lg'
       )}
     >
       {/* Header */}
@@ -80,7 +81,14 @@ export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRev
             </div>
           </div>
         </div>
-        <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+        {isCached ? (
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-[9px] text-primary-400 font-medium">LOADING</span>
+          </div>
+        ) : (
+          <ChevronRight className="w-4 h-4 text-neutral-500 group-hover:text-white transition-colors" />
+        )}
       </div>
 
       {/* Score + Band */}

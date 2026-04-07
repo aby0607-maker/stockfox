@@ -684,6 +684,7 @@ export function StockAnalysis() {
                     onClick={() => setSelectedPillar(pillar.pillar)}
                     learningMode={learningMode}
                     pillarRevealed={allRated}
+                    isCached={isRefreshing && pillar.segments.every(s => !s.signalGroups?.length)}
                   />
                 )
               })}
