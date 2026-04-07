@@ -775,14 +775,16 @@ export function StockAnalysis() {
                           },
                         }))
                       }}
+                      isRefreshing={isRefreshing}
                       onSegmentClick={(segmentId) => {
                         if (learningMode) return
                         const seg = pillar.segments.find(s => s.id === segmentId)
                         if (seg?.signalGroups && seg.signalGroups.length > 0) {
                           setSelectedFactorId(segmentId)
-                        } else {
+                        } else if (!isRefreshing) {
                           window.location.href = `/segment/${ticker}/${segmentId}`
                         }
+                        // If refreshing and no signals yet, do nothing — loading indicator shows on the pillar
                       }}
                     />
 

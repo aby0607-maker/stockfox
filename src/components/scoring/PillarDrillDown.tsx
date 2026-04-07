@@ -36,7 +36,8 @@ export function PillarDrillDown({
   pillar, onBack, onSegmentClick,
   learningMode, revealedSegments,
   learningRatings, onLearningRate, resolvedMetrics,
-}: PillarDrillDownProps) {
+  isRefreshing,
+}: PillarDrillDownProps & { isRefreshing?: boolean }) {
   const band = getScoreBandV2(pillar.score)
   const scoredSegs = pillar.segments.filter(s => s.scoringType === 'scored' && s.score !== undefined)
   const allRevealed = learningMode && scoredSegs.length > 0 && scoredSegs.every(s => revealedSegments?.has(s.id))
@@ -236,6 +237,16 @@ export function PillarDrillDown({
                     )
                   })()}
                 </button>
+
+                {/* Loading signals indicator — shown during background refresh */}
+                {isRefreshing && !segment.signalGroups?.length && !isHidden && (
+                  <div className="px-3 pb-2">
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-primary-500/5 border border-primary-500/10">
+                      <div className="w-3 h-3 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-[11px] text-primary-400">Loading signal analysis...</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Suppression reason — hidden in learning mode */}
                 {!isHidden && segment.isSuppressed && segment.suppressionReason && (

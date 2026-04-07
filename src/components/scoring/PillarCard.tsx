@@ -53,11 +53,10 @@ export function PillarCard({ pillar, onClick, delay = 0, learningMode, pillarRev
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      onClick={isCached ? undefined : onClick}
+      onClick={onClick}
       className={cn(
         'w-full rounded-2xl border p-4 transition-all text-left group',
-        'bg-dark-800',
-        isCached ? 'cursor-default' : 'hover:bg-dark-700/50 hover:shadow-lg',
+        'bg-dark-800 hover:bg-dark-700/50 hover:shadow-lg',
         band.borderClass,
       )}
     >
