@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install scoring pipeline deps
+        run: npm install vite-node
+
       - name: Create output directory
         run: mkdir -p public/data
 
