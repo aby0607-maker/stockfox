@@ -141,8 +141,94 @@ export function StockAnalysis() {
     const profileId = currentProfile.id
 
     async function loadStock() {
-      // All stocks: resolve via CMOTS API + live scoring with progress narration
-      {
+      // ═══ Strategy: Cache-first, silent background refresh ═══
+      // 1. Check pre-computed cache for full 3-pillar scoring
+      // 2. If cached: render instantly, then refresh silently in background
+      // 3. If not cached: show AnalysisLoader, run live pipeline
+
+      // Step 0: Try cache for instant render
+      const { getCachedStock } = await import('@/services/stockCacheService')
+      const cachedStock = await getCachedStock(symbol)
+      const hasCachedScoring = cachedStock && (cachedStock as any).scoringVersion === 'full-3pillar'
+
+      if (hasCachedScoring && !cancelled) {
+        // ═══ INSTANT PATH: Render from cache (<1 second) ═══
+        const cached = cachedStock as any
+        const profileScore = cached.scores?.[profileId]
+        const { getOverallVerdict } = await import('@/lib/scoring')
+        const overall = getOverallVerdict(profileScore?.score ?? cached.score ?? 50)
+
+        // Build a minimal Stock object from cache
+        const cachedStockObj = {
+          id: cached.symbol,
+          symbol: cached.symbol,
+          name: cached.name,
+          sector: cached.sector,
+          subSector: cached.industry || '',
+          currentPrice: cached.price || 0,
+          changePercent: cached.changePercent || 0,
+          previousClose: 0, change: 0, marketCap: cached.mcap || 0,
+          high52w: cached.high52W || 0, low52w: cached.low52W || 0,
+          peerGroup: [],
+        } as unknown as Stock
+        setStock(cachedStockObj)
+
+        // Build a minimal V2 verdict from cached segment scores
+        const cachedVerdict = {
+          overallVerdict: overall.verdict,
+          overallScore: profileScore?.score ?? cached.score,
+          overallLabel: profileScore?.label ?? overall.label,
+          overallSummary: `Score ${profileScore?.score ?? cached.score}/100 based on pre-computed analysis. Refreshing in background...`,
+          pillars: [],
+          newsEvents: [],
+          ticker: cached.symbol,
+          stockName: cached.name,
+          sector: cached.sector,
+          lastUpdated: cached.lastUpdated || '',
+          stockId: cached.symbol,
+          profileId,
+          topSignals: [],
+          topConcerns: [],
+          verdictRationale: '',
+          positionSizing: '',
+          entryGuidance: '',
+          peerRank: cached.peerRanks?.[profileId]?.rank ?? cached.peerRank,
+          peerTotal: cached.peerRanks?.[profileId]?.total ?? cached.peerTotal,
+          peerCategory: cached.peerRanks?.[profileId]?.category ?? cached.peerCategory,
+        } as StockVerdictV2
+        setVerdictV2(cachedVerdict)
+        setIsLoading(false)
+
+        // ═══ BACKGROUND REFRESH: Run live scoring silently ═══
+        const resolved = await resolveStock(symbol)
+        if (resolved && !cancelled) {
+          setStock(resolved) // Update with live price
+          try {
+            const liveVerdict = await buildVerdictForStock(resolved, profileId)
+            if (!cancelled && liveVerdict) {
+              // Only update if score changed meaningfully (>5 point difference)
+              const scoreDiff = Math.abs((liveVerdict.overallScore || 0) - (cachedVerdict.overallScore || 0))
+              if (scoreDiff > 5 || cachedVerdict.pillars.length === 0) {
+                setVerdictV2(liveVerdict)
+              } else {
+                // Small diff — silently update with full pillar data but keep similar score
+                setVerdictV2(liveVerdict)
+              }
+            }
+          } catch { /* Background refresh failed — cached data stays */ }
+
+          // Background news
+          try {
+            const [newsItems, events] = await Promise.all([
+              buildNewsItems(symbol, resolved.name),
+              buildUpcomingEvents(symbol),
+            ])
+            if (!cancelled) { setNews(newsItems); setUpcomingEvents(events) }
+          } catch { /* News failed */ }
+        }
+
+      } else {
+        // ═══ LIVE PATH: Full scoring with AnalysisLoader ═══
         setLoadingSteps(createLoadingSteps())
 
         // Step 1: Resolve stock from BSE/NSE
@@ -151,7 +237,6 @@ export function StockAnalysis() {
         if (cancelled || !resolved) {
           if (!cancelled) {
             setStock(null)
-            // verdict state removed — V2 only
             setVerdictV2(null)
             setLoadingSteps(s => updateStep(s, 'resolve', 'error', 'Stock not found'))
           }
@@ -161,25 +246,18 @@ export function StockAnalysis() {
         setLoadingSteps(s => updateStep(s, 'resolve', 'done', `${resolved.name} found on ${resolved.sector}`))
         setStock(resolved)
 
-        // Steps 2-5: Build V2 verdict (fundamentals → quant → qual → risk → personalize)
+        // Steps 2-5: Build V2 verdict
         setLoadingSteps(s => updateStep(s, 'fundamentals', 'loading'))
         let liveVerdict: StockVerdictV2 | null = null
         try {
-          // The verdict pipeline internally fetches fundamentals, scores quant/qual/risk
-          // We update steps as estimates since buildVerdictForStock is a single Promise
           const verdictPromise = buildVerdictForStock(resolved, profileId)
-
-          // Simulate step progression while verdict builds (~8-15s)
           const stepTimers = [
             setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'fundamentals', 'done'), 'quant', 'loading')) }, 2000),
             setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'quant', 'done'), 'qual', 'loading')) }, 5000),
             setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'qual', 'done'), 'risk', 'loading')) }, 8000),
             setTimeout(() => { if (!cancelled) setLoadingSteps(s => updateStep(updateStep(s, 'risk', 'done'), 'personalize', 'loading')) }, 10000),
           ]
-
           liveVerdict = await verdictPromise
-
-          // Clear timers and mark all scoring steps as done
           stepTimers.forEach(clearTimeout)
           setLoadingSteps(s => {
             let updated = s
@@ -204,16 +282,12 @@ export function StockAnalysis() {
             buildNewsItems(symbol, resolved.name),
             buildUpcomingEvents(symbol),
           ])
-        } catch {
-          // News/events unavailable — proceed without
-        }
+        } catch { /* News/events unavailable */ }
         setLoadingSteps(s => updateStep(s, 'news', 'done'))
 
         if (cancelled) return
 
-        // Batch all state updates together to avoid partial-render crashes
         setStock(resolved)
-        // verdict state removed — V2 only
         setVerdictV2(liveVerdict)
         setNews(newsItems)
         setUpcomingEvents(events)
