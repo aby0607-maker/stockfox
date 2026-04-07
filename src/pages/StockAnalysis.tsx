@@ -102,7 +102,7 @@ export function StockAnalysis() {
   }
 
   const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false) // Background refresh in progress
+  const [isManualRefresh, setIsManualRefresh] = useState(false)
   const [loadingSteps, setLoadingSteps] = useState<LoadingStep[]>(createLoadingSteps())
   const [stock, setStock] = useState<Stock | null>(null)
   const [verdictV2, setVerdictV2] = useState<StockVerdictV2 | null>(null)
@@ -227,11 +227,24 @@ export function StockAnalysis() {
           makePillar('risk', 'Risk Score', [riskSeg]),
         ]
 
+        // Derive strengths/weaknesses from cached segment scores
+        const allSegs = [...quantSegs, ...qualSegs, riskSeg].filter((s: any) => s.score != null)
+        const strengths = allSegs
+          .filter((s: any) => s.score >= 65)
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, 4)
+          .map((s: any) => ({ title: s.name, description: `Score ${Math.round(s.score)}/100 — strong performance`, isPositive: true }))
+        const concerns = allSegs
+          .filter((s: any) => s.score < 45)
+          .sort((a: any, b: any) => a.score - b.score)
+          .slice(0, 4)
+          .map((s: any) => ({ title: `${s.name} — Weak`, description: `Score ${Math.round(s.score)}/100 — needs improvement`, isPositive: false }))
+
         const cachedVerdict = {
           overallVerdict: overall.verdict,
           overallScore: profileScore?.score ?? cached.score,
           overallLabel: profileScore?.label ?? overall.label,
-          overallSummary: `Pre-computed score. Live analysis refreshing in background...`,
+          overallSummary: `Score ${profileScore?.score ?? cached.score}/100 — pre-computed analysis from ${cached.lastUpdated?.split('T')[0] || 'cache'}.`,
           pillars,
           newsEvents: [],
           ticker: cached.symbol,
@@ -240,8 +253,8 @@ export function StockAnalysis() {
           lastUpdated: cached.lastUpdated || '',
           stockId: cached.symbol,
           profileId,
-          topSignals: [],
-          topConcerns: [],
+          topSignals: strengths,
+          topConcerns: concerns,
           verdictRationale: '',
           positionSizing: '',
           entryGuidance: '',
@@ -252,29 +265,18 @@ export function StockAnalysis() {
         setVerdictV2(cachedVerdict)
         setIsLoading(false)
 
-        // ═══ BACKGROUND REFRESH: Run live scoring silently ═══
-        setIsRefreshing(true)
-        const resolved = await resolveStock(symbol)
-        if (resolved && !cancelled) {
-          setStock(resolved) // Update with live price
-          try {
-            const liveVerdict = await buildVerdictForStock(resolved, profileId)
-            if (!cancelled && liveVerdict) {
-              // Always update with live data (has full signal groups, interpretations, etc.)
-              setVerdictV2(liveVerdict)
-            }
-          } catch { /* Background refresh failed — cached data stays */ }
-
-          // Background news
-          try {
+        // Fetch news only (lightweight, no scoring) — news changes daily
+        try {
+          const resolved = await resolveStock(symbol)
+          if (resolved && !cancelled) {
+            setStock(resolved) // Update with live price
             const [newsItems, events] = await Promise.all([
               buildNewsItems(symbol, resolved.name),
               buildUpcomingEvents(symbol),
             ])
             if (!cancelled) { setNews(newsItems); setUpcomingEvents(events) }
-          } catch { /* News failed */ }
-        }
-        if (!cancelled) setIsRefreshing(false)
+          }
+        } catch { /* News fetch failed — not critical */ }
 
       } else {
         // ═══ LIVE PATH: Full scoring with AnalysisLoader ═══
@@ -553,6 +555,40 @@ export function StockAnalysis() {
         )}
       </motion.div>
 
+      {/* Refresh Analysis Button — runs full live scoring pipeline on demand */}
+      {verdictV2 && !isManualRefresh && verdictV2.topSignals.length <= 4 && (
+        <button
+          onClick={async () => {
+            if (!stock || !currentProfile || isManualRefresh) return
+            setIsManualRefresh(true)
+            try {
+              const liveVerdict = await buildVerdictForStock(stock, currentProfile.id)
+              if (liveVerdict) {
+                setVerdictV2(liveVerdict)
+                // Also fetch news
+                const [newsItems, events] = await Promise.all([
+                  buildNewsItems(stock.symbol, stock.name),
+                  buildUpcomingEvents(stock.symbol),
+                ])
+                setNews(newsItems)
+                setUpcomingEvents(events)
+              }
+            } catch { /* refresh failed */ }
+            setIsManualRefresh(false)
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary-500/10 border border-primary-500/20 hover:bg-primary-500/20 transition-colors"
+        >
+          <span className="text-xs font-medium text-primary-400">↻ Run Live Analysis</span>
+          <span className="text-[10px] text-neutral-500">Full 200+ metric scoring</span>
+        </button>
+      )}
+      {isManualRefresh && (
+        <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary-500/5 border border-primary-500/10">
+          <div className="w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-primary-400">Running live analysis...</span>
+        </div>
+      )}
+
       {/* Methodology Modal */}
       <ScoringMethodologyModal
         isOpen={showMethodology}
@@ -684,7 +720,7 @@ export function StockAnalysis() {
                     onClick={() => setSelectedPillar(pillar.pillar)}
                     learningMode={learningMode}
                     pillarRevealed={allRated}
-                    isCached={isRefreshing && pillar.segments.every(s => !s.signalGroups?.length)}
+                    isCached={false}
                   />
                 )
               })}
@@ -775,13 +811,13 @@ export function StockAnalysis() {
                           },
                         }))
                       }}
-                      isRefreshing={isRefreshing}
+                      isRefreshing={false}
                       onSegmentClick={(segmentId) => {
                         if (learningMode) return
                         const seg = pillar.segments.find(s => s.id === segmentId)
                         if (seg?.signalGroups && seg.signalGroups.length > 0) {
                           setSelectedFactorId(segmentId)
-                        } else if (!isRefreshing) {
+                        } else {
                           window.location.href = `/segment/${ticker}/${segmentId}`
                         }
                         // If refreshing and no signals yet, do nothing — loading indicator shows on the pillar
@@ -820,15 +856,7 @@ export function StockAnalysis() {
           />
         </div>
       )}
-      {/* Loading indicator for Strengths/Weaknesses during background refresh */}
-      {!selectedPillar && verdictV2 && verdictV2.topSignals.length === 0 && isRefreshing && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-white/5 bg-dark-800 p-4">
-          <div className="flex items-center gap-2 text-sm text-neutral-400">
-            <div className="w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
-            <span>Analyzing strengths & weaknesses...</span>
-          </div>
-        </motion.div>
-      )}
+      {/* Strengths/Weaknesses — available after manual refresh or for live-scored stocks */}
 
       {/* Red Flag Scanner moved into Risk pillar drill-down */}
 
@@ -838,15 +866,7 @@ export function StockAnalysis() {
           <NewsEventSection events={verdictV2.newsEvents} />
         </div>
       )}
-      {/* Loading indicator for News during background refresh */}
-      {verdictV2 && verdictV2.newsEvents.length === 0 && !selectedPillar && isRefreshing && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-white/5 bg-dark-800 p-4">
-          <div className="flex items-center gap-2 text-sm text-neutral-400">
-            <div className="w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
-            <span>Fetching news & events...</span>
-          </div>
-        </motion.div>
-      )}
+      {/* News — fetched on page load (lightweight, not part of scoring) */}
 
       {/* ============== UPCOMING EVENTS (if any) ============== */}
       {upcomingEvents.length > 0 && (
