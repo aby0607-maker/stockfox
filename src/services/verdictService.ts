@@ -346,13 +346,20 @@ function buildAdvisorSummary(
   // ── S4: Risk context ──
   sentences.push(describeRisk(pillars.risk, riskFlagCount))
 
-  // ── S5: Action — verdict-aligned closing ──
+  // ── S5: Action — verdict-aligned closing, profile-adjusted ──
   const verdict = overallVerdict.toLowerCase().replace('_', ' ')
-  if (verdict.includes('strong buy') || verdict.includes('strong_buy')) {
+
+  // Profile-specific overrides: if the profile's focus area is weak, downgrade the closing
+  const focusScore = config.focusSegments[0] ? (segments[config.focusSegments[0]] ?? 50) : 50
+  const adjustedVerdict = focusScore < 40 && (verdict.includes('buy') || verdict.includes('strong buy'))
+    ? 'hold' // Profile's key focus is weak — temper enthusiasm
+    : verdict
+
+  if (adjustedVerdict.includes('strong buy') || adjustedVerdict.includes('strong_buy')) {
     sentences.push(config.strongBuyClose)
-  } else if (verdict.includes('buy')) {
+  } else if (adjustedVerdict.includes('buy')) {
     sentences.push(config.buyClose)
-  } else if (verdict.includes('hold')) {
+  } else if (adjustedVerdict.includes('hold')) {
     sentences.push(config.holdClose)
   } else {
     sentences.push(config.sellClose)
