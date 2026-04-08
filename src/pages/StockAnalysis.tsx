@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store/useAppStore'
 import { cn, formatCurrency, formatPercent } from '@/lib/utils'
 import { resolveStock } from '@/services/stockService'
-import { buildVerdictForStock } from '@/services/verdictService'
+import { buildVerdictForStock, buildCachedAdvisorSummary } from '@/services/verdictService'
 import { buildNewsItems, buildUpcomingEvents } from '@/services/newsBuilder'
 import { LearningProgress } from '@/components/learning/LearningProgress'
 import { ScoringMethodologyModal } from '@/components/scoring/ScoringMethodologyModal'
@@ -244,7 +244,14 @@ export function StockAnalysis() {
           overallVerdict: overall.verdict,
           overallScore: profileScore?.score ?? cached.score,
           overallLabel: profileScore?.label ?? overall.label,
-          overallSummary: `Score ${profileScore?.score ?? cached.score}/100 — pre-computed analysis from ${cached.lastUpdated?.split('T')[0] || 'cache'}.`,
+          overallSummary: buildCachedAdvisorSummary(profileId, cached.name, cached.sector, {
+            score: profileScore?.score ?? cached.score,
+            verdict: profileScore?.label ?? cached.verdict ?? 'Hold',
+            pe: cached.pe, roe: cached.roe, opm: cached.opm, de: cached.de,
+            promoterHolding: cached.promoterHolding,
+            riskScore: cached.riskScore ?? cached.segments?.risk,
+            segments: cached.segments,
+          }),
           pillars,
           newsEvents: [],
           ticker: cached.symbol,

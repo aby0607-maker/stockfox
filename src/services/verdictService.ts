@@ -130,7 +130,275 @@ interface VerdictContext {
   profileTopSegment: { name: string; score: number } | null
 }
 
-// Profile thesis descriptors for natural copy
+// ─── Advisor-Style Summary Copy Engine ──────────────────────
+
+/** Natural language metric descriptions — converts raw numbers into advisor phrases */
+function describePE(pe: number | null): string {
+  if (pe == null) return ''
+  if (pe < 0) return 'currently loss-making (negative P/E)'
+  if (pe < 12) return `attractively valued at PE ${pe.toFixed(0)}x`
+  if (pe < 20) return `reasonably valued at PE ${pe.toFixed(0)}x`
+  if (pe < 35) return `trading at PE ${pe.toFixed(0)}x`
+  return `trading at a steep premium of PE ${pe.toFixed(0)}x`
+}
+
+function describeROE(roe: number | null): string {
+  if (roe == null) return ''
+  if (roe >= 20) return `strong returns on equity at ${roe.toFixed(0)}% ROE`
+  if (roe >= 15) return `healthy profitability with ${roe.toFixed(0)}% ROE`
+  if (roe >= 10) return `decent profitability at ${roe.toFixed(0)}% ROE`
+  if (roe >= 5) return `modest returns at ${roe.toFixed(0)}% ROE`
+  return `weak profitability at just ${roe.toFixed(0)}% ROE`
+}
+
+function describeDebt(de: number | null): string {
+  if (de == null) return ''
+  if (de < 0.3) return 'virtually debt-free'
+  if (de < 0.7) return `conservative debt levels (D/E ${de.toFixed(1)}x)`
+  if (de < 1.2) return `moderate leverage (D/E ${de.toFixed(1)}x)`
+  if (de < 2) return `elevated debt (D/E ${de.toFixed(1)}x)`
+  return `heavily leveraged with D/E at ${de.toFixed(1)}x`
+}
+
+function describeOPM(opm: number | null): string {
+  if (opm == null) return ''
+  if (opm >= 25) return `high-margin business at ${opm.toFixed(0)}% OPM`
+  if (opm >= 15) return `healthy margins of ${opm.toFixed(0)}% OPM`
+  if (opm >= 8) return `thin margins at ${opm.toFixed(0)}% OPM`
+  return `razor-thin margins of ${opm.toFixed(0)}% OPM`
+}
+
+function describeRisk(riskScore: number | null, flagCount?: number): string {
+  if (riskScore == null) return 'Risk data unavailable.'
+  if (riskScore >= 80) return 'The risk scanner shows no red flags.'
+  if (riskScore >= 60) return `Minor risk flags detected${flagCount ? ` (${flagCount} issue${flagCount > 1 ? 's' : ''})` : ''} — nothing critical.`
+  if (riskScore >= 45) return `Multiple risk flags warrant attention${flagCount ? ` (${flagCount} issues)` : ''}.`
+  return `Significant risk concerns detected${flagCount ? ` (${flagCount} flags)` : ''} — exercise caution.`
+}
+
+function describePromoter(holding: number | null): string {
+  if (holding == null) return ''
+  if (holding >= 60) return `strong promoter conviction at ${holding.toFixed(0)}% holding`
+  if (holding >= 45) return `solid promoter skin-in-game at ${holding.toFixed(0)}%`
+  if (holding >= 25) return `moderate promoter holding of ${holding.toFixed(0)}%`
+  return `low promoter holding at just ${holding.toFixed(0)}%`
+}
+
+/** Segment score to natural phrase */
+function describeSegment(name: string, score: number | undefined): string {
+  if (score == null) return ''
+  if (score >= 75) return `${name} is a clear strength (${score}/100)`
+  if (score >= 60) return `${name} scores well at ${score}/100`
+  if (score >= 45) return `${name} is average at ${score}/100`
+  return `${name} is weak at ${score}/100`
+}
+
+// Profile-specific copy configuration
+interface ProfileCopyConfig {
+  leadsWith: 'balanced' | 'safety' | 'momentum' | 'value'
+  focusSegments: string[]  // Which segments to highlight
+  strongBuyClose: string
+  buyClose: string
+  holdClose: string
+  sellClose: string
+}
+
+const PROFILE_COPY_CONFIG: Record<string, ProfileCopyConfig> = {
+  priya: {
+    leadsWith: 'balanced',
+    focusSegments: ['profitability', 'valuation', 'financial_health'],
+    strongBuyClose: 'Strong across the board — a confident buy for most investors.',
+    buyClose: 'Worth considering for your portfolio — the fundamentals support it.',
+    holdClose: 'A reasonable hold if you own it, but not compelling for fresh entry.',
+    sellClose: 'Consider reducing exposure — the risk-reward isn\'t favorable right now.',
+  },
+  kavya: {
+    leadsWith: 'safety',
+    focusSegments: ['financial_health', 'management_governance', 'earnings_quality'],
+    strongBuyClose: 'A safe, well-run company — good for building a foundation.',
+    buyClose: 'A relatively safe pick with stable fundamentals to learn from.',
+    holdClose: 'Safe to hold, but don\'t expect rapid growth from here.',
+    sellClose: 'Risk flags make this unsuitable for a safety-first approach — consider exiting.',
+  },
+  meera: {
+    leadsWith: 'momentum',
+    focusSegments: ['technical', 'performance', 'growth'],
+    strongBuyClose: 'Strong momentum — price action supports a position. Ride the trend.',
+    buyClose: 'Early signs of momentum building. Watch for confirmation above key moving averages.',
+    holdClose: 'No clear momentum signal — stay on the sidelines until a trend emerges.',
+    sellClose: 'Momentum is fading. Technical deterioration suggests exiting or shorting.',
+  },
+  sneha: {
+    leadsWith: 'value',
+    focusSegments: ['valuation', 'earnings_quality', 'profitability'],
+    strongBuyClose: 'Rare combination of quality and value — a compelling buy with margin of safety.',
+    buyClose: 'Reasonably valued with quality earnings — worth a position for patient investors.',
+    holdClose: 'Fair value at best — no margin of safety at current prices.',
+    sellClose: 'Overvalued with deteriorating quality — a value investor would avoid or exit.',
+  },
+}
+
+/**
+ * Build a 4-5 sentence advisor-style summary.
+ *
+ * Structure:
+ *   S1: Hook — what defines this stock (strongest dimension)
+ *   S2: Evidence — key metrics with natural language
+ *   S3: Counterpoint — what's weak or concerning
+ *   S4: Profile lens — what matters to THIS investor
+ *   S5: Action — verdict-aligned closing
+ */
+function buildAdvisorSummary(
+  profileId: string,
+  stock: { name: string; sector: string },
+  snap: MetricSnapshot,
+  segments: Record<string, number | undefined>,
+  pillars: { quant: number; qual: number; risk: number },
+  overallScore: number,
+  overallVerdict: string,
+  riskFlagCount?: number,
+  promoterHolding?: number | null,
+): string {
+  const config = PROFILE_COPY_CONFIG[profileId] || PROFILE_COPY_CONFIG['priya']
+  const pe = snap.pe ? parseFloat(snap.pe) : null
+  const roe = snap.roe ? parseFloat(snap.roe) : null
+  const de = snap.debtEbitda ? parseFloat(snap.debtEbitda) : null
+  const opm = snap.opm ? parseFloat(snap.opm) : null
+
+  // Find best and worst segments
+  const segEntries = Object.entries(segments).filter(([, v]) => v != null) as [string, number][]
+  segEntries.sort((a, b) => b[1] - a[1])
+  const best = segEntries[0]
+  const worst = segEntries[segEntries.length - 1]
+
+  const SEGMENT_NAMES: Record<string, string> = {
+    financial_health: 'Financial Health', profitability: 'Profitability', growth: 'Growth',
+    valuation: 'Valuation', technical: 'Technical', performance: 'Performance',
+    institutional_signals: 'Institutional Signals', management_governance: 'Management & Governance',
+    business_quality: 'Business Quality', capital_discipline: 'Capital Discipline',
+    earnings_quality: 'Earnings Quality', execution_quality: 'Execution Quality',
+  }
+
+  const sentences: string[] = []
+
+  // ── S1: Hook — profile-specific lead ──
+  if (config.leadsWith === 'momentum') {
+    const techScore = segments['technical'] ?? 50
+    const ret1y = snap.return1y ? parseFloat(snap.return1y) : null
+    if (techScore >= 65) {
+      sentences.push(`${stock.name} shows positive momentum — technical signals score ${techScore}/100${ret1y != null ? ` with a ${ret1y > 0 ? '+' : ''}${ret1y.toFixed(0)}% one-year return` : ''}.`)
+    } else if (techScore >= 45) {
+      sentences.push(`Momentum is neutral for ${stock.name} — technical signals at ${techScore}/100 show no clear direction.`)
+    } else {
+      sentences.push(`Momentum is weak — ${stock.name}'s technical signals score just ${techScore}/100, suggesting a downtrend or consolidation.`)
+    }
+  } else if (config.leadsWith === 'value') {
+    const valScore = segments['valuation'] ?? 50
+    if (valScore >= 65) {
+      sentences.push(`${stock.name} looks attractively valued${pe != null ? ` — ${describePE(pe)}` : ''} with ${describeSegment('Valuation', valScore).toLowerCase()}.`)
+    } else if (valScore >= 45) {
+      sentences.push(`${stock.name} is ${pe != null ? describePE(pe) : 'fairly valued'}${pe && pe > 25 ? ' — not cheap by value investing standards' : ''}.`)
+    } else {
+      sentences.push(`${stock.name} is expensive${pe != null ? ` at PE ${pe.toFixed(0)}x` : ''} — Valuation scores just ${valScore}/100.`)
+    }
+  } else if (config.leadsWith === 'safety') {
+    const fhScore = segments['financial_health'] ?? 50
+    const riskScore = pillars.risk
+    if (fhScore >= 65 && riskScore >= 70) {
+      sentences.push(`${stock.name} is a financially safe business — ${describeDebt(de)}${promoterHolding != null && promoterHolding >= 45 ? ` with ${describePromoter(promoterHolding)}` : ''}.`)
+    } else if (fhScore >= 45) {
+      sentences.push(`${stock.name} has adequate financial health (${fhScore}/100)${de != null ? ` with ${describeDebt(de)}` : ''}.`)
+    } else {
+      sentences.push(`${stock.name} raises safety concerns — Financial Health at ${fhScore}/100${de != null && de > 1.5 ? ` and ${describeDebt(de)}` : ''}.`)
+    }
+  } else {
+    // Balanced — lead with overall character
+    if (overallScore >= 70) {
+      sentences.push(`${stock.name} scores well across most dimensions — ${best ? `${SEGMENT_NAMES[best[0]] || best[0]} leads at ${best[1]}/100` : 'strong fundamentals overall'}.`)
+    } else if (overallScore >= 50) {
+      sentences.push(`${stock.name} presents a mixed picture — strengths in ${best ? SEGMENT_NAMES[best[0]] || best[0] : 'some areas'} offset by weakness in ${worst ? SEGMENT_NAMES[worst[0]] || worst[0] : 'others'}.`)
+    } else {
+      sentences.push(`${stock.name} faces challenges across multiple dimensions — overall score of ${overallScore}/100 reflects broad weakness.`)
+    }
+  }
+
+  // ── S2: Evidence — key metrics with natural language ──
+  const metricParts: string[] = []
+  if (roe != null) metricParts.push(describeROE(roe))
+  if (opm != null && config.leadsWith !== 'momentum') metricParts.push(describeOPM(opm))
+  if (pe != null && config.leadsWith !== 'value') metricParts.push(describePE(pe))
+  if (de != null && config.leadsWith !== 'safety') metricParts.push(describeDebt(de))
+
+  if (metricParts.length >= 2) {
+    sentences.push(`The company has ${metricParts[0]} and ${metricParts[1]}.`)
+  } else if (metricParts.length === 1) {
+    sentences.push(`The company has ${metricParts[0]}.`)
+  }
+
+  // ── S3: Counterpoint — what's weak ──
+  if (worst && worst[1] < 50) {
+    const worstName = SEGMENT_NAMES[worst[0]] || worst[0]
+    sentences.push(`However, ${worstName} is a concern at ${worst[1]}/100${worst[0] === 'valuation' && pe != null && pe > 30 ? ` — the stock is expensive` : worst[0] === 'profitability' && roe != null && roe < 10 ? ` — returns on capital are below average` : ''}.`)
+  } else if (worst && worst[1] < 60) {
+    sentences.push(`${SEGMENT_NAMES[worst[0]] || worst[0]} at ${worst[1]}/100 has room for improvement.`)
+  }
+
+  // ── S4: Risk context ──
+  sentences.push(describeRisk(pillars.risk, riskFlagCount))
+
+  // ── S5: Action — verdict-aligned closing ──
+  const verdict = overallVerdict.toLowerCase().replace('_', ' ')
+  if (verdict.includes('strong buy') || verdict.includes('strong_buy')) {
+    sentences.push(config.strongBuyClose)
+  } else if (verdict.includes('buy')) {
+    sentences.push(config.buyClose)
+  } else if (verdict.includes('hold')) {
+    sentences.push(config.holdClose)
+  } else {
+    sentences.push(config.sellClose)
+  }
+
+  return sentences.join(' ')
+}
+
+/**
+ * Build advisor summary from cached data (no live resolvedMetrics needed).
+ * Uses the same logic but with cached segment scores + basic metrics.
+ */
+export function buildCachedAdvisorSummary(
+  profileId: string,
+  stockName: string,
+  sector: string,
+  cachedData: {
+    score: number; verdict: string; pe?: number | null; roe?: number | null;
+    opm?: number | null; de?: number | null; promoterHolding?: number | null;
+    riskScore?: number | null; segments?: Record<string, number | undefined>;
+  },
+): string {
+  const snap: MetricSnapshot = {
+    pe: cachedData.pe != null ? `${cachedData.pe.toFixed(1)}x` : undefined,
+    roe: cachedData.roe != null ? `${cachedData.roe.toFixed(1)}%` : undefined,
+    opm: cachedData.opm != null ? `${cachedData.opm.toFixed(1)}%` : undefined,
+    debtEbitda: cachedData.de != null ? `${cachedData.de.toFixed(2)}x` : undefined,
+  }
+  const segments = cachedData.segments || {}
+  const quant = ['financial_health', 'profitability', 'growth', 'valuation', 'technical'].map(k => segments[k] ?? 50)
+  const qual = ['management_governance', 'business_quality', 'capital_discipline', 'earnings_quality', 'execution_quality'].map(k => segments[k] ?? 50)
+  const quantAvg = Math.round(quant.reduce((a, b) => a + b, 0) / quant.length)
+  const qualAvg = Math.round(qual.reduce((a, b) => a + b, 0) / qual.length)
+  const riskScore = cachedData.riskScore ?? (segments['risk'] as number | undefined) ?? 70
+
+  return buildAdvisorSummary(
+    profileId,
+    { name: stockName, sector },
+    snap, segments,
+    { quant: quantAvg, qual: qualAvg, risk: riskScore },
+    cachedData.score, cachedData.verdict,
+    undefined, cachedData.promoterHolding,
+  )
+}
+
+// Profile thesis descriptors for natural copy (used in rationale, not summary)
 const THESIS_COPY: Record<string, { lens: string; seeks: string; avoids: string }> = {
   ankit: { lens: 'comprehensive analysis', seeks: 'balanced strength across all dimensions', avoids: 'blind spots in any pillar' },
   sneha: { lens: 'value investing', seeks: 'undervaluation with margin of safety', avoids: 'expensive stocks without earnings backing' },
@@ -162,30 +430,6 @@ function buildMetricSnapshot(m?: Record<string, number | null>): MetricSnapshot 
   }
 }
 
-/** Build a metric-rich phrase for the strongest quant insight */
-function buildQuantInsight(snap: MetricSnapshot, bestSegId?: string): string {
-  if (bestSegId === 'profitability' && snap.roe && snap.opm) return `ROE ${snap.roe}, OPM ${snap.opm}`
-  if (bestSegId === 'financial_health' && snap.icr && snap.debtEbitda) return `ICR ${snap.icr}, Debt/EBITDA ${snap.debtEbitda}`
-  if (bestSegId === 'growth' && snap.revCagr) return `Revenue CAGR ${snap.revCagr}`
-  if (bestSegId === 'valuation' && snap.pe && snap.pb) return `PE ${snap.pe}, PB ${snap.pb}`
-  if (bestSegId === 'technical' && snap.rsi && snap.return1y) return `RSI ${snap.rsi}, 1Y Return ${snap.return1y}`
-  // Fallback: pick the best available metrics
-  const parts: string[] = []
-  if (snap.roe) parts.push(`ROE ${snap.roe}`)
-  if (snap.pe) parts.push(`PE ${snap.pe}`)
-  if (snap.revCagr) parts.push(`Rev CAGR ${snap.revCagr}`)
-  return parts.slice(0, 2).join(', ') || ''
-}
-
-/** Build a metric-rich phrase for the key concern */
-function buildConcernInsight(snap: MetricSnapshot, worstSegId?: string): string {
-  if (worstSegId === 'valuation' && snap.pe) return `PE at ${snap.pe} — premium valuation`
-  if (worstSegId === 'profitability' && snap.roce) return `ROCE at ${snap.roce} — below cost of capital`
-  if (worstSegId === 'financial_health' && snap.debtEbitda) return `Debt/EBITDA ${snap.debtEbitda}`
-  if (worstSegId === 'growth' && snap.revCagr) return `Revenue growth at ${snap.revCagr}`
-  return ''
-}
-
 function generateVerdictExplainer(
   stock: Stock,
   profileId: string,
@@ -215,17 +459,6 @@ function generateVerdictExplainer(
   const topSegment = quant.segments.find(s => s.id === topSegKey)
   const profileTopSegment = topSegment ? { name: topSegment.name, score: topSegment.score ?? 0 } : null
 
-  // Best and worst scored segments
-  const allScoredSegs = [...quant.segments, ...qual.segments]
-    .filter(s => s.scoringType === 'scored' && s.score != null)
-    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-  const bestSeg = allScoredSegs[0]
-  const worstSeg = allScoredSegs[allScoredSegs.length - 1]
-
-  // Metric-rich insights from raw data
-  const quantInsight = buildQuantInsight(snap, bestSeg?.id)
-  const concernInsight = buildConcernInsight(snap, worstSeg?.id)
-
   const profile = profiles.find(p => p.id === profileId)
   const thesis = THESIS_COPY[profileId] || THESIS_COPY['priya']
   const riskClean = risk.score >= 75
@@ -242,31 +475,21 @@ function generateVerdictExplainer(
     profileTopSegment,
   }
 
-  // ── Build summary (1-line contextual, metric-rich) ──
-  let summary: string
-
-  if (overallScore >= 75) {
-    summary = quantInsight
-      ? `${bestSeg?.name || 'Fundamentals'} leads at ${bestSeg?.score}/100 (${quantInsight}) with ${riskSummary || 'clean risk'}.`
-      : `Strong across pillars — ${strongest.name} at ${strongest.score}/100 with a clean risk profile.`
-  } else if (overallScore >= 60) {
-    const strengthPart = quantInsight
-      ? `${bestSeg?.name || strongest.name} at ${bestSeg?.score}/100 (${quantInsight})`
-      : `${bestSeg?.name || strongest.name} at ${bestSeg?.score}/100`
-    const weakPart = worstSeg && worstSeg.score != null && worstSeg.score < 50
-      ? (concernInsight ? `, but ${worstSeg.name} needs work — ${concernInsight}` : `, but ${worstSeg.name} at ${worstSeg.score}/100 needs attention`)
-      : ''
-    summary = `${strengthPart}${weakPart}.`
-  } else if (overallScore >= 45) {
-    const concern = topConcerns[0]
-    summary = concern
-      ? `${concern.title}${concernInsight ? ` (${concernInsight})` : ''} weighs on the score. ${bestSeg?.name || strongest.name} at ${bestSeg?.score}/100${quantInsight ? ` (${quantInsight})` : ''} is the upside.`
-      : `Mixed signals — ${weakest.name} underperforms at ${weakest.score}/100 while ${strongest.name} holds at ${strongest.score}/100.`
-  } else {
-    summary = concernInsight
-      ? `${worstSeg?.name || weakest.name} at ${worstSeg?.score}/100 (${concernInsight}) — significant concerns across multiple pillars.`
-      : `Multiple pillars show weakness — ${weakest.name} ${weakest.score}/100, ${pillarScores[1].name} ${pillarScores[1].score}/100.`
+  // ── Build advisor-style summary (4-5 sentences, profile-aware) ──
+  const segScores: Record<string, number | undefined> = {}
+  for (const seg of [...quant.segments, ...qual.segments]) {
+    if (seg.score != null) segScores[seg.id] = seg.score
   }
+  segScores['risk'] = risk.score
+
+  const summary = buildAdvisorSummary(
+    profileId, stock, snap, segScores,
+    { quant: quant.score, qual: qual.score, risk: risk.score },
+    overallScore,
+    overallScore >= 80 ? 'strong_buy' : overallScore >= 65 ? 'buy' : overallScore >= 50 ? 'hold' : 'sell',
+    risk.segments[0]?.redFlags?.length,
+    resolvedMetrics?.['promoter_holding'],
+  )
 
   // ── Build rationale (2-3 lines — metric-rich, profile-aware) ──
   const metricLine = [
