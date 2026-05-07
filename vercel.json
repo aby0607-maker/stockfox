@@ -87,6 +87,10 @@
     {
       "source": "/segment/:path*",
       "destination": "/index.html"
+    },
+    {
+      "source": "/lab",
+      "destination": "/index.html"
     }
   ]
 }
