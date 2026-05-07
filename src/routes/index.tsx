@@ -19,6 +19,7 @@ const Advisors = lazy(() => import('@/pages/Advisors').then(m => ({ default: m.A
 const Backtest = lazy(() => import('@/pages/Backtest').then(m => ({ default: m.Backtest })))
 const Alerts = lazy(() => import('@/pages/Alerts').then(m => ({ default: m.Alerts })))
 const Settings = lazy(() => import('@/pages/Settings').then(m => ({ default: m.Settings })))
+const Lab = lazy(() => import('@/pages/lab').then(m => ({ default: m.Lab })))
 
 // Loading fallback component
 function PageLoader() {
@@ -160,6 +161,16 @@ export function AppRoutes() {
           element={
             <LazyPage>
               <Settings />
+            </LazyPage>
+          }
+        />
+
+        {/* Scorecard Lab - experimental variant explorations */}
+        <Route
+          path="/lab"
+          element={
+            <LazyPage>
+              <Lab />
             </LazyPage>
           }
         />
